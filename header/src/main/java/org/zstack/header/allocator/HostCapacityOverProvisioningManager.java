@@ -21,4 +21,16 @@ public interface HostCapacityOverProvisioningManager {
     long calculateMemoryByRatio(String hostUuid, long capacity);
 
     long calculateHostAvailableMemoryByRatio(String hostUuid, long capacity);
+
+    void setCpuGlobalRatio(long ratio);
+
+    long getCpuGlobalRatio();
+
+    void setCpuRatio(String hostUuid, long ratio);
+
+    void deleteCpuRatio(String hostUuid);
+
+    long getCpuRatio(String hostUuid);
+
+    long calculateHostCpuByRatio(String hostUuid, long capacity);
 }

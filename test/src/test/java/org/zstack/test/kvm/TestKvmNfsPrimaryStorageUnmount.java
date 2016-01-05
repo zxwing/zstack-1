@@ -79,7 +79,6 @@ public class TestKvmNfsPrimaryStorageUnmount {
         config.cpuSpeed = 2600;
         config.totalMemory = SizeUnit.GIGABYTE.toByte(8);
         config.usedMemory = SizeUnit.MEGABYTE.toByte(512);
-        config.usedCpu = 512;
         ClusterInventory cinv = api.listClusters(null).get(0);
         APIAddKVMHostMsg msg = new APIAddKVMHostMsg();
         msg.setName("KVM-1");

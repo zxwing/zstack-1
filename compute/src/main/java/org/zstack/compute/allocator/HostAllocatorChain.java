@@ -139,9 +139,9 @@ public class HostAllocatorChain implements HostAllocatorTrigger, HostAllocatorSt
         try {
             for (HostVO h : result) {
                 try {
-                    reserveCapacity(h.getUuid(), allocationSpec.getCpuCapacity(), allocationSpec.getMemoryCapacity());
-                    logger.debug(String.format("[Host Allocation]: successfully reserved cpu[%s HZ], memory[%s bytes] on host[uuid:%s] for vm[uuid:%s]",
-                            allocationSpec.getCpuCapacity(), allocationSpec.getMemoryCapacity(), h.getUuid(), allocationSpec.getVmInstance().getUuid()));
+                    reserveCapacity(h.getUuid(), allocationSpec.getCpuNum(), allocationSpec.getMemoryCapacity());
+                    logger.debug(String.format("[Host Allocation]: successfully reserved cpu[%s cores], memory[%s bytes] on host[uuid:%s] for vm[uuid:%s]",
+                            allocationSpec.getCpuNum(), allocationSpec.getMemoryCapacity(), h.getUuid(), allocationSpec.getVmInstance().getUuid()));
                     completion.success(HostInventory.valueOf(h));
                     return;
                 } catch (UnableToReserveHostCapacityException e) {
@@ -152,7 +152,7 @@ public class HostAllocatorChain implements HostAllocatorTrigger, HostAllocatorSt
 
             if (paginationInfo != null) {
                 logger.debug("[Host Allocation]: unable to reserve cpu/memory on all candidate hosts; because of pagination is enabled, allocation will start over");
-                seriesErrorWhenPagination.add(String.format("{unable to reserve cpu[%s HZ], memory[%s bytes] on all candidate hosts}", allocationSpec.getCpuCapacity(), allocationSpec.getMemoryCapacity()));
+                seriesErrorWhenPagination.add(String.format("{unable to reserve cpu[%s cores], memory[%s bytes] on all candidate hosts}", allocationSpec.getCpuNum(), allocationSpec.getMemoryCapacity()));
                 startOver();
             } else {
                 completion.fail(errf.instantiateErrorCode(HostAllocatorError.NO_AVAILABLE_HOST, "reservation on cpu/memory failed on all candidates host"));

@@ -17,7 +17,8 @@ import java.util.Map;
  */
 public class HostAllocatorSpec {
     private List<String> avoidHostUuids;
-    private long cpuCapacity;
+    private long cpuNum;
+    private long cpuSpeed;
     private long memoryCapacity;
     private List<String> l3NetworkUuids;
     private long diskSize;
@@ -28,6 +29,22 @@ public class HostAllocatorSpec {
     private String vmOperation;
     private List<DiskOfferingInventory> diskOfferings = new ArrayList<DiskOfferingInventory>();
     private Map<Object, Object> extraData = new HashMap<Object, Object>();
+
+    public long getCpuNum() {
+        return cpuNum;
+    }
+
+    public void setCpuNum(long cpuNum) {
+        this.cpuNum = cpuNum;
+    }
+
+    public long getCpuSpeed() {
+        return cpuSpeed;
+    }
+
+    public void setCpuSpeed(long cpuSpeed) {
+        this.cpuSpeed = cpuSpeed;
+    }
 
     public List<DiskOfferingInventory> getDiskOfferings() {
         return diskOfferings;
@@ -54,14 +71,6 @@ public class HostAllocatorSpec {
 
     public void setAvoidHostUuids(List<String> avoidHostUuids) {
         this.avoidHostUuids = avoidHostUuids;
-    }
-
-    public long getCpuCapacity() {
-        return cpuCapacity;
-    }
-
-    public void setCpuCapacity(long cpuCapacity) {
-        this.cpuCapacity = cpuCapacity;
     }
 
     public long getMemoryCapacity() {
@@ -135,7 +144,8 @@ public class HostAllocatorSpec {
         HostAllocatorSpec spec = new HostAllocatorSpec();
         spec.setAllocatorStrategy(msg.getAllocatorStrategy());
         spec.setAvoidHostUuids(msg.getAvoidHostUuids());
-        spec.setCpuCapacity(msg.getCpuCapacity());
+        spec.setCpuNum(msg.getCpuNum());
+        spec.setCpuSpeed(msg.getCpuSpeed());
         spec.setDiskSize(msg.getDiskSize());
         String hvType = null;
         if (msg.getVmInstance().getHypervisorType() != null) {

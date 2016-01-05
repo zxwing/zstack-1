@@ -38,7 +38,7 @@ public class KVMHostCapacityExtension implements KVMHostConnectExtensionPoint, H
         }
         ReportHostCapacityMessage rmsg = new ReportHostCapacityMessage();
         rmsg.setHostUuid(host.getUuid());
-        rmsg.setTotalCpu(rsp.getCpuNum() * rsp.getCpuSpeed());
+        rmsg.setTotalCpu(rsp.getCpuNum());
         rmsg.setUsedCpu(rsp.getUsedCpu());
         rmsg.setTotalMemory(rsp.getTotalMemory());
         rmsg.setUsedMemory(rsp.getUsedMemory());

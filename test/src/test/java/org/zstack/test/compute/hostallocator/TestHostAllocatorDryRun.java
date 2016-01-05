@@ -47,7 +47,8 @@ public class TestHostAllocatorDryRun {
     public void test() throws ApiSenderException {
         VmInstanceInventory vm = deployer.vms.get("TestVm");
         DesignatedAllocateHostMsg msg = new DesignatedAllocateHostMsg();
-        msg.setCpuCapacity(vm.getCpuNum() * vm.getCpuSpeed());
+        msg.setCpuNum(vm.getCpuNum());
+        msg.setCpuSpeed(vm.getCpuSpeed());
         msg.setMemoryCapacity(vm.getMemorySize());
         msg.getAvoidHostUuids().add(vm.getHostUuid());
         msg.setVmInstance(vm);

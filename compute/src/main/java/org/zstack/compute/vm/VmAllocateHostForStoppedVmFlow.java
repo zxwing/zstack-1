@@ -40,7 +40,8 @@ public class VmAllocateHostForStoppedVmFlow implements Flow {
 
         LastHostPreferredAllocateHostMsg msg = new LastHostPreferredAllocateHostMsg();
         msg.setVmInstance(spec.getVmInventory());
-        msg.setCpuCapacity(spec.getVmInventory().getCpuNum() * spec.getVmInventory().getCpuSpeed());
+        msg.setCpuSpeed(spec.getVmInventory().getCpuSpeed());
+        msg.setCpuNum(spec.getVmInventory().getCpuNum());
         msg.setMemoryCapacity(spec.getVmInventory().getMemorySize());
         msg.setVmInstanceUuid(spec.getVmInventory().getUuid());
         msg.setVmOperation(spec.getCurrentVmOperation().toString());

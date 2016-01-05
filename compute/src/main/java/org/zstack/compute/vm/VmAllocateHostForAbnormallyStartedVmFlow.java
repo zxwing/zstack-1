@@ -36,7 +36,8 @@ public class VmAllocateHostForAbnormallyStartedVmFlow implements Flow {
 
         DesignatedAllocateHostMsg msg = new DesignatedAllocateHostMsg();
         msg.setVmInstance(spec.getVmInventory());
-        msg.setCpuCapacity(spec.getVmInventory().getCpuNum() * spec.getVmInventory().getCpuSpeed());
+        msg.setCpuSpeed(spec.getVmInventory().getCpuSpeed());
+        msg.setCpuNum(spec.getVmInventory().getCpuNum());
         msg.setMemoryCapacity(spec.getVmInventory().getMemorySize());
         msg.setHostUuid(spec.getDestHost().getUuid());
         msg.setVmOperation(spec.getCurrentVmOperation().toString());

@@ -172,10 +172,12 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
 
     private void handle(ReportHostCapacityMessage msg) {
         HostCapacityVO vo = dbf.findByUuid(msg.getHostUuid(), HostCapacityVO.class);
-        long availCpu = msg.getTotalCpu() - msg.getUsedCpu();
-        availCpu = availCpu > 0 ? availCpu : 0;
         long availMem = msg.getTotalMemory() - msg.getUsedMemory();
         availMem = availMem > 0 ? availMem : 0;
+
+        long totalCpu = ratioMgr.calculateHostCpuByRatio(msg.getHostUuid(), (int)msg.getTotalCpu());
+        long availCpu = totalCpu - msg.getUsedCpu();
+
         if (vo == null) {
             vo = new HostCapacityVO();
             vo.setUuid(msg.getHostUuid());

@@ -29,7 +29,7 @@ public class SimulatorHostDeployer implements HostDeployer<SimulatorHostConfig> 
             hinv.setName(hc.getName());
             hinv.setManagementIp(hc.getManagementIp());
             long memCap = deployer.parseSizeCapacity(hc.getMemoryCapacity());
-            long cpuCap = hc.getCpuNum() * hc.getCpuSpeed();
+            long cpuCap = hc.getCpuNum();
             hinv.setAvailableMemoryCapacity(memCap);
             hinv.setAvailableCpuCapacity(cpuCap);
             hinv = deployer.getApi().addHostByFullConfig(hinv);

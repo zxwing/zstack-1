@@ -11,6 +11,8 @@ import java.util.List;
 
 public class AllocateHostMsg extends NeedReplyMessage {
     private long cpuCapacity;
+    private long cpuNum;
+    private long cpuSpeed;
     private long memoryCapacity;
     private long diskSize;
     private String allocatorStrategy;
@@ -21,6 +23,22 @@ public class AllocateHostMsg extends NeedReplyMessage {
     private String vmOperation;
     private boolean isDryRun;
     private List<DiskOfferingInventory> diskOfferings;
+
+    public long getCpuNum() {
+        return cpuNum;
+    }
+
+    public void setCpuNum(long cpuNum) {
+        this.cpuNum = cpuNum;
+    }
+
+    public long getCpuSpeed() {
+        return cpuSpeed;
+    }
+
+    public void setCpuSpeed(long cpuSpeed) {
+        this.cpuSpeed = cpuSpeed;
+    }
 
     public List<DiskOfferingInventory> getDiskOfferings() {
         return diskOfferings;

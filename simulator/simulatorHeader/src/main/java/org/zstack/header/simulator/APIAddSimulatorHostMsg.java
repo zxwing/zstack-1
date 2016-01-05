@@ -7,8 +7,8 @@ public class APIAddSimulatorHostMsg extends APIAddHostMsg {
 	@APIParam
 	private long memoryCapacity = 1000000000;
 	@APIParam
-	private long cpuCapacity = 1000000000;
-	
+	private long cpuCapacity = 16;
+
 	public long getMemoryCapacity() {
     	return memoryCapacity;
     }

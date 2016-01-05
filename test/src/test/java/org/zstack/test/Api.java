@@ -41,7 +41,6 @@ import org.zstack.header.search.*;
 import org.zstack.header.simulator.APIAddSimulatorHostMsg;
 import org.zstack.header.simulator.ChangeVmStateOnSimulatorHostMsg;
 import org.zstack.header.simulator.RemoveVmOnSimulatorMsg;
-import org.zstack.header.simulator.SimulatorDetails;
 import org.zstack.header.simulator.storage.backup.APIAddSimulatorBackupStorageMsg;
 import org.zstack.header.simulator.storage.backup.SimulatorBackupStorageConstant;
 import org.zstack.header.simulator.storage.backup.SimulatorBackupStorageDetails;
@@ -466,25 +465,6 @@ public class Api implements CloudBusEventListener {
 
     public HostInventory maintainHost(String uuid) throws ApiSenderException {
         return changeHostState(uuid, HostStateEvent.maintain);
-    }
-
-    public List<HostInventory> createSimulator(int num, String clusterUuid, SimulatorDetails details) throws ApiSenderException {
-        ApiSender sender = new ApiSender();
-        sender.setTimeout(timeout);
-        List<HostInventory> rets = new ArrayList<HostInventory>();
-        for (int i = 0; i < num; i++) {
-            APIAddSimulatorHostMsg msg = new APIAddSimulatorHostMsg();
-            msg.setClusterUuid(clusterUuid);
-            msg.setDescription("Test Host");
-            msg.setManagementIp("10.0.0." + i);
-            msg.setSession(adminSession);
-            msg.setName("Host-" + i);
-            details.fillAPIAddSimulatorHostMsg(msg);
-            APIAddHostEvent e = sender.send(msg, APIAddHostEvent.class);
-            rets.add(e.getInventory());
-        }
-
-        return rets;
     }
 
     public List<PrimaryStorageInventory> createSimulatoPrimaryStorage(int num, SimulatorPrimaryStorageDetails details) throws ApiSenderException {

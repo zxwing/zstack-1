@@ -74,7 +74,6 @@ public class TestUpdateKvmHost {
         config.cpuSpeed = 2600;
         config.totalMemory = SizeUnit.GIGABYTE.toByte(8);
         config.usedMemory = SizeUnit.MEGABYTE.toByte(512);
-        config.usedCpu = 512;
         KVMHostInventory inv = (KVMHostInventory) addHost();
         inv.setName("1");
         inv.setDescription("xxx");

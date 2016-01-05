@@ -68,7 +68,7 @@ public class TestLeastVmPreferredHostAllocationStrategy {
         long sip = NetworkUtils.ipv4StringToLong("192.168.0.1");
         for (int i=0; i<hostNum; i++) {
             APIAddSimulatorHostMsg amsg = new APIAddSimulatorHostMsg();
-            amsg.setCpuCapacity(8*2600);
+            amsg.setCpuCapacity(8);
             amsg.setMemoryCapacity(SizeUnit.GIGABYTE.toByte(32));
             amsg.setClusterUuid(cluster.getUuid());
             amsg.setManagementIp(NetworkUtils.longToIpv4String(sip + i));

@@ -36,7 +36,7 @@ public class HostCapacityAllocatorFlow extends AbstractHostAllocatorFlow {
 
         List<String> cds = new ArrayList<String>();
         for (HostCapacityVO c : caps) {
-            if (c.getAvailableCpu() > cpu && ratioMgr.calculateHostAvailableMemoryByRatio(c.getUuid(), c.getAvailableMemory()) > memory) {
+            if (c.getAvailableCpu() >= cpu && ratioMgr.calculateHostAvailableMemoryByRatio(c.getUuid(), c.getAvailableMemory()) > memory) {
                 cds.add(c.getUuid());
             }
         }
@@ -54,7 +54,7 @@ public class HostCapacityAllocatorFlow extends AbstractHostAllocatorFlow {
 	private List<HostVO> allocate(List<HostVO> vos, long cpu, long memory) {
         List<HostVO> ret = new ArrayList<HostVO>();
         for (HostVO hvo : vos) {
-            if (hvo.getCapacity().getAvailableCpu() > cpu
+            if (hvo.getCapacity().getAvailableCpu() >= cpu
                     && ratioMgr.calculateHostAvailableMemoryByRatio(hvo.getUuid(), hvo.getCapacity().getAvailableMemory()) > memory) {
                 ret.add(hvo);
             }
@@ -66,16 +66,16 @@ public class HostCapacityAllocatorFlow extends AbstractHostAllocatorFlow {
     @Override
     public void allocate() {
         if (amITheFirstFlow()) {
-            candidates = allocate(spec.getCpuCapacity(), spec.getMemoryCapacity());
+            candidates = allocate(spec.getCpuNum(), spec.getMemoryCapacity());
         } else {
-            candidates = allocate(candidates, spec.getCpuCapacity(), spec.getMemoryCapacity());
+            candidates = allocate(candidates, spec.getCpuNum(), spec.getMemoryCapacity());
         }
 
-        candidates = reserveMgr.filterOutHostsByReservedCapacity(candidates, spec.getCpuCapacity(), spec.getMemoryCapacity());
+        candidates = reserveMgr.filterOutHostsByReservedCapacity(candidates, spec.getCpuNum(), spec.getMemoryCapacity());
 
         if (candidates.isEmpty()) {
-            fail(String.format("no host having cpu[%s HZ], memory[%s bytes] found",
-                    spec.getCpuCapacity(), spec.getMemoryCapacity()));
+            fail(String.format("no host having cpu[%s cores], memory[%s bytes] found",
+                    spec.getCpuNum(), spec.getMemoryCapacity()));
         } else {
             next(candidates);
         }

@@ -8,7 +8,16 @@ public class ReportHostCapacityMessage extends Message {
 	private long usedCpu;
 	private long usedMemory;
 	private String hostUuid;
-	
+	private long cpuSpeed;
+
+	public long getCpuSpeed() {
+		return cpuSpeed;
+	}
+
+	public void setCpuSpeed(long cpuSpeed) {
+		this.cpuSpeed = cpuSpeed;
+	}
+
 	public long getTotalCpu() {
     	return totalCpu;
     }
