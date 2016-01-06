@@ -452,7 +452,7 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
                 rollback = new Runnable() {
                     @Override
                     public void run() {
-                        long cpu = struct.getVmInstance().getCpuNum() * struct.getVmInstance().getCpuSpeed();
+                        long cpu = struct.getVmInstance().getCpuNum();
                         new HostAllocatorChain().reserveCapacity(struct.getCurrentHostUuid(), cpu, struct.getVmInstance().getMemorySize());
                     }
                 };
@@ -461,7 +461,7 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
 
             private void returnCapacity(String hostUuid) {
                 ReturnHostCapacityMsg msg = new ReturnHostCapacityMsg();
-                msg.setCpuCapacity(struct.getVmInstance().getCpuNum() * struct.getVmInstance().getCpuSpeed());
+                msg.setCpuCapacity(struct.getVmInstance().getCpuNum());
                 msg.setMemoryCapacity(struct.getVmInstance().getMemorySize());
                 msg.setHostUuid(hostUuid);
                 bus.makeLocalServiceId(msg, HostAllocatorConstant.SERVICE_ID);
@@ -478,7 +478,7 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
                 // allocate the capacity on the current host
                 // return the capacity to the original host
                 try {
-                    final long cpu = struct.getVmInstance().getCpuNum() * struct.getVmInstance().getCpuSpeed();
+                    final long cpu = struct.getVmInstance().getCpuNum();
                     new HostAllocatorChain().reserveCapacity(struct.getCurrentHostUuid(), cpu, struct.getVmInstance().getMemorySize());
                     returnCapacity(struct.getOriginalHostUuid());
 
@@ -499,7 +499,7 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
             private void vmRunningOnHost(FlowTrigger trigger) {
                 // allocate capacity on the current host
                 try {
-                    long cpu = struct.getVmInstance().getCpuNum() * struct.getVmInstance().getCpuSpeed();
+                    long cpu = struct.getVmInstance().getCpuNum();
                     new HostAllocatorChain().reserveCapacity(struct.getCurrentHostUuid(), cpu, struct.getVmInstance().getMemorySize());
 
                     rollback = new Runnable() {

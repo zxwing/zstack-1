@@ -72,7 +72,7 @@ public class TestVmStateTracer5 {
 
         HostCapacityVO cap11 = dbf.findByUuid(host1.getUuid(), HostCapacityVO.class);
         HostCapacityVO cap22 = dbf.findByUuid(host2.getUuid(), HostCapacityVO.class);
-        long cpu = vm1.getCpuNum() * vm1.getCpuSpeed();
+        long cpu = vm1.getCpuNum();
         Assert.assertEquals(cap11.getAvailableCpu(), cap1.getAvailableCpu() + cpu);
         Assert.assertEquals(cap11.getAvailableMemory(), cap1.getAvailableMemory() + vm1.getMemorySize());
         Assert.assertEquals(cap22.getAvailableCpu(), cap2.getAvailableCpu() - cpu);

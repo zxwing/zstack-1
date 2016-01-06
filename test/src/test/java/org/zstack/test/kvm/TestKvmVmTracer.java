@@ -103,7 +103,7 @@ public class TestKvmVmTracer {
         Assert.assertEquals(VmInstanceState.Stopped, vmvo.getState());
         Assert.assertNull(vmvo.getHostUuid());
 
-        long cpu = vmvo.getCpuNum() * vmvo.getCpuSpeed();
+        long cpu = vmvo.getCpuNum();
         HostCapacityVO cap2 = dbf.findByUuid(hostUuid, HostCapacityVO.class);
         Assert.assertEquals(cap2.getAvailableCpu(), cap1.getAvailableCpu() + cpu);
         Assert.assertEquals(cap2.getAvailableMemory(), cap1.getAvailableMemory() + vmvo.getMemorySize());

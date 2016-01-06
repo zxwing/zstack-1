@@ -61,7 +61,7 @@ public class TestGetCpuMemoryCapacity {
             }
         });
         
-        long totalCpu = 2600 * 8;
+        long totalCpu = 8;
         long totalMemory = SizeUnit.GIGABYTE.toByte(12);
         
         APIGetCpuMemoryCapacityReply reply = api.retrieveHostCapacity(Arrays.asList(zone.getUuid()), null, null);

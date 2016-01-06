@@ -28,10 +28,10 @@
                 <cluster name="cluster1" description="Test">
                     <hosts>
                         <simulatorHost name="host1" description="Test"
-                            managementIp="10.0.0.11" memoryCapacity="32G" cpuNum="8"
+                            managementIp="10.0.0.11" memoryCapacity="32G" cpuNum="80"
                             cpuSpeed="2600" />
                         <simulatorHost name="host2" description="Test"
-                                       managementIp="10.0.0.12" memoryCapacity="32G" cpuNum="8"
+                                       managementIp="10.0.0.12" memoryCapacity="32G" cpuNum="80"
                                        cpuSpeed="2600" />
                         <simulatorHost name="host3" description="Test"
                                        managementIp="10.0.0.13" memoryCapacity="32G" cpuNum="8"
