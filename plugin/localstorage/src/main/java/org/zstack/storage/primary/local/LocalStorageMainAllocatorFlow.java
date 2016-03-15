@@ -162,7 +162,7 @@ public class LocalStorageMainAllocatorFlow extends NoRollbackFlow {
     private Collection<? extends String> considerImageCache(PrimaryStorageAllocationSpec spec, List<LocalStorageHostRefVO> candidateHosts) {
         List<String> ret = new ArrayList<String>();
 
-        String sql = "select i.size from ImageVO i where i.uuid = :uuid";
+        String sql = "select i.actualSize from ImageVO i where i.uuid = :uuid";
         TypedQuery<Long> sq = dbf.getEntityManager().createQuery(sql, Long.class);
         sq.setParameter("uuid", spec.getImageUuid());
         long imageSize = sq.getSingleResult();

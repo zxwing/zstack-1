@@ -16,6 +16,7 @@ public class SftpBackupStorageSimulatorConfig {
     public volatile boolean downloadSuccess1 = true;
     public volatile boolean downloadSuccess2 = true;
     public Map<String, Long> imageSizes = new HashMap<String, Long>();
+    public Map<String, Long> imageActualSizes = new HashMap<String, Long>();
     public volatile String imageMd5sum;
     public volatile boolean deleteSuccess = true;
     public volatile boolean pingSuccess = true;

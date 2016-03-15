@@ -295,7 +295,7 @@ public class IscsiFilesystemBackendPrimaryStorage extends PrimaryStorageBase {
                             public void run(final FlowTrigger trigger, Map data) {
                                 AllocatePrimaryStorageMsg amsg = new AllocatePrimaryStorageMsg();
                                 amsg.setRequiredPrimaryStorageUuid(self.getUuid());
-                                amsg.setSize(imageSpec.getInventory().getSize());
+                                amsg.setSize(imageSpec.getInventory().getActualSize());
                                 amsg.setPurpose(PrimaryStorageAllocationPurpose.DownloadImage.toString());
                                 amsg.setNoOverProvisioning(true);
                                 bus.makeLocalServiceId(amsg, PrimaryStorageConstant.SERVICE_ID);
@@ -317,7 +317,7 @@ public class IscsiFilesystemBackendPrimaryStorage extends PrimaryStorageBase {
                                 if (s) {
                                     ReturnPrimaryStorageCapacityMsg rmsg = new ReturnPrimaryStorageCapacityMsg();
                                     rmsg.setPrimaryStorageUuid(self.getUuid());
-                                    rmsg.setDiskSize(imageSpec.getInventory().getSize());
+                                    rmsg.setDiskSize(imageSpec.getInventory().getActualSize());
                                     rmsg.setNoOverProvisioning(true);
                                     bus.makeLocalServiceId(rmsg, PrimaryStorageConstant.SERVICE_ID);
                                     bus.send(rmsg);
@@ -356,7 +356,7 @@ public class IscsiFilesystemBackendPrimaryStorage extends PrimaryStorageBase {
                                 vo.setInstallUrl(imagePathInCache);
                                 vo.setMediaType(ImageMediaType.valueOf(imageSpec.getInventory().getMediaType()));
                                 vo.setPrimaryStorageUuid(self.getUuid());
-                                vo.setSize(imageSpec.getInventory().getSize());
+                                vo.setSize(imageSpec.getInventory().getActualSize());
                                 vo.setState(ImageCacheState.ready);
                                 vo.setMd5sum("not calculated");
                                 dbf.persist(vo);

@@ -21,3 +21,8 @@ CREATE TABLE  `zstack`.`ConsoleProxyAgentVO` (
 # Foreign keys for table ConsoleProxyAgentVO
 
 ALTER TABLE ConsoleProxyAgentVO ADD CONSTRAINT fkConsoleProxyAgentVOManagementNodeVO FOREIGN KEY (uuid) REFERENCES ManagementNodeVO (uuid) ON DELETE CASCADE;
+
+ALTER TABLE `zstack`.`ImageEO` ADD COLUMN `actualSize` bigint DEFAULT 0;
+DROP VIEW IF EXISTS `zstack`.`ImageVO`;
+CREATE VIEW `zstack`.`ImageVO` AS SELECT uuid, name, description, status, state, size, actualSize, md5Sum, platform, type, format, url, system, mediaType, createDate, lastOpDate, guestOsType FROM `zstack`.`ImageEO` WHERE deleted IS NULL;
+UPDATE ImageEO set actualSize = size;

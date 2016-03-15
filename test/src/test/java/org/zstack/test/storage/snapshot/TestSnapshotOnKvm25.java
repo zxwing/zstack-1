@@ -126,7 +126,7 @@ public class TestSnapshotOnKvm25 {
 
         ImageInventory img = api.createTemplateFromSnapshot(inv3.getUuid(), bs.getUuid());
         Assert.assertNotNull(img.getBackupStorageRefs().get(0).getInstallPath());
-        Assert.assertTrue(img.getSize() != 0);
+        Assert.assertTrue(img.getActualSize() != 0);
         Assert.assertEquals(bs.getUuid(), img.getBackupStorageRefs().get(0).getBackupStorageUuid());
         Assert.assertEquals(ImageMediaType.RootVolumeTemplate.toString(), img.getMediaType());
         Assert.assertFalse(nfsConfig.rebaseAndMergeSnapshotsCmds.isEmpty());

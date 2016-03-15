@@ -753,7 +753,7 @@ public class VmInstanceManagerImpl extends AbstractService implements VmInstance
 
                 long requiredVolSize = 0;
 
-                sql = "select img.size, img.mediaType from ImageVO img where img.uuid = :iuuid";
+                sql = "select img.actualSize, img.mediaType from ImageVO img where img.uuid = :iuuid";
                 iq = dbf.getEntityManager().createQuery(sql, Tuple.class);
                 iq.setParameter("iuuid", msg.getImageUuid());
                 it = iq.getSingleResult();

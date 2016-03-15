@@ -122,7 +122,7 @@ public class TestSnapshotOnKvm46 {
         ImageInventory img = api.createTemplateFromSnapshot(inv3.getUuid(), Arrays.asList(sftp.getUuid(), sftp1.getUuid()));
         Assert.assertEquals(1, img.getBackupStorageRefs().size());
         Assert.assertEquals(sftp1.getUuid(), img.getBackupStorageRefs().get(0).getBackupStorageUuid());
-        Assert.assertTrue(img.getSize() != 0);
+        Assert.assertTrue(img.getActualSize() != 0);
         Assert.assertEquals(ImageMediaType.RootVolumeTemplate.toString(), img.getMediaType());
         Assert.assertFalse(nfsConfig.mergeSnapshotCmds.isEmpty());
         Assert.assertFalse(nfsConfig.uploadToSftpCmds.isEmpty());

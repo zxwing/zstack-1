@@ -97,7 +97,7 @@ public class TestVmAllocatePrimaryStorageFlow {
                     List<VolumeSpec> vspecs = ret.getVolumeSpecs();
                     PrimaryStorageVO vo = dbf.findByUuid(vspecs.get(0).getPrimaryStorageInventory().getUuid(), PrimaryStorageVO.class);
                     long totalUsed = 0;
-                    totalUsed += iminv.getSize();
+                    totalUsed += iminv.getActualSize();
                     for (DiskOfferingInventory dinv : disks) {
                         totalUsed += dinv.getDiskSize();
                     }

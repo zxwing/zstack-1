@@ -80,6 +80,7 @@ public class SftpBackupStorage extends BackupStorageBase {
     private class DownloadResult {
         String md5sum;
         long size;
+        long actualSize;
     }
 
     private void download(String url, String installPath, String uuid, final ReturnValueCompletion<DownloadResult> completion) {
@@ -111,6 +112,7 @@ public class SftpBackupStorage extends BackupStorageBase {
                         DownloadResult res = new DownloadResult();
                         res.md5sum = ret.getMd5Sum();
                         res.size = ret.getSize();
+                        res.actualSize = ret.getActualSize();
 
                         updateCapacity(ret.getTotalCapacity(), ret.getAvailableCapacity());
 

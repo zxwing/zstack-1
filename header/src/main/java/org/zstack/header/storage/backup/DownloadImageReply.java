@@ -6,6 +6,15 @@ public class DownloadImageReply extends MessageReply {
     private long size;
     private String installPath;
     private String md5sum;
+    private long actualSize;
+
+    public long getActualSize() {
+        return actualSize;
+    }
+
+    public void setActualSize(long actualSize) {
+        this.actualSize = actualSize;
+    }
 
     public long getSize() {
         return size;

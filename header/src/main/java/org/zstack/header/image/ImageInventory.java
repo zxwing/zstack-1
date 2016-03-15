@@ -37,6 +37,7 @@ public class ImageInventory implements Serializable{
     private String platform;
     private String format;
     private Boolean system;
+    private Long actualSize;
     private Timestamp createDate;
     private Timestamp lastOpDate;
     @Queryable(mappingClass = ImageBackupStorageRefInventory.class,
@@ -53,6 +54,7 @@ public class ImageInventory implements Serializable{
 		inv.setMd5Sum(vo.getMd5Sum());
 		inv.setName(vo.getName());
 		inv.setSize(vo.getSize());
+        inv.setActualSize(vo.getActualSize());
         inv.setStatus(vo.getStatus().toString());
 		inv.setState(vo.getState().toString());
 		inv.setUrl(vo.getUrl());
@@ -83,17 +85,18 @@ public class ImageInventory implements Serializable{
         inv.setType(vo.getType());
         inv.setSystem(vo.isSystem());
         inv.setLastOpDate(vo.getLastOpDate());
+        inv.setActualSize(vo.getActualSize());
         return inv;
     }
 
-    public static List<ImageInventory> valueOfEO(Collection<ImageEO> vos) {
-        List<ImageInventory> invs = new ArrayList<ImageInventory>(vos.size());
-        for (ImageEO vo : vos) {
-            invs.add(ImageInventory.valueOf(vo));
-        }
-        return invs;
+    public Long getActualSize() {
+        return actualSize;
     }
-	
+
+    public void setActualSize(Long actualSize) {
+        this.actualSize = actualSize;
+    }
+
 	public static List<ImageInventory> valueOf(Collection<ImageVO> vos) {
 	    List<ImageInventory> invs = new ArrayList<ImageInventory>(vos.size());
 	    for (ImageVO vo : vos) {

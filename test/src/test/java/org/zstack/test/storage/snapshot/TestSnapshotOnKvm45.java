@@ -125,7 +125,7 @@ public class TestSnapshotOnKvm45 {
             }
         });
         Assert.assertTrue(bsUuids.containsAll(Arrays.asList(sftp.getUuid(), sftp1.getUuid())));
-        Assert.assertTrue(img.getSize() != 0);
+        Assert.assertTrue(img.getActualSize() != 0);
         Assert.assertEquals(ImageMediaType.RootVolumeTemplate.toString(), img.getMediaType());
         Assert.assertFalse(nfsConfig.mergeSnapshotCmds.isEmpty());
         Assert.assertFalse(nfsConfig.uploadToSftpCmds.isEmpty());

@@ -73,7 +73,7 @@ public class TestSftpBackupStorageDownloadImage {
         config.imageSizes.put(iinv.getUuid(), size);
 
         iinv = api.addImage(iinv, sinv.getUuid());
-        Assert.assertEquals(size, iinv.getSize());
+        Assert.assertEquals(size, iinv.getActualSize().longValue());
         Assert.assertEquals(config.imageMd5sum, iinv.getMd5Sum());
         Assert.assertNotNull(iinv.getBackupStorageRefs().get(0).getInstallPath());
         ImageVO vo = dbf.findByUuid(iinv.getUuid(), ImageVO.class);

@@ -102,14 +102,14 @@ public class TestLocalStorage34 {
         api.detachVolumeFromVm(data.getUuid());
 
         config.backingFilePath = image.getBackupStorageRefs().get(0).getInstallPath();
-        config.backingFileSize = image.getSize();
+        config.backingFileSize = image.getActualSize();
         config.checkBitsSuccess = false;
 
         api.deleteImage(image.getUuid());
 
         VolumeInventory root = vm.getRootVolume();
 
-        long requiredSize = image.getSize() + psRatioMgr.calculateByRatio(ps.getUuid(), root.getSize());
+        long requiredSize = image.getActualSize() + psRatioMgr.calculateByRatio(ps.getUuid(), root.getSize());
 
         HostInventory host2 = deployer.hosts.get("host2");
         LocalStorageHostRefVO hcap2 = dbf.findByUuid(host2.getUuid(), LocalStorageHostRefVO.class);

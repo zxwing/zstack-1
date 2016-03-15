@@ -745,7 +745,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
                                     AllocatePrimaryStorageMsg amsg = new AllocatePrimaryStorageMsg();
                                     amsg.setRequiredPrimaryStorageUuid(self.getUuid());
                                     amsg.setRequiredHostUuid(hostUuid);
-                                    amsg.setSize(image.getSize());
+                                    amsg.setSize(image.getActualSize());
                                     amsg.setPurpose(PrimaryStorageAllocationPurpose.DownloadImage.toString());
                                     amsg.setNoOverProvisioning(true);
                                     bus.makeLocalServiceId(amsg, PrimaryStorageConstant.SERVICE_ID);
@@ -766,7 +766,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
                                 public void rollback(FlowRollback trigger, Map data) {
                                     if (s) {
                                         ReturnPrimaryStorageCapacityMsg rmsg = new ReturnPrimaryStorageCapacityMsg();
-                                        rmsg.setDiskSize(image.getSize());
+                                        rmsg.setDiskSize(image.getActualSize());
                                         rmsg.setNoOverProvisioning(true);
                                         rmsg.setPrimaryStorageUuid(self.getUuid());
                                         bus.makeLocalServiceId(rmsg, PrimaryStorageConstant.SERVICE_ID);
@@ -782,13 +782,13 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
 
                                 @Override
                                 public void run(FlowTrigger trigger, Map data) {
-                                    reserveCapacityOnHost(hostUuid, image.getSize());
+                                    reserveCapacityOnHost(hostUuid, image.getActualSize());
                                     trigger.next();
                                 }
 
                                 @Override
                                 public void rollback(FlowRollback trigger, Map data) {
-                                    returnCapacityToHost(hostUuid, image.getSize());
+                                    returnCapacityToHost(hostUuid, image.getActualSize());
                                     trigger.rollback();
                                 }
                             });
@@ -824,7 +824,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
                                     vo.setMediaType(ImageMediaType.valueOf(image.getMediaType()));
                                     vo.setImageUuid(image.getUuid());
                                     vo.setPrimaryStorageUuid(self.getUuid());
-                                    vo.setSize(image.getSize());
+                                    vo.setSize(image.getActualSize());
                                     vo.setMd5sum("not calculated");
 
                                     CacheInstallPath path = new CacheInstallPath();
@@ -896,7 +896,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
                             bus.makeTargetServiceIdByResourceUuid(rmsg, PrimaryStorageConstant.SERVICE_ID, cvo.getPrimaryStorageUuid());
                             bus.send(rmsg);
 
-                            returnCapacityToHost(hostUuid, image.getSize());
+                            returnCapacityToHost(hostUuid, image.getActualSize());
                             dbf.remove(cvo);
 
                             doDownload(chain);

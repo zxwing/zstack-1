@@ -91,7 +91,7 @@ public class TestLocalStorage39 {
         api.deleteImage(image.getUuid());
 
         config.backingFilePath = image.getBackupStorageRefs().get(0).getInstallPath();
-        config.backingFileSize = image.getSize();
+        config.backingFileSize = image.getActualSize();
         config.checkMd5Success = false;
 
         boolean s = false;

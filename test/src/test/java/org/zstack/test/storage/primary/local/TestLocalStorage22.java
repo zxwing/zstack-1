@@ -96,7 +96,7 @@ public class TestLocalStorage22 {
         long avail = localvo.getCapacity().getAvailableCapacity();
 
         ImageInventory img = api.createTemplateFromSnapshot(sp.getUuid());
-        Assert.assertTrue(img.getSize() != 0);
+        Assert.assertTrue(img.getActualSize() != 0);
 
         localvo = dbf.findByUuid(local.getUuid(), PrimaryStorageVO.class);
         Assert.assertEquals(avail, localvo.getCapacity().getAvailableCapacity());
