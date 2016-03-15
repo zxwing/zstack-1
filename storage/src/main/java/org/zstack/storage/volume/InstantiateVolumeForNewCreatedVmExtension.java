@@ -104,6 +104,9 @@ public class InstantiateVolumeForNewCreatedVmExtension implements PreVmInstantia
                     vo.setStatus(VolumeStatus.Ready);
                     if (vo.getType() == VolumeType.Data) {
                         vo.setDeviceId(getNextDeviceId());
+                        vo.setActualSize(0);
+                    } else {
+                        vo.setActualSize(spec.getImageSpec().getInventory().getActualSize());
                     }
                     vo = dbf.updateAndRefresh(vo);
 

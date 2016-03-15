@@ -122,6 +122,8 @@ public class VolumeInventory implements Serializable{
      * @desc volume size in bytes
      */
     private Long size;
+
+    private Long actualSize;
     /**
      * @desc the order volume attaches to vm. For root volume, deviceId is always zero. For data volume, deviceId could be used
      * for detecting disk label in operating system. For example, volume having deviceId = 1 may be represented as hdb/sdb/vdb in Linux.
@@ -172,6 +174,7 @@ public class VolumeInventory implements Serializable{
         this.deviceId = other.deviceId;
         this.state = other.state;
         this.status = other.status;
+        this.actualSize = other.actualSize;
         this.createDate = other.createDate;
         this.lastOpDate = other.lastOpDate;
     }
@@ -196,6 +199,7 @@ public class VolumeInventory implements Serializable{
     	inv.setDeviceId(vo.getDeviceId());
         inv.setStatus(vo.getStatus().toString());
         inv.setFormat(vo.getFormat());
+        inv.setActualSize(vo.getActualSize());
     	return inv;
     }
     
@@ -205,6 +209,14 @@ public class VolumeInventory implements Serializable{
             invs.add(VolumeInventory.valueOf(vo));
         }
         return invs;
+    }
+
+    public Long getActualSize() {
+        return actualSize;
+    }
+
+    public void setActualSize(Long actualSize) {
+        this.actualSize = actualSize;
     }
 
     public String getFormat() {
