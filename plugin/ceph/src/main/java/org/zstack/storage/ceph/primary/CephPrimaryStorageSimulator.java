@@ -13,6 +13,7 @@ import org.zstack.core.Platform;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
+import org.zstack.core.simulator.AsyncRESTReplyer;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.rest.RESTConstant;
 import org.zstack.header.rest.RESTFacade;
@@ -40,17 +41,7 @@ public class CephPrimaryStorageSimulator {
 
     private Map<String, Long> bitSizeMap = new HashMap<String, Long>();
 
-    public void reply(HttpEntity<String> entity, Object rsp) {
-        String taskUuid = entity.getHeaders().getFirst(RESTConstant.TASK_UUID);
-        String callbackUrl = entity.getHeaders().getFirst(RESTConstant.CALLBACK_URL);
-        String rspBody = JSONObjectUtil.toJsonString(rsp);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setContentLength(rspBody.length());
-        headers.set(RESTConstant.TASK_UUID, taskUuid);
-        HttpEntity<String> rreq = new HttpEntity<String>(rspBody, headers);
-        restf.getRESTTemplate().exchange(callbackUrl, HttpMethod.POST, rreq, String.class);
-    }
+    AsyncRESTReplyer replyer = new AsyncRESTReplyer();
 
     private CephPrimaryStorageConfig getConfig(AgentCommand cmd) {
         SimpleQuery<PrimaryStorageVO> q = dbf.createQuery(PrimaryStorageVO.class);
@@ -71,7 +62,7 @@ public class CephPrimaryStorageSimulator {
     String deletePool(HttpEntity<String> entity) {
         DeletePoolCmd cmd = JSONObjectUtil.toObject(entity.getBody(), DeletePoolCmd.class);
         config.deletePoolCmds.add(cmd);
-        reply(entity, new DeletePoolRsp());
+        replyer.reply(entity, new DeletePoolRsp());
         return null;
     }
 
@@ -86,7 +77,7 @@ public class CephPrimaryStorageSimulator {
         rsp.userKey = Platform.getUuid();
         rsp.totalCapacity = cpc.totalCapacity;
         rsp.availableCapacity = cpc.availCapacity;
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -105,7 +96,7 @@ public class CephPrimaryStorageSimulator {
         CreateEmptyVolumeRsp rsp = new CreateEmptyVolumeRsp();
         setCapacity(cmd, rsp, -cmd.getSize());
         bitSizeMap.put(cmd.getInstallPath(), cmd.getSize());
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -114,7 +105,7 @@ public class CephPrimaryStorageSimulator {
     String createKvmSecret(HttpEntity<String> entity) {
         CreateKvmSecretCmd cmd = JSONObjectUtil.toObject(entity.getBody(), CreateKvmSecretCmd.class);
         config.createKvmSecretCmds.add(cmd);
-        reply(entity, new KVMAgentCommands.AgentResponse());
+        replyer.reply(entity, new KVMAgentCommands.AgentResponse());
         return null;
     }
 
@@ -128,7 +119,7 @@ public class CephPrimaryStorageSimulator {
 
         DeleteRsp rsp = new DeleteRsp();
         setCapacity(cmd, rsp, size);
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -138,7 +129,7 @@ public class CephPrimaryStorageSimulator {
         CreateSnapshotCmd cmd = JSONObjectUtil.toObject(entity.getBody(), CreateSnapshotCmd.class);
         config.createSnapshotCmds.add(cmd);
 
-        reply(entity, new CreateSnapshotRsp());
+        replyer.reply(entity, new CreateSnapshotRsp());
         return null;
     }
 
@@ -148,7 +139,7 @@ public class CephPrimaryStorageSimulator {
         DeleteSnapshotCmd cmd = JSONObjectUtil.toObject(entity.getBody(), DeleteSnapshotCmd.class);
         config.deleteSnapshotCmds.add(cmd);
 
-        reply(entity, new DeleteSnapshotRsp());
+        replyer.reply(entity, new DeleteSnapshotRsp());
         return null;
     }
 
@@ -158,7 +149,7 @@ public class CephPrimaryStorageSimulator {
         ProtectSnapshotCmd cmd = JSONObjectUtil.toObject(entity.getBody(), ProtectSnapshotCmd.class);
         config.protectSnapshotCmds.add(cmd);
 
-        reply(entity, new ProtectSnapshotRsp());
+        replyer.reply(entity, new ProtectSnapshotRsp());
         return null;
     }
 
@@ -168,7 +159,7 @@ public class CephPrimaryStorageSimulator {
         UnprotectedSnapshotCmd cmd = JSONObjectUtil.toObject(entity.getBody(), UnprotectedSnapshotCmd.class);
         config.unprotectedSnapshotCmds.add(cmd);
 
-        reply(entity, new UnprotectedSnapshotRsp());
+        replyer.reply(entity, new UnprotectedSnapshotRsp());
         return null;
     }
 
@@ -179,7 +170,7 @@ public class CephPrimaryStorageSimulator {
         config.cloneCmds.add(cmd);
 
         CloneRsp rsp = new CloneRsp();
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -189,7 +180,7 @@ public class CephPrimaryStorageSimulator {
         FlattenCmd cmd = JSONObjectUtil.toObject(entity.getBody(), FlattenCmd.class);
         config.flattenCmds.add(cmd);
 
-        reply(entity, new FlattenRsp());
+        replyer.reply(entity, new FlattenRsp());
         return null;
     }
 
@@ -199,7 +190,7 @@ public class CephPrimaryStorageSimulator {
         CpCmd cmd = JSONObjectUtil.toObject(entity.getBody(), CpCmd.class);
         config.cpCmds.add(cmd);
 
-        reply(entity, new CpRsp());
+        replyer.reply(entity, new CpRsp());
         return null;
     }
 
@@ -209,7 +200,7 @@ public class CephPrimaryStorageSimulator {
         SftpUpLoadCmd cmd = JSONObjectUtil.toObject(entity.getBody(), SftpUpLoadCmd.class);
         config.sftpUpLoadCmds.add(cmd);
 
-        reply(entity, new SftpUpLoadCmd());
+        replyer.reply(entity, new SftpDownloadCmd());
         return null;
     }
 
@@ -219,7 +210,7 @@ public class CephPrimaryStorageSimulator {
         SftpDownloadCmd cmd = JSONObjectUtil.toObject(entity.getBody(), SftpDownloadCmd.class);
         config.sftpDownloadCmds.add(cmd);
 
-        reply(entity, new SftpDownloadRsp());
+        replyer.reply(entity, new SftpDownloadRsp());
         return null;
     }
 
@@ -229,7 +220,7 @@ public class CephPrimaryStorageSimulator {
         RollbackSnapshotCmd cmd = JSONObjectUtil.toObject(entity.getBody(), RollbackSnapshotCmd.class);
         config.rollbackSnapshotCmds.add(cmd);
 
-        reply(entity, new RollbackSnapshotRsp());
+        replyer.reply(entity, new RollbackSnapshotRsp());
         return null;
     }
 }

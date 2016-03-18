@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
+import org.zstack.core.simulator.AsyncRESTReplyer;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.rest.RESTConstant;
 import org.zstack.header.rest.RESTFacade;
@@ -38,17 +39,7 @@ public class CephBackupStorageSimulator {
     @Autowired
     private RESTFacade restf;
 
-    public void reply(HttpEntity<String> entity, Object rsp) {
-        String taskUuid = entity.getHeaders().getFirst(RESTConstant.TASK_UUID);
-        String callbackUrl = entity.getHeaders().getFirst(RESTConstant.CALLBACK_URL);
-        String rspBody = JSONObjectUtil.toJsonString(rsp);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setContentLength(rspBody.length());
-        headers.set(RESTConstant.TASK_UUID, taskUuid);
-        HttpEntity<String> rreq = new HttpEntity<String>(rspBody, headers);
-        restf.getRESTTemplate().exchange(callbackUrl, HttpMethod.POST, rreq, String.class);
-    }
+    AsyncRESTReplyer replyer = new AsyncRESTReplyer();
 
     private CephBackupStorageConfig getConfig(AgentCommand cmd) {
         SimpleQuery<BackupStorageVO> q = dbf.createQuery(BackupStorageVO.class);
@@ -79,7 +70,7 @@ public class CephBackupStorageSimulator {
         rsp.fsid = cbc.fsid;
         rsp.totalCapacity = cbc.totalCapacity;
         rsp.availableCapacity = cbc.availCapacity;
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -90,7 +81,7 @@ public class CephBackupStorageSimulator {
         config.downloadCmds.add(cmd);
 
         DownloadRsp rsp = new DownloadRsp();
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -100,7 +91,7 @@ public class CephBackupStorageSimulator {
         DeleteCmd cmd = JSONObjectUtil.toObject(entity.getBody(), DeleteCmd.class);
         config.deleteCmds.add(cmd);
         DeleteRsp rsp = new DeleteRsp();
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -110,7 +101,7 @@ public class CephBackupStorageSimulator {
         PingCmd cmd = JSONObjectUtil.toObject(entity.getBody(), PingCmd.class);
         config.pingCmds.add(cmd);
         PingRsp rsp = new PingRsp();
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 }

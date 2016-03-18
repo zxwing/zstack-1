@@ -14,7 +14,7 @@ import org.zstack.kvm.KVMAgentCommands.AgentResponse;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackend;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.*;
 import org.zstack.storage.primary.nfs.NfsPrimaryToSftpBackupKVMBackend;
-import org.zstack.simulator.AsyncRESTReplyer;
+import org.zstack.core.simulator.AsyncRESTReplyer;
 import org.zstack.simulator.kvm.VolumeSnapshotKvmSimulator;
 import org.zstack.utils.Utils;
 import org.zstack.utils.data.SizeUnit;

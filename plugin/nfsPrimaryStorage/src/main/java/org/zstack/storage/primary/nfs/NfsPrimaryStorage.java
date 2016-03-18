@@ -292,7 +292,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                 });
 
                 flow(new Flow() {
-                    List<ErrorCode> errs;
+                    List<ErrorCode> errs = new ArrayList<ErrorCode>();
 
                     private void upload(final Iterator<BackupStorageInventory> it, final FlowTrigger trigger) {
                         if (!it.hasNext()) {

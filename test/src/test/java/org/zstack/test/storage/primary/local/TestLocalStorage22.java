@@ -6,6 +6,8 @@ import org.junit.Test;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.core.simulator.AsyncRESTReplyer;
+import org.zstack.core.simulator.BeforeDeliverResponseInterceptor;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.storage.primary.PrimaryStorageInventory;
@@ -13,6 +15,7 @@ import org.zstack.header.storage.primary.PrimaryStorageVO;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.vm.VmInstanceInventory;
 import org.zstack.simulator.kvm.KVMSimulatorConfig;
+import org.zstack.storage.primary.local.LocalStorageKvmBackend.MergeSnapshotRsp;
 import org.zstack.storage.primary.local.LocalStorageResourceRefVO;
 import org.zstack.storage.primary.local.LocalStorageSimulatorConfig;
 import org.zstack.storage.primary.local.LocalStorageSimulatorConfig.Capacity;
@@ -94,6 +97,16 @@ public class TestLocalStorage22 {
 
         PrimaryStorageVO localvo = dbf.findByUuid(local.getUuid(), PrimaryStorageVO.class);
         long avail = localvo.getCapacity().getAvailableCapacity();
+
+        final long actualSize = SizeUnit.GIGABYTE.toByte(1);
+        final long size = SizeUnit.GIGABYTE.toByte(2);
+        AsyncRESTReplyer.installBeforeDeliverResponseInterceptor(new BeforeDeliverResponseInterceptor<MergeSnapshotRsp>() {
+            @Override
+            public void beforeDeliverResponse(MergeSnapshotRsp rsp) {
+                rsp.setActualSize(actualSize);
+                rsp.setSize(size);
+            }
+        }, MergeSnapshotRsp.class);
 
         ImageInventory img = api.createTemplateFromSnapshot(sp.getUuid());
         Assert.assertTrue(img.getActualSize() != 0);
