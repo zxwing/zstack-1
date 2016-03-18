@@ -20,19 +20,14 @@ import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.SysErrors;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.rest.*;
-import org.zstack.utils.DebugUtils;
-import org.zstack.utils.IptablesUtils;
-import org.zstack.utils.Utils;
+import org.zstack.utils.*;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -59,7 +54,8 @@ public class RESTFacadeImpl implements RESTFacade {
 
     private Map<String, HttpCallStatistic> statistics = new ConcurrentHashMap<String, HttpCallStatistic>();
     private Map<String, HttpCallHandlerWrapper> httpCallhandlers = new ConcurrentHashMap<String, HttpCallHandlerWrapper>();
-    private List<BeforeAsyncJsonPostInterceptor> interceptors = new ArrayList<BeforeAsyncJsonPostInterceptor>();
+    private List<BeforeAsyncJsonPostInterceptor> globalBeforePostInterceptors = new ArrayList<BeforeAsyncJsonPostInterceptor>();
+    private Map<Class, List<BeforeAsyncJsonPostInterceptor>> beforePostInterceptors = new HashMap<Class, List<BeforeAsyncJsonPostInterceptor>>();
 
     private interface AsyncHttpWrapper {
         void fail(ErrorCode err);
@@ -186,7 +182,14 @@ public class RESTFacadeImpl implements RESTFacade {
 
     @Override
     public void asyncJsonPost(String url, Object body, AsyncRESTCallback callback, TimeUnit unit, long timeout) {
-        for (BeforeAsyncJsonPostInterceptor ic : interceptors) {
+        List<BeforeAsyncJsonPostInterceptor> ics = beforePostInterceptors.get(body.getClass());
+        if (ics != null) {
+            for (BeforeAsyncJsonPostInterceptor ic : ics) {
+                ic.beforeAsyncJsonPost(url, body, unit, timeout);
+            }
+        }
+
+        for (BeforeAsyncJsonPostInterceptor ic : globalBeforePostInterceptors) {
             ic.beforeAsyncJsonPost(url, body, unit, timeout);
         }
 
@@ -194,9 +197,10 @@ public class RESTFacadeImpl implements RESTFacade {
         asyncJsonPost(url, bodyStr, callback, unit, timeout);
     }
 
+
     @Override
     public void asyncJsonPost(final String url, final String body, final AsyncRESTCallback callback, final TimeUnit unit, final long timeout) {
-        for (BeforeAsyncJsonPostInterceptor ic : interceptors) {
+        for (BeforeAsyncJsonPostInterceptor ic : globalBeforePostInterceptors) {
             ic.beforeAsyncJsonPost(url, body, unit, timeout);
         }
 
@@ -263,9 +267,12 @@ public class RESTFacadeImpl implements RESTFacade {
                     logger.trace(String.format("[http response(url: %s)] %s", url, responseEntity.getBody()));
                 }
 
+
                 if (callback instanceof JsonAsyncRESTCallback) {
                     JsonAsyncRESTCallback jcallback = (JsonAsyncRESTCallback)callback;
                     Object obj = JSONObjectUtil.toObject(responseEntity.getBody(), jcallback.getReturnClass());
+
+
                     try {
                         ErrorCode err = vf.validateErrorByErrorCode(obj);
                         if (err != null) {
@@ -482,7 +489,21 @@ public class RESTFacadeImpl implements RESTFacade {
     }
 
     @Override
-    public void installBeforeAsyncJsonPostInterceptor(BeforeAsyncJsonPostInterceptor interceptor) {
-        interceptors.add(interceptor);
+    public void installBeforeAsyncJsonPostInterceptor(BeforeAsyncJsonPostInterceptor interceptor, Class...classes) {
+        if (classes.length == 0) {
+            globalBeforePostInterceptors.add(interceptor);
+        } else {
+            for (Class clz : classes) {
+                List<Class> allClz = TypeUtils.getAllClassOfClass(clz);
+                for (Class c : allClz) {
+                    List<BeforeAsyncJsonPostInterceptor> lst = beforePostInterceptors.get(c);
+                    if (lst == null) {
+                        lst = new ArrayList<BeforeAsyncJsonPostInterceptor>();
+                        beforePostInterceptors.put(c, lst);
+                    }
+                    lst.add(interceptor);
+                }
+            }
+        }
     }
 }

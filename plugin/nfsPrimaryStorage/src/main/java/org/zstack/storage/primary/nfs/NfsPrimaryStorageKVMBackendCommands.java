@@ -375,6 +375,15 @@ public class NfsPrimaryStorageKVMBackendCommands {
     public static class MergeSnapshotCmd extends NfsPrimaryStorageAgentCommand {
         private String snapshotInstallPath;
         private String workspaceInstallPath;
+        private String latestSnapshotUuid;
+
+        public String getLatestSnapshotUuid() {
+            return latestSnapshotUuid;
+        }
+
+        public void setLatestSnapshotUuid(String latestSnapshotUuid) {
+            this.latestSnapshotUuid = latestSnapshotUuid;
+        }
 
         public String getSnapshotInstallPath() {
             return snapshotInstallPath;
@@ -395,6 +404,15 @@ public class NfsPrimaryStorageKVMBackendCommands {
 
     public static class MergeSnapshotResponse extends NfsPrimaryStorageAgentResponse {
         private long size;
+        private long actualSize;
+
+        public long getActualSize() {
+            return actualSize;
+        }
+
+        public void setActualSize(long actualSize) {
+            this.actualSize = actualSize;
+        }
 
         public long getSize() {
             return size;
@@ -428,6 +446,15 @@ public class NfsPrimaryStorageKVMBackendCommands {
 
     public static class RebaseAndMergeSnapshotsResponse extends NfsPrimaryStorageAgentResponse {
         private long size;
+        private long actualSize;
+
+        public long getActualSize() {
+            return actualSize;
+        }
+
+        public void setActualSize(long actualSize) {
+            this.actualSize = actualSize;
+        }
 
         public long getSize() {
             return size;

@@ -528,6 +528,7 @@ public class VolumeSnapshotTreeBase {
                                     CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply cr = reply.castReply();
                                     info.bitsInstallPath = cr.getInstallPath();
                                     info.bitsSize = cr.getSize();
+                                    info.bitsActualSize = cr.getActualSize();
                                     trigger.next();
                                 } else {
                                     trigger.fail(reply.getError());
@@ -576,6 +577,7 @@ public class VolumeSnapshotTreeBase {
                         VolumeInventory inv = msg.getVolume();
                         inv.setInstallPath(info.bitsInstallPath);
                         inv.setSize(info.bitsSize);
+                        inv.setActualSize(info.bitsActualSize);
                         inv.setPrimaryStorageUuid(info.workspacePrimaryStorage.getUuid());
                         inv.setFormat(currentRoot.getFormat());
                         reply.setInventory(inv);
@@ -666,6 +668,7 @@ public class VolumeSnapshotTreeBase {
         long neededSizeOnWorkspacePrimaryStorage;
         long totalSnapshotSize;
         long bitsSize;
+        long bitsActualSize;
         List<String> zoneUuidsForFindingWorkspacePrimaryStorage;
     }
 
@@ -677,6 +680,7 @@ public class VolumeSnapshotTreeBase {
             neededSizeOnWorkspacePrimaryStorage = info.neededSizeOnWorkspacePrimaryStorage;
             totalSnapshotSize = info.totalSnapshotSize;
             bitsSize = info.bitsSize;
+            bitsActualSize = info.bitsActualSize;
             zoneUuidsForFindingWorkspacePrimaryStorage = info.zoneUuidsForFindingWorkspacePrimaryStorage;
         }
 
@@ -694,6 +698,7 @@ public class VolumeSnapshotTreeBase {
             neededSizeOnWorkspacePrimaryStorage = info.neededSizeOnWorkspacePrimaryStorage;
             totalSnapshotSize = info.totalSnapshotSize;
             bitsSize = info.bitsSize;
+            bitsActualSize = info.bitsActualSize;
             zoneUuidsForFindingWorkspacePrimaryStorage = info.zoneUuidsForFindingWorkspacePrimaryStorage;
         }
     }
@@ -1112,6 +1117,7 @@ public class VolumeSnapshotTreeBase {
 
                                     info.results = cr.getResults();
                                     info.bitsSize = cr.getSize();
+                                    info.bitsActualSize = cr.getActualSize();
                                     trigger.next();
                                 } else {
                                     trigger.fail(reply.getError());
@@ -1174,6 +1180,7 @@ public class VolumeSnapshotTreeBase {
                     public void handle(Map data) {
                         reply.setResults(info.results);
                         reply.setSize(info.bitsSize);
+                        reply.setActualSize(info.bitsActualSize);
                         bus.reply(msg, reply);
                         completion.done();
                     }

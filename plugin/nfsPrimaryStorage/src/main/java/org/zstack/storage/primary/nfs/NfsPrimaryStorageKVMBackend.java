@@ -620,6 +620,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
             cmd.setSnapshotInstallPath(latest.getPrimaryStorageInstallPath());
             cmd.setWorkspaceInstallPath(workspaceInstallPath);
             cmd.setUuid(pinv.getUuid());
+            cmd.setLatestSnapshotUuid(latest.getUuid());
 
             KVMHostAsyncHttpCallMsg msg = new KVMHostAsyncHttpCallMsg();
             msg.setCommand(cmd);
@@ -647,6 +648,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
                     CreateBitsFromSnapshotResult result = new CreateBitsFromSnapshotResult();
                     result.setInstallPath(workspaceInstallPath);
                     result.setSize(rsp.getSize());
+                    result.setActualSize(rsp.getActualSize());
                     completion.success(result);
                 }
             });
@@ -783,6 +785,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
             List<String> snapshotInstallPaths = new ArrayList<String>();
             String workspaceInstallPath = NfsPrimaryStorageKvmHelper.makeSnapshotWorkspacePath(pinv, bitsUuid);
             long templateSize;
+            long actualSize;
 
             @Override
             public void setup() {
@@ -901,6 +904,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
 
                                 nfsMgr.reportCapacityIfNeeded(pinv.getUuid(), rsp);
                                 templateSize = rsp.getSize();
+                                actualSize = rsp.getActualSize();
                                 mergeSuccess = true;
                                 trigger.next();
                             }
@@ -934,6 +938,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
                     public void handle(Map data) {
                         CreateBitsFromSnapshotResult result = new CreateBitsFromSnapshotResult();
                         result.setSize(templateSize);
+                        result.setActualSize(actualSize);
                         result.setInstallPath(workspaceInstallPath);
                         completion.success(result);
                     }

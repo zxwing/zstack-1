@@ -71,6 +71,7 @@ public class TestSftpBackupStorageDownloadImage {
         iinv.setUrl("http://zstack.org/download/testimage.qcow2");
 
         config.imageSizes.put(iinv.getUuid(), size);
+        config.imageActualSizes.put(iinv.getUuid(), size);
 
         iinv = api.addImage(iinv, sinv.getUuid());
         Assert.assertEquals(size, iinv.getActualSize().longValue());

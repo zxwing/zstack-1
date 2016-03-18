@@ -218,6 +218,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
             public void success(CreateTemplateFromSnapshotResultStruct returnValue) {
                 reply.setResults(returnValue.results);
                 reply.setSize(returnValue.size);
+                reply.setActualSize(returnValue.actualSize);
                 bus.reply(msg, reply);
             }
 
@@ -232,6 +233,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
     private class CreateTemplateFromSnapshotResultStruct {
         List<CreateTemplateFromVolumeSnapshotResult> results;
         long size;
+        long actualSize;
     }
 
     private void createTemplateFromSnapshot(final CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg msg, final ReturnValueCompletion<CreateTemplateFromSnapshotResultStruct> completion) {
@@ -247,6 +249,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
             List<BackupStorageInventory> backupStorage;
             List<CreateTemplateFromVolumeSnapshotResult> results = new ArrayList<CreateTemplateFromVolumeSnapshotResult>();
             long templateSize;
+            long actualSize;
 
             {
                 backupStorage = msg.getBackupStorage();
@@ -266,6 +269,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                                     public void success(CreateBitsFromSnapshotResult returnValue) {
                                         templateInstallPathOnPrimaryStorage = returnValue.getInstallPath();
                                         templateSize = returnValue.getSize();
+                                        actualSize = returnValue.getActualSize();
                                         trigger.next();
 
                                     }
@@ -377,6 +381,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                         CreateTemplateFromSnapshotResultStruct struct = new CreateTemplateFromSnapshotResultStruct();
                         struct.results = results;
                         struct.size = templateSize;
+                        struct.actualSize = actualSize;
                         completion.success(struct);
                     }
                 });
