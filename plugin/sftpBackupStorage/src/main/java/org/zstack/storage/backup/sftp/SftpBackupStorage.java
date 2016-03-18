@@ -142,6 +142,7 @@ public class SftpBackupStorage extends BackupStorageBase {
             public void success(DownloadResult res) {
                 reply.setInstallPath(installPath);
                 reply.setSize(res.size);
+                reply.setActualSize(res.actualSize);
                 reply.setMd5sum(res.md5sum);
                 bus.reply(msg, reply);
             }
