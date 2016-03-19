@@ -20,6 +20,7 @@ import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
+import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.image.ImageConstant.ImageMediaType;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.message.Message;
@@ -1026,6 +1027,11 @@ public class IscsiFilesystemBackendPrimaryStorage extends PrimaryStorageBase {
                 return AgentCapacityResponse.class;
             }
         });
+    }
+
+    @Override
+    protected void handle(SyncVolumeActualSizeMsg msg) {
+        throw new CloudRuntimeException("not implemented yet");
     }
 
     @Override

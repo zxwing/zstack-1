@@ -476,10 +476,20 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
         public Long size;
     }
 
+    public static class SyncVolumeActualSizeCmd extends AgentCommand {
+        public String path;
+        public String volumeUuid;
+    }
+
+    public static class SyncVolumeActualSizeRsp extends AgentResponse {
+        public Long actualSize;
+    }
+
 
     public static final String INIT_PATH = "/localstorage/init";
     public static final String GET_PHYSICAL_CAPACITY_PATH = "/localstorage/getphysicalcapacity";
     public static final String CREATE_EMPTY_VOLUME_PATH = "/localstorage/volume/createempty";
+    public static final String SYNC_VOLUME_ACTUAL_SIZE_PATH = "/localstorage/volume/syncactualsize";
     public static final String CREATE_VOLUME_FROM_CACHE_PATH = "/localstorage/volume/createvolumefromcache";
     public static final String DELETE_BITS_PATH = "/localstorage/delete";
     public static final String CHECK_BITS_PATH = "/localstorage/checkbits";
@@ -1754,6 +1764,34 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
             @Override
             public void success() {
                 completion.success(new LocalStorageDirectlyDeleteBitsReply());
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    @Override
+    void handle(SyncVolumeActualSizeMsg msg, String hostUuid, final ReturnValueCompletion<SyncVolumeActualSizeReply> completion) {
+        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+        VolumeInventory volume = msg.getVolume();
+
+        SyncVolumeActualSizeCmd cmd = new SyncVolumeActualSizeCmd();
+        cmd.path = volume.getInstallPath();
+        cmd.volumeUuid = volume.getUuid();
+
+        httpCall(SYNC_VOLUME_ACTUAL_SIZE_PATH, hostUuid, cmd, SyncVolumeActualSizeRsp.class, new ReturnValueCompletion<SyncVolumeActualSizeRsp>(completion) {
+            @Override
+            public void success(SyncVolumeActualSizeRsp rsp) {
+                if (!rsp.isSuccess()) {
+                    completion.fail(errf.stringToOperationError(rsp.getError()));
+                    return;
+                }
+
+                reply.setActualSize(rsp.actualSize);
+                completion.success(reply);
             }
 
             @Override

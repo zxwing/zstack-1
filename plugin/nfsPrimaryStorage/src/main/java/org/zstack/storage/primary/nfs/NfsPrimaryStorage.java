@@ -35,9 +35,11 @@ import org.zstack.header.volume.VolumeFormat;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.kvm.KVMConstant;
+import org.zstack.kvm.KVMHostAsyncHttpCallMsg;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.storage.primary.PrimaryStoragePathMaker;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageBackend.CreateBitsFromSnapshotResult;
+import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.SyncVolumeActualSizeCmd;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.DebugUtils;
 import org.zstack.utils.Utils;
@@ -1002,5 +1004,27 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
         } else {
             backend.getPhysicalCapacity(getSelfInventory(), completion);
         }
+    }
+
+    @Override
+    protected void handle(final SyncVolumeActualSizeMsg msg) {
+        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+
+        VolumeInventory volume = msg.getVolume();
+        HypervisorType hvType = VolumeFormat.getMasterHypervisorTypeByVolumeFormat(volume.getFormat());
+        NfsPrimaryStorageBackend bkd = getBackend(hvType);
+        bkd.syncVolumeActualSize(getSelfInventory(), volume, new ReturnValueCompletion<Long>(msg) {
+            @Override
+            public void success(Long actualSize) {
+                reply.setActualSize(actualSize);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 }

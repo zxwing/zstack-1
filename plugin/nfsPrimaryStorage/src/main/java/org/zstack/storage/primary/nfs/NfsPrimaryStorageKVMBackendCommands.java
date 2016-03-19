@@ -522,5 +522,29 @@ public class NfsPrimaryStorageKVMBackendCommands {
     public static class OfflineMergeSnapshotRsp extends NfsPrimaryStorageAgentResponse {
     }
 
-    public static final String UNABLE_TO_FIND_IMAGE_IN_CACHE = "UNABLE_TO_FIND_IMAGE_IN_CACHE";
+
+    public static class SyncVolumeActualSizeCmd extends NfsPrimaryStorageAgentCommand {
+        public String path;
+        public String volumeUuid;
+
+        public String getPath() {
+            return path;
+        }
+
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        public String getVolumeUuid() {
+            return volumeUuid;
+        }
+
+        public void setVolumeUuid(String volumeUuid) {
+            this.volumeUuid = volumeUuid;
+        }
+    }
+
+    public static class SyncVolumeActualSizeRsp extends NfsPrimaryStorageAgentResponse {
+        public long actualSize;
+    }
 }

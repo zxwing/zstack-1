@@ -53,6 +53,7 @@ import javax.persistence.*;
 import java.util.*;
 import java.util.concurrent.Callable;
 
+import static org.zstack.utils.CollectionDSL.e;
 import static org.zstack.utils.CollectionDSL.list;
 
 /**
@@ -1604,6 +1605,26 @@ public class LocalStorageBase extends PrimaryStorageBase {
         }
 
         new Sync().sync();
+    }
+
+    @Override
+    protected void handle(final SyncVolumeActualSizeMsg msg) {
+        LocalStorageHypervisorFactory f = getHypervisorBackendFactoryByResourceUuid(msg.getVolume().getUuid(), VolumeVO.class.getSimpleName());
+        LocalStorageHypervisorBackend bkd = f.getHypervisorBackend(self);
+        String hostUuid = getHostUuidByResourceUuid(msg.getVolume().getUuid());
+        bkd.handle(msg, hostUuid, new ReturnValueCompletion<SyncVolumeActualSizeReply>(msg) {
+            @Override
+            public void success(SyncVolumeActualSizeReply reply) {
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     private LocalStorageHypervisorFactory getHypervisorBackendFactoryByHostUuid(String hostUuid) {

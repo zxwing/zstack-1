@@ -4,7 +4,9 @@ import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.*;
 import org.zstack.utils.data.SizeUnit;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class NfsPrimaryStorageSimulatorConfig {
     public volatile boolean createRootVolumeFromTemplateSuccess = true;
@@ -38,4 +40,6 @@ public class NfsPrimaryStorageSimulatorConfig {
     public volatile boolean moveBitsSuccess = true;
     public volatile boolean offlineMergeSnapshotSuccess = true;
     public volatile List<OfflineMergeSnapshotCmd> offlineMergeSnapshotCmds = new ArrayList<OfflineMergeSnapshotCmd>();
+    public volatile List<SyncVolumeActualSizeCmd> syncVolumeActualSizeCmds = new ArrayList<SyncVolumeActualSizeCmd>();
+    public Map<String, Long> volumeActualSizeForSync = new HashMap<String, Long>();
 }

@@ -2,6 +2,7 @@ package org.zstack.simulator.storage.primary;
 
 import org.zstack.header.core.Completion;
 import org.zstack.header.core.ReturnValueCompletion;
+import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.message.Message;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.primary.VolumeSnapshotCapability.VolumeSnapshotArrangementType;
@@ -131,5 +132,10 @@ public class SimulatorPrimaryStorage extends PrimaryStorageBase {
         usage.availablePhysicalSize = self.getCapacity().getAvailablePhysicalCapacity();
         usage.totalPhysicalSize = self.getCapacity().getTotalPhysicalCapacity();
         completion.success(usage);
+    }
+
+    @Override
+    protected void handle(SyncVolumeActualSizeMsg msg) {
+        throw new CloudRuntimeException("no implemented yet");
     }
 }

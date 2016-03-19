@@ -76,4 +76,6 @@ public interface NfsPrimaryStorageBackend {
     void moveBits(PrimaryStorageInventory pinv, String srcPath, String destPath, Completion completion);
 
     void mergeSnapshotToVolume(PrimaryStorageInventory pinv, VolumeSnapshotInventory snapshot, VolumeInventory volume, boolean fullRebase, Completion completion);
+
+    void syncVolumeActualSize(PrimaryStorageInventory inv, VolumeInventory volume, ReturnValueCompletion<Long> completion);
 }

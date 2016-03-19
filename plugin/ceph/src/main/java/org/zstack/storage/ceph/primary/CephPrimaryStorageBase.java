@@ -1631,6 +1631,11 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     @Override
+    protected void handle(SyncVolumeActualSizeMsg msg) {
+        throw new CloudRuntimeException("not implemented yet");
+    }
+
+    @Override
     protected void handle(APIReconnectPrimaryStorageMsg msg) {
         final APIReconnectPrimaryStorageEvent evt = new APIReconnectPrimaryStorageEvent(msg.getId());
         self.setStatus(PrimaryStorageStatus.Connecting);

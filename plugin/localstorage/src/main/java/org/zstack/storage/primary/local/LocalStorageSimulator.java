@@ -295,6 +295,17 @@ public class LocalStorageSimulator {
         return null;
     }
 
+    @RequestMapping(value=LocalStorageKvmBackend.SYNC_VOLUME_ACTUAL_SIZE_PATH, method= RequestMethod.POST)
+    public @ResponseBody
+    String syncVolumeActualSize(HttpEntity<String> entity) {
+        SyncVolumeActualSizeCmd cmd = JSONObjectUtil.toObject(entity.getBody(), SyncVolumeActualSizeCmd.class);
+        SyncVolumeActualSizeRsp rsp = new SyncVolumeActualSizeRsp();
+        rsp.actualSize = config.volumeActualSizeForSync.get(cmd.volumeUuid);
+        config.syncVolumeActualSizeCmds.add(cmd);
+        replyer.reply(entity, rsp);
+        return null;
+    }
+
     @ExceptionHandler(Exception.class)
     public ModelAndView handleAllException(Exception ex) {
         logger.warn(ex.getMessage(), ex);

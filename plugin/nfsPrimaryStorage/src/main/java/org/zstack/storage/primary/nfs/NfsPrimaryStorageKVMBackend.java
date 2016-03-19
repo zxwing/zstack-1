@@ -80,6 +80,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
     public static final String REVERT_VOLUME_FROM_SNAPSHOT_PATH = "/nfsprimarystorage/revertvolumefromsnapshot";
     public static final String CREATE_TEMPLATE_FROM_VOLUME_PATH = "/nfsprimarystorage/sftp/createtemplatefromvolume";
     public static final String OFFLINE_SNAPSHOT_MERGE = "/nfsprimarystorage/offlinesnapshotmerge";
+    public static final String SYNC_VOLUME_ACTUAL_SIZE = "/nfsprimarystorage/volume/syncactualsize";
 
     //////////////// For unit test //////////////////////////
     private boolean syncGetCapacity = false;
@@ -770,6 +771,35 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
                 }
             });
         }
+    }
+
+    @Override
+    public void syncVolumeActualSize(PrimaryStorageInventory inv, VolumeInventory volume, final ReturnValueCompletion<Long> completion) {
+        SyncVolumeActualSizeCmd cmd = new SyncVolumeActualSizeCmd();
+        cmd.path = volume.getInstallPath();
+        cmd.volumeUuid = volume.getUuid();
+
+        HostInventory host = nfsFactory.getConnectedHostForOperation(inv);
+
+        KVMHostAsyncHttpCallMsg msg = new KVMHostAsyncHttpCallMsg();
+        msg.setHostUuid(host.getUuid());
+        msg.setPath(SYNC_VOLUME_ACTUAL_SIZE);
+        msg.setCommand(cmd);
+        msg.setCommandTimeout(timeoutMgr.getTimeout(cmd.getClass(), "5m"));
+        bus.makeTargetServiceIdByResourceUuid(msg, HostConstant.SERVICE_ID, host.getUuid());
+        bus.send(msg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (!reply.isSuccess()) {
+                    completion.fail(reply.getError());
+                    return;
+                }
+
+                KVMHostAsyncHttpCallReply ar = reply.castReply();
+                SyncVolumeActualSizeRsp rsp = ar.toResponse(SyncVolumeActualSizeRsp.class);
+                completion.success(rsp.actualSize);
+            }
+        });
     }
 
     private void downloadAndCreateBitsFromVolumeSnapshots(final PrimaryStorageInventory pinv,
