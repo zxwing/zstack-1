@@ -53,7 +53,7 @@ public class VmAllocatePrimaryStorageFlow implements Flow {
             rmsg.setDiskOfferingUuid(spec.getRootDiskOffering().getUuid());
         } else {
             //TODO: find a way to allow specifying strategy for root disk
-            rmsg.setSize(iminv.getActualSize());
+            rmsg.setSize(iminv.getSize());
             rmsg.setRequiredHostUuid(destHost.getUuid());
         }
 

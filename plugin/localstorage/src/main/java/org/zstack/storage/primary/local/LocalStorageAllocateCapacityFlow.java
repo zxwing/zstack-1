@@ -73,7 +73,7 @@ public class LocalStorageAllocateCapacityFlow implements Flow {
             rmsg.setDiskOfferingUuid(spec.getRootDiskOffering().getUuid());
         } else {
             //TODO: find a way to allow specifying strategy for root disk
-            rmsg.setSize(spec.getImageSpec().getInventory().getActualSize());
+            rmsg.setSize(spec.getImageSpec().getInventory().getSize());
         }
 
         if (spec.getCurrentVmOperation() == VmOperation.NewCreate) {
