@@ -64,6 +64,7 @@ public class VmInstantiateAttachingVolumeFlow extends NoRollbackFlow {
                     VolumeStatus oldStatus = vo.getStatus();
 
                     vo.setPrimaryStorageUuid(pinv.getUuid());
+                    vo.setActualSize(0);
                     vo.setInstallPath(r.getVolume().getInstallPath());
                     vo.setFormat(r.getVolume().getFormat());
                     if (vo.getFormat() == null) {

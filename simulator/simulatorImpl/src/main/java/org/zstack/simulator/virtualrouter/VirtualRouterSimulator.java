@@ -21,9 +21,8 @@ import org.zstack.network.service.virtualrouter.lb.VirtualRouterLoadBalancerBack
 import org.zstack.network.service.virtualrouter.lb.VirtualRouterLoadBalancerBackend.DeleteLbRsp;
 import org.zstack.network.service.virtualrouter.lb.VirtualRouterLoadBalancerBackend.RefreshLbCmd;
 import org.zstack.network.service.virtualrouter.lb.VirtualRouterLoadBalancerBackend.RefreshLbRsp;
-import org.zstack.simulator.AsyncRESTReplyer;
+import org.zstack.core.simulator.AsyncRESTReplyer;
 import org.zstack.simulator.SimulatorGlobalProperty;
-import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;

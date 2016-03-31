@@ -74,7 +74,7 @@ public class TestCreateTemplateFromRootVolumeFailure5 {
 	    ImageInventory image = api.createTemplateFromRootVolume("testImage", rootVolumeUuid, Arrays.asList(sftp.getUuid(), sftp1.getUuid()));
         Assert.assertEquals(1, image.getBackupStorageRefs().size());
 	    Assert.assertEquals(ImageStatus.Ready.toString(), image.getStatus());
-	    Assert.assertEquals(vol.getSize(), image.getSize());
+	    Assert.assertEquals(vol.getSize(), image.getActualSize().longValue());
         Assert.assertEquals(String.format("volume://%s", vol.getUuid()), image.getUrl());
         Assert.assertEquals(sftp1.getUuid(), image.getBackupStorageRefs().get(0).getBackupStorageUuid());
 

@@ -53,6 +53,7 @@ import javax.persistence.*;
 import java.util.*;
 import java.util.concurrent.Callable;
 
+import static org.zstack.utils.CollectionDSL.e;
 import static org.zstack.utils.CollectionDSL.list;
 
 /**
@@ -1195,7 +1196,7 @@ public class LocalStorageBase extends PrimaryStorageBase {
         chain.then(new ShareFlow() {
             DownloadDataVolumeToPrimaryStorageReply reply;
 
-            long requiredSize = ratioMgr.calculateByRatio(self.getUuid(), msg.getImage().getSize());
+            long requiredSize = ratioMgr.calculateByRatio(self.getUuid(), msg.getImage().getActualSize());
 
             @Override
             public void setup() {
@@ -1240,7 +1241,7 @@ public class LocalStorageBase extends PrimaryStorageBase {
                 done(new FlowDoneHandler(msg) {
                     @Override
                     public void handle(Map data) {
-                        createResourceRefVO(msg.getVolumeUuid(), VolumeVO.class.getSimpleName(), msg.getImage().getSize(), msg.getHostUuid());
+                        createResourceRefVO(msg.getVolumeUuid(), VolumeVO.class.getSimpleName(), msg.getImage().getActualSize(), msg.getHostUuid());
                         bus.reply(msg, reply);
                     }
                 });
@@ -1333,13 +1334,13 @@ public class LocalStorageBase extends PrimaryStorageBase {
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
-                        reserveCapacityOnHost(msg.getDestHostUuid(), msg.getIsoSpec().getInventory().getSize());
+                        reserveCapacityOnHost(msg.getDestHostUuid(), msg.getIsoSpec().getInventory().getActualSize());
                         trigger.next();
                     }
 
                     @Override
                     public void rollback(FlowRollback trigger, Map data) {
-                        returnCapacityToHost(msg.getDestHostUuid(), msg.getIsoSpec().getInventory().getSize());
+                        returnCapacityToHost(msg.getDestHostUuid(), msg.getIsoSpec().getInventory().getActualSize());
                         trigger.rollback();
                     }
                 });
@@ -1376,7 +1377,7 @@ public class LocalStorageBase extends PrimaryStorageBase {
                         q.add(LocalStorageResourceRefVO_.resourceType, Op.EQ, ImageVO.class.getSimpleName());
                         if (!q.isExists()) {
                             createResourceRefVO(msg.getIsoSpec().getInventory().getUuid(), ImageVO.class.getSimpleName(),
-                                    msg.getIsoSpec().getInventory().getSize(), msg.getDestHostUuid());
+                                    msg.getIsoSpec().getInventory().getActualSize(), msg.getDestHostUuid());
                         }
 
                         bus.reply(msg, reply);
@@ -1602,6 +1603,26 @@ public class LocalStorageBase extends PrimaryStorageBase {
         }
 
         new Sync().sync();
+    }
+
+    @Override
+    protected void handle(final SyncVolumeActualSizeMsg msg) {
+        LocalStorageHypervisorFactory f = getHypervisorBackendFactoryByResourceUuid(msg.getVolume().getUuid(), VolumeVO.class.getSimpleName());
+        LocalStorageHypervisorBackend bkd = f.getHypervisorBackend(self);
+        String hostUuid = getHostUuidByResourceUuid(msg.getVolume().getUuid());
+        bkd.handle(msg, hostUuid, new ReturnValueCompletion<SyncVolumeActualSizeReply>(msg) {
+            @Override
+            public void success(SyncVolumeActualSizeReply reply) {
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     private LocalStorageHypervisorFactory getHypervisorBackendFactoryByHostUuid(String hostUuid) {

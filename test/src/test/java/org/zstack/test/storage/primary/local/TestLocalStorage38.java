@@ -102,7 +102,7 @@ public class TestLocalStorage38 {
         api.deleteImage(image.getUuid());
 
         config.backingFilePath = image.getBackupStorageRefs().get(0).getInstallPath();
-        config.backingFileSize = image.getSize();
+        config.backingFileSize = image.getActualSize();
         config.checkBitsSuccess = false;
         VolumeInventory root = vm.getRootVolume();
 

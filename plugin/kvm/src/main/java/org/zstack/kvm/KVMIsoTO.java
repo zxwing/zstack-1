@@ -14,6 +14,7 @@ public class KVMIsoTO extends ImageInventory {
         this.setLastOpDate(inv.getLastOpDate());
         this.setMd5Sum(inv.getMd5Sum());
         this.setName(inv.getName());
+        this.setActualSize(inv.getActualSize());
         this.setSize(inv.getSize());
         this.setState(inv.getStatus());
         this.setType(inv.getType());

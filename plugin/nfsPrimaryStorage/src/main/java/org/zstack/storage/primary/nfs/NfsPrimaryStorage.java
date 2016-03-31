@@ -37,9 +37,11 @@ import org.zstack.header.volume.VolumeFormat;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.kvm.KVMConstant;
+import org.zstack.kvm.KVMHostAsyncHttpCallMsg;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.storage.primary.PrimaryStoragePathMaker;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageBackend.CreateBitsFromSnapshotResult;
+import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.SyncVolumeActualSizeCmd;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.DebugUtils;
 import org.zstack.utils.Utils;
@@ -222,6 +224,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
             public void success(CreateTemplateFromSnapshotResultStruct returnValue) {
                 reply.setResults(returnValue.results);
                 reply.setSize(returnValue.size);
+                reply.setActualSize(returnValue.actualSize);
                 bus.reply(msg, reply);
             }
 
@@ -236,6 +239,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
     private class CreateTemplateFromSnapshotResultStruct {
         List<CreateTemplateFromVolumeSnapshotResult> results;
         long size;
+        long actualSize;
     }
 
     private void createTemplateFromSnapshot(final CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg msg, final ReturnValueCompletion<CreateTemplateFromSnapshotResultStruct> completion) {
@@ -251,6 +255,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
             List<BackupStorageInventory> backupStorage;
             List<CreateTemplateFromVolumeSnapshotResult> results = new ArrayList<CreateTemplateFromVolumeSnapshotResult>();
             long templateSize;
+            long actualSize;
 
             {
                 backupStorage = msg.getBackupStorage();
@@ -270,6 +275,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                                     public void success(CreateBitsFromSnapshotResult returnValue) {
                                         templateInstallPathOnPrimaryStorage = returnValue.getInstallPath();
                                         templateSize = returnValue.getSize();
+                                        actualSize = returnValue.getActualSize();
                                         trigger.next();
 
                                     }
@@ -292,7 +298,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                 });
 
                 flow(new Flow() {
-                    List<ErrorCode> errs;
+                    List<ErrorCode> errs = new ArrayList<ErrorCode>();
 
                     private void upload(final Iterator<BackupStorageInventory> it, final FlowTrigger trigger) {
                         if (!it.hasNext()) {
@@ -381,6 +387,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                         CreateTemplateFromSnapshotResultStruct struct = new CreateTemplateFromSnapshotResultStruct();
                         struct.results = results;
                         struct.size = templateSize;
+                        struct.actualSize = actualSize;
                         completion.success(struct);
                     }
                 });
@@ -1029,5 +1036,27 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
         } else {
             backend.getPhysicalCapacity(getSelfInventory(), completion);
         }
+    }
+
+    @Override
+    protected void handle(final SyncVolumeActualSizeMsg msg) {
+        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+
+        VolumeInventory volume = msg.getVolume();
+        HypervisorType hvType = VolumeFormat.getMasterHypervisorTypeByVolumeFormat(volume.getFormat());
+        NfsPrimaryStorageBackend bkd = getBackend(hvType);
+        bkd.syncVolumeActualSize(getSelfInventory(), volume, new ReturnValueCompletion<Long>(msg) {
+            @Override
+            public void success(Long actualSize) {
+                reply.setActualSize(actualSize);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 }

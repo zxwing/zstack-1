@@ -55,6 +55,9 @@ public class VolumeAO {
     private long size;
 
     @Column
+    private long actualSize;
+
+    @Column
     private Integer deviceId;
 
     @Column
@@ -77,6 +80,14 @@ public class VolumeAO {
 
     public VolumeAO() {
         this.state = VolumeState.Enabled;
+    }
+
+    public long getActualSize() {
+        return actualSize;
+    }
+
+    public void setActualSize(long actualSize) {
+        this.actualSize = actualSize;
     }
 
     public String getFormat() {

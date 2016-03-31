@@ -6,6 +6,8 @@ import org.junit.Test;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.core.simulator.AsyncRESTReplyer;
+import org.zstack.core.simulator.BeforeDeliverResponseInterceptor;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.header.image.ImageBackupStorageRefInventory;
 import org.zstack.header.image.ImageConstant.ImageMediaType;
@@ -17,6 +19,7 @@ import org.zstack.header.vm.VmInstanceInventory;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.simulator.kvm.VolumeSnapshotKvmSimulator;
 import org.zstack.simulator.storage.primary.nfs.NfsPrimaryStorageSimulatorConfig;
+import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.MergeSnapshotResponse;
 import org.zstack.test.Api;
 import org.zstack.test.ApiSenderException;
 import org.zstack.test.DBUtil;
@@ -24,6 +27,7 @@ import org.zstack.test.WebBeanConstructor;
 import org.zstack.test.deployer.Deployer;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.Utils;
+import org.zstack.utils.data.SizeUnit;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
@@ -118,11 +122,23 @@ public class TestSnapshotOnKvm46 {
         VolumeSnapshotInventory inv3 = api.createSnapshot(volUuid);
         deltaSnapshot(inv3, 3);
 
+        final long actualSize = SizeUnit.GIGABYTE.toByte(1);
+        final long size = SizeUnit.GIGABYTE.toByte(2);
+        AsyncRESTReplyer.installBeforeDeliverResponseInterceptor(new BeforeDeliverResponseInterceptor<MergeSnapshotResponse>() {
+            @Override
+            public void beforeDeliverResponse(MergeSnapshotResponse rsp) {
+                rsp.setActualSize(actualSize);
+                rsp.setSize(size);
+            }
+        }, MergeSnapshotResponse.class);
+
         api.changeBackupStorageState(sftp.getUuid(), BackupStorageStateEvent.disable);
         ImageInventory img = api.createTemplateFromSnapshot(inv3.getUuid(), Arrays.asList(sftp.getUuid(), sftp1.getUuid()));
         Assert.assertEquals(1, img.getBackupStorageRefs().size());
         Assert.assertEquals(sftp1.getUuid(), img.getBackupStorageRefs().get(0).getBackupStorageUuid());
-        Assert.assertTrue(img.getSize() != 0);
+        Assert.assertEquals(actualSize, img.getActualSize().longValue());
+        Assert.assertEquals(size, img.getSize());
+
         Assert.assertEquals(ImageMediaType.RootVolumeTemplate.toString(), img.getMediaType());
         Assert.assertFalse(nfsConfig.mergeSnapshotCmds.isEmpty());
         Assert.assertFalse(nfsConfig.uploadToSftpCmds.isEmpty());

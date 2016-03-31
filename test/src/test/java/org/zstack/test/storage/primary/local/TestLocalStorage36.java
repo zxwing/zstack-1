@@ -96,7 +96,7 @@ public class TestLocalStorage36 {
         api.detachVolumeFromVm(data.getUuid());
 
         config.backingFilePath = image.getBackupStorageRefs().get(0).getInstallPath();
-        config.backingFileSize = image.getSize();
+        config.backingFileSize = image.getActualSize();
         config.checkBitsSuccess = true;
         config.copyBitsFromRemoteSuccess = false;
 

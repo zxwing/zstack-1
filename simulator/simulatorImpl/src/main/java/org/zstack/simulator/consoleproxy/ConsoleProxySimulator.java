@@ -12,7 +12,7 @@ import org.zstack.header.console.ConsoleProxyCommands;
 import org.zstack.header.console.ConsoleProxyCommands.DeleteProxyCmd;
 import org.zstack.header.console.ConsoleProxyCommands.DeleteProxyRsp;
 import org.zstack.header.rest.RESTFacade;
-import org.zstack.simulator.AsyncRESTReplyer;
+import org.zstack.core.simulator.AsyncRESTReplyer;
 import org.zstack.utils.Utils;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;

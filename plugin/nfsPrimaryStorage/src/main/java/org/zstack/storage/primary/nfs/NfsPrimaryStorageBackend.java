@@ -18,6 +18,15 @@ public interface NfsPrimaryStorageBackend {
     public static class CreateBitsFromSnapshotResult {
         private String installPath;
         private long size;
+        private long actualSize;
+
+        public long getActualSize() {
+            return actualSize;
+        }
+
+        public void setActualSize(long actualSize) {
+            this.actualSize = actualSize;
+        }
 
         public String getInstallPath() {
             return installPath;
@@ -67,4 +76,6 @@ public interface NfsPrimaryStorageBackend {
     void moveBits(PrimaryStorageInventory pinv, String srcPath, String destPath, Completion completion);
 
     void mergeSnapshotToVolume(PrimaryStorageInventory pinv, VolumeSnapshotInventory snapshot, VolumeInventory volume, boolean fullRebase, Completion completion);
+
+    void syncVolumeActualSize(PrimaryStorageInventory inv, VolumeInventory volume, ReturnValueCompletion<Long> completion);
 }

@@ -13,6 +13,7 @@ import org.zstack.header.host.HostInventory;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.header.storage.primary.PrimaryStorageInventory;
 import org.zstack.header.vm.VmInstanceInventory;
+import org.zstack.header.volume.VolumeInventory;
 import org.zstack.storage.primary.local.*;
 import org.zstack.storage.primary.local.LocalStorageSimulatorConfig.Capacity;
 import org.zstack.test.Api;
@@ -69,7 +70,7 @@ public class TestLocalStorage1 {
     }
     
 	@Test
-	public void test() {
+	public void test() throws ApiSenderException {
         HostInventory host = deployer.hosts.get("host1");
         SimpleQuery<LocalStorageHostRefVO> hq = dbf.createQuery(LocalStorageHostRefVO.class);
         hq.add(LocalStorageHostRefVO_.hostUuid, Op.EQ, host.getUuid());
@@ -98,5 +99,12 @@ public class TestLocalStorage1 {
             s = true;
         }
         Assert.assertTrue(s);
+
+        VolumeInventory vol = vm.getRootVolume();
+        long actualSize = SizeUnit.GIGABYTE.toByte(1);
+        config.volumeActualSizeForSync.put(vol.getUuid(), actualSize);
+        vol = api.syncVolumeActualSize(vol.getUuid(), null);
+        Assert.assertEquals(actualSize, vol.getActualSize().longValue());
+        Assert.assertEquals(1, config.syncVolumeActualSizeCmds.size());
     }
 }

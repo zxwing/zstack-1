@@ -433,6 +433,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                     dbf.persistCollection(refs);
 
                     vo.setSize(creply.getSize());
+                    vo.setActualSize(creply.getActualSize());
                     vo.setStatus(ImageStatus.Ready);
                     dbf.update(vo);
                     ImageVO imvo = dbf.reload(vo);
@@ -834,6 +835,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                             ivo.setMd5Sum(re.getMd5sum());
                             ivo.setSize(re.getSize());
                             ivo.setStatus(ImageStatus.Ready);
+                            ivo.setActualSize(re.getActualSize());
                             dbf.update(ivo);
                             success = true;
                         }

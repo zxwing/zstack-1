@@ -3885,6 +3885,7 @@ public class Api implements CloudBusEventListener {
         return evt.getInventory();
     }
 
+<<<<<<< HEAD
     public AccountInventory updateAccount(AccountInventory acnt, String password, SessionInventory session) throws ApiSenderException {
         APIUpdateAccountMsg msg = new APIUpdateAccountMsg();
         msg.setName(acnt.getName());
@@ -3942,5 +3943,15 @@ public class Api implements CloudBusEventListener {
         sender.setTimeout(timeout);
         sender.send(msg, APIDeleteVmHostnameEvent.class);
         return;
+    }
+
+    public VolumeInventory syncVolumeActualSize(String uuid, SessionInventory session) throws ApiSenderException {
+        APISyncVolumeActualSizeMsg msg = new APISyncVolumeActualSizeMsg();
+        msg.setUuid(uuid);
+        msg.setSession(session == null ? adminSession : session);
+        ApiSender sender = new ApiSender();
+        sender.setTimeout(timeout);
+        APISyncVolumeActualSizeEvent evt = sender.send(msg, APISyncVolumeActualSizeEvent.class);
+        return evt.getInventory();
     }
 }

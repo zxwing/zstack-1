@@ -20,6 +20,7 @@ import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
+import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.image.ImageConstant.ImageMediaType;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.message.Message;
@@ -295,7 +296,7 @@ public class IscsiFilesystemBackendPrimaryStorage extends PrimaryStorageBase {
                             public void run(final FlowTrigger trigger, Map data) {
                                 AllocatePrimaryStorageMsg amsg = new AllocatePrimaryStorageMsg();
                                 amsg.setRequiredPrimaryStorageUuid(self.getUuid());
-                                amsg.setSize(imageSpec.getInventory().getSize());
+                                amsg.setSize(imageSpec.getInventory().getActualSize());
                                 amsg.setPurpose(PrimaryStorageAllocationPurpose.DownloadImage.toString());
                                 amsg.setNoOverProvisioning(true);
                                 bus.makeLocalServiceId(amsg, PrimaryStorageConstant.SERVICE_ID);
@@ -317,7 +318,7 @@ public class IscsiFilesystemBackendPrimaryStorage extends PrimaryStorageBase {
                                 if (s) {
                                     ReturnPrimaryStorageCapacityMsg rmsg = new ReturnPrimaryStorageCapacityMsg();
                                     rmsg.setPrimaryStorageUuid(self.getUuid());
-                                    rmsg.setDiskSize(imageSpec.getInventory().getSize());
+                                    rmsg.setDiskSize(imageSpec.getInventory().getActualSize());
                                     rmsg.setNoOverProvisioning(true);
                                     bus.makeLocalServiceId(rmsg, PrimaryStorageConstant.SERVICE_ID);
                                     bus.send(rmsg);
@@ -356,7 +357,7 @@ public class IscsiFilesystemBackendPrimaryStorage extends PrimaryStorageBase {
                                 vo.setInstallUrl(imagePathInCache);
                                 vo.setMediaType(ImageMediaType.valueOf(imageSpec.getInventory().getMediaType()));
                                 vo.setPrimaryStorageUuid(self.getUuid());
-                                vo.setSize(imageSpec.getInventory().getSize());
+                                vo.setSize(imageSpec.getInventory().getActualSize());
                                 vo.setState(ImageCacheState.ready);
                                 vo.setMd5sum("not calculated");
                                 dbf.persist(vo);
@@ -1026,6 +1027,11 @@ public class IscsiFilesystemBackendPrimaryStorage extends PrimaryStorageBase {
                 return AgentCapacityResponse.class;
             }
         });
+    }
+
+    @Override
+    protected void handle(SyncVolumeActualSizeMsg msg) {
+        throw new CloudRuntimeException("not implemented yet");
     }
 
     @Override

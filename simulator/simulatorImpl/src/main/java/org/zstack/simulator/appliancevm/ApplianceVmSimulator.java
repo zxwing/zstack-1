@@ -14,7 +14,7 @@ import org.zstack.appliancevm.ApplianceVmConstant;
 import org.zstack.appliancevm.ApplianceVmKvmCommands;
 import org.zstack.core.thread.AsyncThread;
 import org.zstack.header.rest.RESTFacade;
-import org.zstack.simulator.AsyncRESTReplyer;
+import org.zstack.core.simulator.AsyncRESTReplyer;
 import org.zstack.simulator.SimulatorGlobalProperty;
 import org.zstack.utils.Utils;
 import org.zstack.utils.gson.JSONObjectUtil;

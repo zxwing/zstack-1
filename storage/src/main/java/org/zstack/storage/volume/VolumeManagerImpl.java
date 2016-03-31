@@ -211,6 +211,7 @@ public class VolumeManagerImpl extends AbstractService implements VolumeManager,
                     vo.setStatus(VolumeStatus.Ready);
                     vo.setPrimaryStorageUuid(inv.getPrimaryStorageUuid());
                     vo.setFormat(inv.getFormat());
+                    vo.setActualSize(inv.getActualSize());
                     VolumeVO vvo = dbf.updateAndRefresh(vo);
 
                     new FireVolumeCanonicalEvent().fireVolumeStatusChangedEvent(VolumeStatus.Creating, VolumeInventory.valueOf(vvo));
@@ -420,6 +421,7 @@ public class VolumeManagerImpl extends AbstractService implements VolumeManager,
                     public void handle(Map data) {
                         vol.setInstallPath(primaryStorageInstallPath);
                         vol.setStatus(VolumeStatus.Ready);
+                        vol.setActualSize(template.getActualSize());
                         if (volumeFormat != null) {
                             vol.setFormat(volumeFormat);
                         }

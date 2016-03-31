@@ -413,9 +413,40 @@ public class VolumeBase implements Volume {
             handle((APIRecoverDataVolumeMsg) msg);
         } else if (msg instanceof APIExpungeDataVolumeMsg) {
             handle((APIExpungeDataVolumeMsg) msg);
+        } else if (msg instanceof APISyncVolumeActualSizeMsg) {
+            handle((APISyncVolumeActualSizeMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
+    }
+
+    private void handle(APISyncVolumeActualSizeMsg msg) {
+        final APISyncVolumeActualSizeEvent evt = new APISyncVolumeActualSizeEvent(msg.getId());
+        if (self.getStatus() != VolumeStatus.Ready) {
+            evt.setInventory(getSelfInventory());
+            bus.publish(evt);
+            return;
+        }
+
+        SyncVolumeActualSizeMsg smsg = new SyncVolumeActualSizeMsg();
+        smsg.setPrimaryStorageUuid(self.getPrimaryStorageUuid());
+        smsg.setVolume(getSelfInventory());
+        bus.makeTargetServiceIdByResourceUuid(smsg, PrimaryStorageConstant.SERVICE_ID, self.getPrimaryStorageUuid());
+        bus.send(smsg, new CloudBusCallBack(msg) {
+            @Override
+            public void run(MessageReply reply) {
+                if (reply.isSuccess()) {
+                    SyncVolumeActualSizeReply sr = reply.castReply();
+                    self.setActualSize(sr.getActualSize());
+                    self = dbf.updateAndRefresh(self);
+                    evt.setInventory(getSelfInventory());
+                } else {
+                    evt.setErrorCode(reply.getError());
+                }
+
+                bus.publish(evt);
+            }
+        });
     }
 
     private void handle(APIExpungeDataVolumeMsg msg) {

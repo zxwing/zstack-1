@@ -46,13 +46,19 @@ public class DefaultImageDeployer implements ImageDeployer<ImageConfig> {
                 SessionInventory session = ic.getAccountRef() == null ? null : deployer.loginByAccountRef(ic.getAccountRef(), config);
 
                 iinv = deployer.getApi().addImageByFullConfig(iinv, bs.getUuid(), session);
+                ImageVO vo = dbf.findByUuid(iinv.getUuid(), ImageVO.class);
+
                 if (ic.getSize() != null) {
-                    ImageVO vo = dbf.findByUuid(iinv.getUuid(), ImageVO.class);
                     long size = deployer.parseSizeCapacity(ic.getSize());
                     vo.setSize(size);
-                    vo = dbf.updateAndRefresh(vo);
-                    iinv = ImageInventory.valueOf(vo);
                 }
+                if (ic.getActualSize() != null) {
+                    long size = deployer.parseSizeCapacity(ic.getActualSize());
+                    vo.setActualSize(size);
+                }
+
+                vo = dbf.updateAndRefresh(vo);
+                iinv = ImageInventory.valueOf(vo);
                 deployer.images.put(iinv.getName(), iinv);
             }
         }

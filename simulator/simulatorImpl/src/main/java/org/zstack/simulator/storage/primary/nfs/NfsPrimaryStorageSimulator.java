@@ -14,7 +14,7 @@ import org.zstack.kvm.KVMAgentCommands.AgentResponse;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackend;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.*;
 import org.zstack.storage.primary.nfs.NfsPrimaryToSftpBackupKVMBackend;
-import org.zstack.simulator.AsyncRESTReplyer;
+import org.zstack.core.simulator.AsyncRESTReplyer;
 import org.zstack.simulator.kvm.VolumeSnapshotKvmSimulator;
 import org.zstack.utils.Utils;
 import org.zstack.utils.data.SizeUnit;
@@ -371,5 +371,17 @@ public class NfsPrimaryStorageSimulator {
             logger.debug(String.format("create empty volume[uuid:%s,  path:%s, size:%s]", cmd.getUuid(), cmd.getInstallUrl(), cmd.getSize()));
         }
         reply(entity, rsp);
+    }
+
+    @RequestMapping(value=NfsPrimaryStorageKVMBackend.SYNC_VOLUME_ACTUAL_SIZE, method=RequestMethod.POST)
+    private @ResponseBody String syncVolumeActualSize(HttpServletRequest req) throws InterruptedException {
+        HttpEntity<String> entity = restf.httpServletRequestToHttpEntity(req);
+        SyncVolumeActualSizeCmd cmd = JSONObjectUtil.toObject(entity.getBody(), SyncVolumeActualSizeCmd.class);
+        config.syncVolumeActualSizeCmds.add(cmd);
+
+        SyncVolumeActualSizeRsp rsp = new SyncVolumeActualSizeRsp();
+        rsp.actualSize = config.volumeActualSizeForSync.get(cmd.getVolumeUuid());
+        reply(entity, rsp);
+        return null;
     }
 }

@@ -47,4 +47,6 @@ public class LocalStorageSimulatorConfig {
     public volatile boolean checkMd5Success = true;
     public volatile boolean checkBitsSuccess = true;
     public volatile boolean copyBitsFromRemoteSuccess = true;
+    public List<SyncVolumeActualSizeCmd> syncVolumeActualSizeCmds = new ArrayList<SyncVolumeActualSizeCmd>();
+    public Map<String, Long> volumeActualSizeForSync = new HashMap<String, Long>();
 }

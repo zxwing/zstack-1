@@ -65,15 +65,17 @@ public class SftpBackupStorageTestHelper {
 
         long size = SizeUnit.GIGABYTE.toByte(8);
         config.imageSizes.put(iinv.getUuid(), size);
+        config.imageActualSizes.put(iinv.getUuid(), size);
 
         iinv = api.addImage(iinv, sinv.getUuid());
-        Assert.assertEquals(size, iinv.getSize());
+        Assert.assertEquals(size, iinv.getActualSize().longValue());
         Assert.assertEquals(config.imageMd5sum, iinv.getMd5Sum());
         for (ImageBackupStorageRefInventory ref : iinv.getBackupStorageRefs()) {
             Assert.assertNotNull(ref.getInstallPath());
         }
         ImageVO vo = dbf.findByUuid(iinv.getUuid(), ImageVO.class);
         Assert.assertEquals(size, vo.getSize());
+        Assert.assertEquals(size, vo.getActualSize());
         Assert.assertEquals(config.imageMd5sum, vo.getMd5Sum());
         Assert.assertNotNull(vo.getBackupStorageRefs().iterator().next().getInstallPath());
         return iinv;

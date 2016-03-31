@@ -124,7 +124,7 @@ public class PrimaryStorageMainAllocatorFlow extends NoRollbackFlow {
         iq.setParameter("iuuid", spec.getImageUuid());
         List<String> hasImagePrimaryStorage = iq.getResultList();
 
-        sql = "select i.size from ImageVO i where i.uuid = :uuid";
+        sql = "select i.actualSize from ImageVO i where i.uuid = :uuid";
         TypedQuery<Long> sq = dbf.getEntityManager().createQuery(sql, Long.class);
         sq.setParameter("uuid", spec.getImageUuid());
         long imageSize = sq.getSingleResult();

@@ -80,6 +80,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
     public static final String REVERT_VOLUME_FROM_SNAPSHOT_PATH = "/nfsprimarystorage/revertvolumefromsnapshot";
     public static final String CREATE_TEMPLATE_FROM_VOLUME_PATH = "/nfsprimarystorage/sftp/createtemplatefromvolume";
     public static final String OFFLINE_SNAPSHOT_MERGE = "/nfsprimarystorage/offlinesnapshotmerge";
+    public static final String SYNC_VOLUME_ACTUAL_SIZE = "/nfsprimarystorage/volume/syncactualsize";
 
     //////////////// For unit test //////////////////////////
     private boolean syncGetCapacity = false;
@@ -584,6 +585,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
             cmd.setSnapshotInstallPath(latest.getPrimaryStorageInstallPath());
             cmd.setWorkspaceInstallPath(workspaceInstallPath);
             cmd.setUuid(pinv.getUuid());
+            cmd.setLatestSnapshotUuid(latest.getUuid());
 
             KVMHostAsyncHttpCallMsg msg = new KVMHostAsyncHttpCallMsg();
             msg.setCommand(cmd);
@@ -611,6 +613,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
                     CreateBitsFromSnapshotResult result = new CreateBitsFromSnapshotResult();
                     result.setInstallPath(workspaceInstallPath);
                     result.setSize(rsp.getSize());
+                    result.setActualSize(rsp.getActualSize());
                     completion.success(result);
                 }
             });
@@ -734,6 +737,35 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
         }
     }
 
+    @Override
+    public void syncVolumeActualSize(PrimaryStorageInventory inv, VolumeInventory volume, final ReturnValueCompletion<Long> completion) {
+        SyncVolumeActualSizeCmd cmd = new SyncVolumeActualSizeCmd();
+        cmd.path = volume.getInstallPath();
+        cmd.volumeUuid = volume.getUuid();
+
+        HostInventory host = nfsFactory.getConnectedHostForOperation(inv);
+
+        KVMHostAsyncHttpCallMsg msg = new KVMHostAsyncHttpCallMsg();
+        msg.setHostUuid(host.getUuid());
+        msg.setPath(SYNC_VOLUME_ACTUAL_SIZE);
+        msg.setCommand(cmd);
+        msg.setCommandTimeout(timeoutMgr.getTimeout(cmd.getClass(), "5m"));
+        bus.makeTargetServiceIdByResourceUuid(msg, HostConstant.SERVICE_ID, host.getUuid());
+        bus.send(msg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (!reply.isSuccess()) {
+                    completion.fail(reply.getError());
+                    return;
+                }
+
+                KVMHostAsyncHttpCallReply ar = reply.castReply();
+                SyncVolumeActualSizeRsp rsp = ar.toResponse(SyncVolumeActualSizeRsp.class);
+                completion.success(rsp.actualSize);
+            }
+        });
+    }
+
     private void downloadAndCreateBitsFromVolumeSnapshots(final PrimaryStorageInventory pinv,
                                                           final List<SnapshotDownloadInfo> snapshots,
                                                           final String bitsName,
@@ -747,6 +779,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
             List<String> snapshotInstallPaths = new ArrayList<String>();
             String workspaceInstallPath = NfsPrimaryStorageKvmHelper.makeSnapshotWorkspacePath(pinv, bitsUuid);
             long templateSize;
+            long actualSize;
 
             @Override
             public void setup() {
@@ -865,6 +898,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
 
                                 nfsMgr.reportCapacityIfNeeded(pinv.getUuid(), rsp);
                                 templateSize = rsp.getSize();
+                                actualSize = rsp.getActualSize();
                                 mergeSuccess = true;
                                 trigger.next();
                             }
@@ -898,6 +932,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
                     public void handle(Map data) {
                         CreateBitsFromSnapshotResult result = new CreateBitsFromSnapshotResult();
                         result.setSize(templateSize);
+                        result.setActualSize(actualSize);
                         result.setInstallPath(workspaceInstallPath);
                         completion.success(result);
                     }

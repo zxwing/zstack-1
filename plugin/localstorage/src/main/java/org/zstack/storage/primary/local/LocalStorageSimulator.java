@@ -2,6 +2,7 @@ package org.zstack.storage.primary.local;
 
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.ModelAndView;
+import org.zstack.core.simulator.AsyncRESTReplyer;
 import org.zstack.storage.primary.local.LocalStorageKvmBackend.*;
 import org.zstack.storage.primary.local.LocalStorageKvmMigrateVmFlow.CopyBitsFromRemoteCmd;
 import org.zstack.storage.primary.local.LocalStorageKvmMigrateVmFlow.RebaseSnapshotBackingFilesCmd;
@@ -47,17 +48,7 @@ public class LocalStorageSimulator {
     @Autowired
     private DatabaseFacade dbf;
 
-    public void reply(HttpEntity<String> entity, Object rsp) {
-        String taskUuid = entity.getHeaders().getFirst(RESTConstant.TASK_UUID);
-        String callbackUrl = entity.getHeaders().getFirst(RESTConstant.CALLBACK_URL);
-        String rspBody = JSONObjectUtil.toJsonString(rsp);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setContentLength(rspBody.length());
-        headers.set(RESTConstant.TASK_UUID, taskUuid);
-        HttpEntity<String> rreq = new HttpEntity<String>(rspBody, headers);
-        restf.getRESTTemplate().exchange(callbackUrl, HttpMethod.POST, rreq, String.class);
-    }
+    AsyncRESTReplyer replyer = new AsyncRESTReplyer();
 
     @RequestMapping(value=LocalStorageKvmBackend.GET_BACKING_FILE_PATH, method= RequestMethod.POST)
     public @ResponseBody
@@ -67,7 +58,7 @@ public class LocalStorageSimulator {
         config.getBackingFileCmds.add(cmd);
         rsp.backingFilePath = config.backingFilePath;
         rsp.size = config.backingFileSize;
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -88,7 +79,7 @@ public class LocalStorageSimulator {
             }
         });
 
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -102,7 +93,7 @@ public class LocalStorageSimulator {
             rsp.setSuccess(false);
             rsp.setError("on purpose");
         }
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -117,7 +108,7 @@ public class LocalStorageSimulator {
             rsp.setError("on purpose");
             rsp.setSuccess(false);
         }
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;}
 
     @RequestMapping(value=LocalStorageKvmMigrateVmFlow.REBASE_ROOT_VOLUME_TO_BACKING_FILE_PATH, method= RequestMethod.POST)
@@ -125,7 +116,7 @@ public class LocalStorageSimulator {
     String rebaseRootVolumeToBackingFile(HttpEntity<String> entity) {
         RebaseRootVolumeToBackingFileCmd cmd = JSONObjectUtil.toObject(entity.getBody(), RebaseRootVolumeToBackingFileCmd.class);
         config.rebaseRootVolumeToBackingFileCmds.add(cmd);
-        reply(entity, new RebaseRootVolumeToBackingFileRsp());
+        replyer.reply(entity, new RebaseRootVolumeToBackingFileRsp());
         return null;
     }
 
@@ -134,7 +125,7 @@ public class LocalStorageSimulator {
     String rebaseSnapshotBackingFiles(HttpEntity<String> entity) {
         RebaseSnapshotBackingFilesCmd cmd = JSONObjectUtil.toObject(entity.getBody(), RebaseSnapshotBackingFilesCmd.class);
         config.rebaseSnapshotBackingFilesCmds.add(cmd);
-        reply(entity, new AgentResponse());
+        replyer.reply(entity, new AgentResponse());
         return null;
     }
 
@@ -143,7 +134,7 @@ public class LocalStorageSimulator {
     String verifySnapshotChain(HttpEntity<String> entity) {
         VerifySnapshotChainCmd cmd = JSONObjectUtil.toObject(entity.getBody(), VerifySnapshotChainCmd.class);
         config.verifySnapshotChainCmds.add(cmd);
-        reply(entity, new AgentResponse());
+        replyer.reply(entity, new AgentResponse());
         return null;
     }
 
@@ -165,7 +156,7 @@ public class LocalStorageSimulator {
         assert c!=null : String.format("cannot find host[name:%s] for configuring the local storage capacity", hname);
         rsp.setTotalCapacity(c.total);
         rsp.setAvailableCapacity(c.avail);
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
 
         return null;
     }
@@ -177,7 +168,7 @@ public class LocalStorageSimulator {
         config.checkBitsCmds.add(cmd);
         CheckBitsRsp rsp = new CheckBitsRsp();
         rsp.existing = config.checkBitsSuccess;
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -197,7 +188,7 @@ public class LocalStorageSimulator {
         Capacity c = config.capacityMap.get(hname);
         rsp.setTotalCapacity(c.total);
         rsp.setAvailableCapacity(c.avail);
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
 
         return null;
     }
@@ -208,7 +199,7 @@ public class LocalStorageSimulator {
         CreateEmptyVolumeCmd cmd = JSONObjectUtil.toObject(entity.getBody(), CreateEmptyVolumeCmd.class);
         config.createEmptyVolumeCmds.add(cmd);
         CreateEmptyVolumeRsp rsp = new CreateEmptyVolumeRsp();
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -218,7 +209,7 @@ public class LocalStorageSimulator {
         CreateVolumeFromCacheCmd cmd = JSONObjectUtil.toObject(entity.getBody(), CreateVolumeFromCacheCmd.class);
         config.createVolumeFromCacheCmds.add(cmd);
         CreateVolumeFromCacheRsp rsp = new CreateVolumeFromCacheRsp();
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -230,7 +221,7 @@ public class LocalStorageSimulator {
             config.deleteBitsCmds.add(cmd);
         }
         DeleteBitsRsp rsp = new DeleteBitsRsp();
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -239,7 +230,7 @@ public class LocalStorageSimulator {
     String download(HttpEntity<String> entity) {
         SftpDownloadBitsCmd cmd = JSONObjectUtil.toObject(entity.getBody(), SftpDownloadBitsCmd.class);
         config.downloadBitsCmds.add(cmd);
-        reply(entity, new SftpDownloadBitsRsp());
+        replyer.reply(entity, new SftpDownloadBitsRsp());
         return null;
     }
 
@@ -248,7 +239,7 @@ public class LocalStorageSimulator {
     String upload(HttpEntity<String> entity) {
         SftpUploadBitsCmd cmd = JSONObjectUtil.toObject(entity.getBody(), SftpUploadBitsCmd.class);
         config.uploadBitsCmds.add(cmd);
-        reply(entity, new SftpUploadBitsRsp());
+        replyer.reply(entity, new SftpUploadBitsRsp());
         return null;
     }
 
@@ -257,7 +248,7 @@ public class LocalStorageSimulator {
     String createTemplateFromVolume(HttpEntity<String> entity) {
         CreateTemplateFromVolumeCmd cmd = JSONObjectUtil.toObject(entity.getBody(), CreateTemplateFromVolumeCmd.class);
         config.createTemplateFromVolumeCmds.add(cmd);
-        reply(entity, new CreateTemplateFromVolumeRsp());
+        replyer.reply(entity, new CreateTemplateFromVolumeRsp());
         return null;
     }
 
@@ -268,7 +259,7 @@ public class LocalStorageSimulator {
         config.revertVolumeFromSnapshotCmds.add(cmd);
         RevertVolumeFromSnapshotRsp rsp = new RevertVolumeFromSnapshotRsp();
         rsp.setNewVolumeInstallPath("/new/path");
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -279,7 +270,7 @@ public class LocalStorageSimulator {
         config.rebaseAndMergeSnapshotsCmds.add(cmd);
         RebaseAndMergeSnapshotsRsp rsp = new RebaseAndMergeSnapshotsRsp();
         rsp.setSize(100);
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -290,7 +281,7 @@ public class LocalStorageSimulator {
         config.mergeSnapshotCmds.add(cmd);
         MergeSnapshotRsp rsp = new MergeSnapshotRsp();
         rsp.setSize(100);
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 
@@ -300,7 +291,18 @@ public class LocalStorageSimulator {
         OfflineMergeSnapshotCmd cmd =  JSONObjectUtil.toObject(entity.getBody(), OfflineMergeSnapshotCmd.class);
         config.offlineMergeSnapshotCmds.add(cmd);
         OfflineMergeSnapshotRsp rsp = new OfflineMergeSnapshotRsp();
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
+        return null;
+    }
+
+    @RequestMapping(value=LocalStorageKvmBackend.SYNC_VOLUME_ACTUAL_SIZE_PATH, method= RequestMethod.POST)
+    public @ResponseBody
+    String syncVolumeActualSize(HttpEntity<String> entity) {
+        SyncVolumeActualSizeCmd cmd = JSONObjectUtil.toObject(entity.getBody(), SyncVolumeActualSizeCmd.class);
+        SyncVolumeActualSizeRsp rsp = new SyncVolumeActualSizeRsp();
+        rsp.actualSize = config.volumeActualSizeForSync.get(cmd.volumeUuid);
+        config.syncVolumeActualSizeCmds.add(cmd);
+        replyer.reply(entity, rsp);
         return null;
     }
 

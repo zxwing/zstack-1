@@ -15,7 +15,7 @@ import org.zstack.kvm.KVMConstant;
 import org.zstack.kvm.KVMConstant.KvmVmState;
 import org.zstack.kvm.KVMSecurityGroupBackend;
 import org.zstack.network.securitygroup.SecurityGroupRuleTO;
-import org.zstack.simulator.AsyncRESTReplyer;
+import org.zstack.core.simulator.AsyncRESTReplyer;
 import org.zstack.utils.Utils;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;

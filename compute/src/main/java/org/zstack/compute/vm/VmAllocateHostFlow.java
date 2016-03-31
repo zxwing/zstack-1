@@ -58,7 +58,7 @@ public class VmAllocateHostFlow implements Flow {
             diskSize = dvo.getDiskSize();
             diskOfferings.add(DiskOfferingInventory.valueOf(dvo));
         } else {
-            diskSize = image.getSize();
+            diskSize = image.getActualSize();
         }
         diskSize += getTotalDataDiskSize(spec);
         diskOfferings.addAll(spec.getDataDiskOfferings());

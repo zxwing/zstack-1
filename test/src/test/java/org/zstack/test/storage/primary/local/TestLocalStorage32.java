@@ -117,7 +117,7 @@ public class TestLocalStorage32 {
 
         long rootVolumeSize = psRatioMgr.calculateByRatio(ps.getUuid(), root.getSize());
         long dataVolumeSize = psRatioMgr.calculateByRatio(ps.getUuid(), data.getSize());
-        long imageSize = image.getSize();
+        long imageSize = image.getActualSize();
 
         HostInventory host1 = deployer.hosts.get("host1");
         HostInventory host2 = deployer.hosts.get("host2");

@@ -102,7 +102,7 @@ public class TestSftpBackupStorageExpungeImage {
         api.deleteImage(img.getUuid());
         TimeUnit.SECONDS.sleep(3);
         BackupStorageVO bs1 = dbf.findByUuid(sftp.getUuid(), BackupStorageVO.class);
-        Assert.assertEquals(bs1.getAvailableCapacity(), bs.getAvailableCapacity() + img.getSize());
+        Assert.assertEquals(bs1.getAvailableCapacity(), bs.getAvailableCapacity() + img.getActualSize());
 
         ImageGlobalConfig.DELETION_POLICY.updateValue(ImageDeletionPolicy.Delay.toString());
         ImageGlobalConfig.EXPUNGE_PERIOD.updateValue(1);
@@ -110,6 +110,6 @@ public class TestSftpBackupStorageExpungeImage {
         api.deleteImage(img1.getUuid());
         TimeUnit.SECONDS.sleep(3);
         BackupStorageVO bs2 = dbf.findByUuid(sftp.getUuid(), BackupStorageVO.class);
-        Assert.assertEquals(bs2.getAvailableCapacity(), bs1.getAvailableCapacity() + img1.getSize());
+        Assert.assertEquals(bs2.getAvailableCapacity(), bs1.getAvailableCapacity() + img1.getActualSize());
     }
 }
