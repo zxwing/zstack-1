@@ -353,6 +353,11 @@ public class SMPPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     @Override
+    protected void handle(SyncVolumeActualSizeMsg msg) {
+
+    }
+
+    @Override
     protected void handleLocalMessage(Message msg) {
         if (msg instanceof TakeSnapshotMsg) {
             handle((TakeSnapshotMsg) msg);

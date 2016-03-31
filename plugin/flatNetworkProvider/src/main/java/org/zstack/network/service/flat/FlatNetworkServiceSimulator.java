@@ -92,7 +92,7 @@ public class FlatNetworkServiceSimulator {
         ConnectCmd cmd = JSONObjectUtil.toObject(entity.getBody(), ConnectCmd.class);
         config.connectCmds.add(cmd);
         ConnectRsp rsp = new ConnectRsp();
-        reply(entity, rsp);
+        replyer.reply(entity, rsp);
         return null;
     }
 }
