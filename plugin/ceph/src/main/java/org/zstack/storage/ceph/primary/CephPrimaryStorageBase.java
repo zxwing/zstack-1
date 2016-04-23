@@ -991,7 +991,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
                         public void run(final FlowTrigger trigger, Map data) {
                             AllocatePrimaryStorageMsg amsg = new AllocatePrimaryStorageMsg();
                             amsg.setRequiredPrimaryStorageUuid(self.getUuid());
-                            amsg.setSize(image.getInventory().getSize());
+                            amsg.setSize(image.getInventory().getActualSize());
                             amsg.setPurpose(PrimaryStorageAllocationPurpose.DownloadImage.toString());
                             amsg.setNoOverProvisioning(true);
                             bus.makeLocalServiceId(amsg, PrimaryStorageConstant.SERVICE_ID);
@@ -1014,7 +1014,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
                                 ReturnPrimaryStorageCapacityMsg rmsg = new ReturnPrimaryStorageCapacityMsg();
                                 rmsg.setNoOverProvisioning(true);
                                 rmsg.setPrimaryStorageUuid(self.getUuid());
-                                rmsg.setDiskSize(image.getInventory().getSize());
+                                rmsg.setDiskSize(image.getInventory().getActualSize());
                                 bus.makeLocalServiceId(rmsg, PrimaryStorageConstant.SERVICE_ID);
                                 bus.send(rmsg);
                             }
@@ -1149,7 +1149,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
                         public void handle(Map data) {
                             ImageCacheVO cvo = new ImageCacheVO();
                             cvo.setMd5sum("not calculated");
-                            cvo.setSize(image.getInventory().getSize());
+                            cvo.setSize(image.getInventory().getActualSize());
                             cvo.setInstallUrl(snapshotPath);
                             cvo.setImageUuid(image.getInventory().getUuid());
                             cvo.setPrimaryStorageUuid(self.getUuid());

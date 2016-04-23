@@ -14,10 +14,9 @@ import org.zstack.core.thread.AsyncThread;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.rest.RESTConstant;
 import org.zstack.header.rest.RESTFacade;
+import org.zstack.simulator.AsyncRESTReplyer;
 import org.zstack.storage.backup.sftp.SftpBackupStorageCommands.*;
 import org.zstack.storage.backup.sftp.SftpBackupStorageConstant;
-import org.zstack.simulator.AsyncRESTReplyer;
-import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
@@ -74,7 +73,9 @@ public class SftpBackupStorageSimulator {
             rsp.setError("Fail download on purpose");
         } else {
             Long size = config.imageSizes.get(cmd.getUuid());
+            Long asize = config.imageActualSizes.get(cmd.getUuid());
             rsp.setSize(size == null ? 0 : size);
+            rsp.setActualSize(asize == null ? 0 : asize);
             rsp.setMd5Sum(config.imageMd5sum);
             rsp.setTotalCapacity(config.totalCapacity);
             long usedSize = 0;

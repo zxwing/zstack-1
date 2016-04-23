@@ -833,6 +833,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                         if (!success) {
                             ivo.setMd5Sum(re.getMd5sum());
                             ivo.setSize(re.getSize());
+                            ivo.setActualSize(re.getActualSize());
                             ivo.setStatus(ImageStatus.Ready);
                             dbf.update(ivo);
                             success = true;

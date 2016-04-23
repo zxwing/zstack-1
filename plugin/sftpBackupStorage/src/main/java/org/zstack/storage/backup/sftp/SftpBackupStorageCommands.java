@@ -122,6 +122,15 @@ public class SftpBackupStorageCommands {
     public static class DownloadResponse extends AgentResponse {
         public String md5Sum;
         public long size;
+        public long actualSize;
+
+        public long getActualSize() {
+            return actualSize;
+        }
+
+        public void setActualSize(long actualSize) {
+            this.actualSize = actualSize;
+        }
 
         public String getMd5Sum() {
             return md5Sum;

@@ -122,7 +122,7 @@ public class ImageBase implements Image {
                             self.getUuid(), self.getName(), r.getError(), ref.getBackupStorageUuid()));
                     reply.setError(r.getError());
                 } else {
-                    returnBackupStorageCapacity(ref.getBackupStorageUuid(), self.getSize());
+                    returnBackupStorageCapacity(ref.getBackupStorageUuid(), self.getActualSize());
                     dbf.remove(ref);
                     logger.debug(String.format("successfully expunged the image[uuid: %s, name: %s] on the backup storage[uuid: %s]",
                             self.getUuid(), self.getName(), ref.getBackupStorageUuid()));
@@ -196,7 +196,7 @@ public class ImageBase implements Image {
                                     logger.warn(String.format("failed to delete image[uuid:%s, name:%s] from backup storage[uuid:%s] because %s, need to garbage collect it",
                                             self.getUuid(), self.getName(), reply.getError(), ref.getBackupStorageUuid()));
                                 } else {
-                                    returnBackupStorageCapacity(ref.getBackupStorageUuid(), self.getSize());
+                                    returnBackupStorageCapacity(ref.getBackupStorageUuid(), self.getActualSize());
                                     dbf.remove(ref);
                                 }
                                 trigger.next();

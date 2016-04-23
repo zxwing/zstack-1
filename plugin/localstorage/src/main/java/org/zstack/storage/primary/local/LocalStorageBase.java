@@ -1240,7 +1240,7 @@ public class LocalStorageBase extends PrimaryStorageBase {
                 done(new FlowDoneHandler(msg) {
                     @Override
                     public void handle(Map data) {
-                        createResourceRefVO(msg.getVolumeUuid(), VolumeVO.class.getSimpleName(), msg.getImage().getSize(), msg.getHostUuid());
+                        createResourceRefVO(msg.getVolumeUuid(), VolumeVO.class.getSimpleName(), msg.getImage().getActualSize(), msg.getHostUuid());
                         bus.reply(msg, reply);
                     }
                 });
@@ -1333,13 +1333,13 @@ public class LocalStorageBase extends PrimaryStorageBase {
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
-                        reserveCapacityOnHost(msg.getDestHostUuid(), msg.getIsoSpec().getInventory().getSize());
+                        reserveCapacityOnHost(msg.getDestHostUuid(), msg.getIsoSpec().getInventory().getActualSize());
                         trigger.next();
                     }
 
                     @Override
                     public void rollback(FlowRollback trigger, Map data) {
-                        returnCapacityToHost(msg.getDestHostUuid(), msg.getIsoSpec().getInventory().getSize());
+                        returnCapacityToHost(msg.getDestHostUuid(), msg.getIsoSpec().getInventory().getActualSize());
                         trigger.rollback();
                     }
                 });
@@ -1376,7 +1376,7 @@ public class LocalStorageBase extends PrimaryStorageBase {
                         q.add(LocalStorageResourceRefVO_.resourceType, Op.EQ, ImageVO.class.getSimpleName());
                         if (!q.isExists()) {
                             createResourceRefVO(msg.getIsoSpec().getInventory().getUuid(), ImageVO.class.getSimpleName(),
-                                    msg.getIsoSpec().getInventory().getSize(), msg.getDestHostUuid());
+                                    msg.getIsoSpec().getInventory().getActualSize(), msg.getDestHostUuid());
                         }
 
                         bus.reply(msg, reply);
