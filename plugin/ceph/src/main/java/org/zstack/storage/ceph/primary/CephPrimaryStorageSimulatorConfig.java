@@ -35,4 +35,6 @@ public class CephPrimaryStorageSimulatorConfig {
     public List<DeletePoolCmd> deletePoolCmds = new ArrayList<DeletePoolCmd>();
     public Map<String, Long> bitsSize = new HashMap<String, Long>();
     public Map<String, Long> bitsActualSize = new HashMap<String, Long>();
+    public List<GetVolumeActualSizeCmd> getVolumeActualSizeCmds = new ArrayList<GetVolumeActualSizeCmd>();
+    public Map<String, Long> getVolumeActualSizeCmdSize = new HashMap<String, Long>();
 }

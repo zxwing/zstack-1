@@ -18,6 +18,7 @@ import org.zstack.header.cluster.ClusterVO_;
 import org.zstack.header.core.*;
 import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
+import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.host.*;
 import org.zstack.header.image.ImageConstant.ImageMediaType;
 import org.zstack.header.image.ImageInventory;
@@ -1091,6 +1092,32 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
         AskVolumeSnapshotCapabilityReply reply = new AskVolumeSnapshotCapabilityReply();
         reply.setCapability(capability);
         bus.reply(msg, reply);
+    }
+
+    @Override
+    protected void handle(final SyncVolumeActualSizeMsg msg) {
+        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+        NfsPrimaryStorageBackend backend = getUsableBackend();
+        if (backend == null) {
+            throw new OperationFailureException(errf.stringToOperationError(
+                    String.format("the NFS primary storage[uuid:%s, name:%s] not hosts in attached cluster can perform the operation",
+                            self.getUuid(), self.getName())
+            ));
+        }
+
+        backend.getVolumeActualSize(getSelfInventory(), msg.getVolumeUuid(), msg.getInstallPath(), new ReturnValueCompletion<Long>(msg) {
+            @Override
+            public void success(Long returnValue) {
+                reply.setActualSize(returnValue);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     @Override

@@ -48,4 +48,6 @@ public abstract class HypervisorBackend extends SMPPrimaryStorageBase {
     abstract void handleHypervisorSpecificMessage(SMPPrimaryStorageHypervisorSpecificMessage msg);
 
     abstract void connectByClusterUuid(String clusterUuid, Completion completion);
+
+    abstract void handle(SyncVolumeActualSizeMsg msg, ReturnValueCompletion<SyncVolumeActualSizeReply> completion);
 }

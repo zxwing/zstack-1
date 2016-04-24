@@ -80,6 +80,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
     public static final String CREATE_TEMPLATE_FROM_VOLUME_PATH = "/nfsprimarystorage/sftp/createtemplatefromvolume";
     public static final String OFFLINE_SNAPSHOT_MERGE = "/nfsprimarystorage/offlinesnapshotmerge";
     public static final String REMOUNT_PATH = "/nfsprimarystorage/remount";
+    public static final String GET_ACTUAL_SIZE_PATH = "/nfsprimarystorage/getvolumeactualsize";
 
     //////////////// For unit test //////////////////////////
     private boolean syncGetCapacity = false;
@@ -817,6 +818,35 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
                 } else {
                     completion.fail(errf.stringToOperationError(String.format("%s", errors)));
                 }
+            }
+        });
+    }
+
+    @Override
+    public void getVolumeActualSize(PrimaryStorageInventory pinv, String volumeUuid, String installPath, final ReturnValueCompletion<Long> completion) {
+        final HostInventory host = nfsFactory.getConnectedHostForOperation(pinv);
+        KvmCommandSender sender = new KvmCommandSender(host.getUuid());
+
+        GetVolumeActualSizeCmd cmd = new GetVolumeActualSizeCmd();
+        cmd.setUuid(pinv.getUuid());
+        cmd.installPath = installPath;
+        cmd.volumeUuid = volumeUuid;
+        sender.send(cmd, GET_ACTUAL_SIZE_PATH, new KvmCommandFailureChecker() {
+            @Override
+            public ErrorCode getError(KvmResponseWrapper wrapper) {
+                GetVolumeActualSizeRsp rsp = wrapper.getResponse(GetVolumeActualSizeRsp.class);
+                return rsp.isSuccess() ? null : errf.stringToOperationError(rsp.getError());
+            }
+        }, new ReturnValueCompletion<KvmResponseWrapper>(completion) {
+            @Override
+            public void success(KvmResponseWrapper returnValue) {
+                GetVolumeActualSizeRsp rsp = returnValue.getResponse(GetVolumeActualSizeRsp.class);
+                completion.success(rsp.actualSize);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
             }
         });
     }

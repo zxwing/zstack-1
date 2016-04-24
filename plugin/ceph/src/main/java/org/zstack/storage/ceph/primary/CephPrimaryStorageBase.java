@@ -492,6 +492,15 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
     public static class DeletePoolRsp extends AgentResponse {
     }
 
+    public static class GetVolumeActualSizeCmd extends AgentCommand {
+        public String volumeUuid;
+        public String installPath;
+    }
+
+    public static class GetVolumeActualSizeRsp extends AgentResponse {
+        public long actualSize;
+    }
+
     public static final String INIT_PATH = "/ceph/primarystorage/init";
     public static final String CREATE_VOLUME_PATH = "/ceph/primarystorage/volume/createempty";
     public static final String DELETE_PATH = "/ceph/primarystorage/delete";
@@ -507,6 +516,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
     public static final String CP_PATH = "/ceph/primarystorage/volume/cp";
     public static final String KVM_CREATE_SECRET_PATH = "/vm/createcephsecret";
     public static final String DELETE_POOL_PATH = "/ceph/primarystorage/deletepool";
+    public static final String GET_VOLUME_ACTUAL_SIZE_PATH = "/ceph/primarystorage/getvolumeactualsize";
 
     private final Map<String, BackupStorageMediator> backupStorageMediators = new HashMap<String, BackupStorageMediator>();
 
@@ -1398,6 +1408,27 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
         cap.setArrangementType(VolumeSnapshotArrangementType.INDIVIDUAL);
         reply.setCapability(cap);
         bus.reply(msg, reply);
+    }
+
+    @Override
+    protected void handle(final SyncVolumeActualSizeMsg msg) {
+        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+        GetVolumeActualSizeCmd cmd = new GetVolumeActualSizeCmd();
+        cmd.installPath = msg.getInstallPath();
+        cmd.volumeUuid = msg.getVolumeUuid();
+        httpCall(GET_VOLUME_ACTUAL_SIZE_PATH, cmd, GetVolumeActualSizeRsp.class, new ReturnValueCompletion<GetVolumeActualSizeRsp>(msg) {
+            @Override
+            public void success(GetVolumeActualSizeRsp returnValue) {
+                reply.setActualSize(returnValue.actualSize);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     private <T extends AgentResponse> void httpCall(final String path, final AgentCommand cmd, final Class<T> retClass, final ReturnValueCompletion<T> callback) {

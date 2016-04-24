@@ -500,6 +500,15 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
         public Long size;
     }
 
+    public static class GetVolumeActualSizeCmd extends AgentCommand {
+        public String volumeUuid;
+        public String installPath;
+    }
+
+    public static class GetVolumeActualSizeRsp extends AgentResponse {
+        public long actualSize;
+    }
+
 
     public static final String INIT_PATH = "/localstorage/init";
     public static final String GET_PHYSICAL_CAPACITY_PATH = "/localstorage/getphysicalcapacity";
@@ -515,6 +524,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
     public static final String GET_MD5_PATH = "/localstorage/getmd5";
     public static final String CHECK_MD5_PATH = "/localstorage/checkmd5";
     public static final String GET_BACKING_FILE_PATH = "/localstorage/volume/getbackingfile";
+    public static final String GET_VOLUME_ACTUAL_SIZE = "/localstorage/volume/getactualsize";
 
 
     public LocalStorageKvmBackend(PrimaryStorageVO self) {
@@ -1845,6 +1855,34 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
             @Override
             public void success() {
                 completion.success(new LocalStorageDirectlyDeleteBitsReply());
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    @Override
+    void handle(SyncVolumeActualSizeMsg msg, String hostUuid, final ReturnValueCompletion<SyncVolumeActualSizeReply> completion) {
+        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+        GetVolumeActualSizeCmd cmd = new GetVolumeActualSizeCmd();
+        cmd.installPath = msg.getInstallPath();
+        cmd.volumeUuid = msg.getVolumeUuid();
+        KvmCommandSender sender = new KvmCommandSender(hostUuid);
+        sender.send(cmd, GET_VOLUME_ACTUAL_SIZE, new KvmCommandFailureChecker() {
+            @Override
+            public ErrorCode getError(KvmResponseWrapper wrapper) {
+                GetVolumeActualSizeRsp rsp = wrapper.getResponse(GetVolumeActualSizeRsp.class);
+                return rsp.isSuccess() ? null : errf.stringToOperationError(rsp.getError());
+            }
+        }, new ReturnValueCompletion<KvmResponseWrapper>() {
+            @Override
+            public void success(KvmResponseWrapper returnValue) {
+                GetVolumeActualSizeRsp rsp = returnValue.getResponse(GetVolumeActualSizeRsp.class);
+                reply.setActualSize(rsp.actualSize);
+                completion.success(reply);
             }
 
             @Override

@@ -298,6 +298,19 @@ public class LocalStorageSimulator {
         return null;
     }
 
+    @RequestMapping(value=LocalStorageKvmBackend.GET_VOLUME_ACTUAL_SIZE, method= RequestMethod.POST)
+    public @ResponseBody
+    String getVolumeActualSize(HttpEntity<String> entity) {
+        GetVolumeActualSizeCmd cmd = JSONObjectUtil.toObject(entity.getBody(), GetVolumeActualSizeCmd.class);
+        GetVolumeActualSizeRsp rsp = new GetVolumeActualSizeRsp();
+
+        config.getVolumeActualSizeCmds.add(cmd);
+        Long asize = config.getVolumeActualSizeCmdSize.get(cmd.volumeUuid);
+        rsp.actualSize = asize == null ? 0 : asize;
+        reply(entity, rsp);
+        return null;
+    }
+
     @RequestMapping(value=LocalStorageKvmBackend.OFFLINE_MERGE_PATH, method= RequestMethod.POST)
     public @ResponseBody
     String offlineMerge(HttpEntity<String> entity) {

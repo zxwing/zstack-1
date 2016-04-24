@@ -100,6 +100,8 @@ public abstract class PrimaryStorageBase extends AbstractPrimaryStorage {
 
     protected abstract void handle(AskVolumeSnapshotCapabilityMsg msg);
 
+    protected abstract void handle(SyncVolumeActualSizeMsg msg);
+
     protected abstract void connectHook(ConnectPrimaryStorageMsg msg, Completion completion);
 
     protected abstract void syncPhysicalCapacity(ReturnValueCompletion<PhysicalCapacityUsage> completion);
@@ -175,6 +177,8 @@ public abstract class PrimaryStorageBase extends AbstractPrimaryStorage {
             handle((AskVolumeSnapshotCapabilityMsg) msg);
         } else if (msg instanceof TakePrimaryStorageCapacityMsg) {
             handle((TakePrimaryStorageCapacityMsg) msg);
+        } else if (msg instanceof SyncVolumeActualSizeMsg) {
+            handle((SyncVolumeActualSizeMsg) msg);
 	    } else {
 	        bus.dealWithUnknownMessage(msg);
 	    }

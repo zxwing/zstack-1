@@ -546,5 +546,14 @@ public class NfsPrimaryStorageKVMBackendCommands {
         public String options;
     }
 
+    public static class GetVolumeActualSizeCmd extends NfsPrimaryStorageAgentCommand {
+        public String volumeUuid;
+        public String installPath;
+    }
+
+    public static class GetVolumeActualSizeRsp extends NfsPrimaryStorageAgentResponse {
+        public long actualSize;
+    }
+
     public static final String UNABLE_TO_FIND_IMAGE_IN_CACHE = "UNABLE_TO_FIND_IMAGE_IN_CACHE";
 }

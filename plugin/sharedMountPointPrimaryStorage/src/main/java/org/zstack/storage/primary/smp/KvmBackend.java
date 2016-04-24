@@ -41,10 +41,7 @@ import org.zstack.header.vm.VmInstanceVO_;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeType;
 import org.zstack.header.volume.VolumeVO;
-import org.zstack.kvm.KVMConstant;
-import org.zstack.kvm.KVMHostAsyncHttpCallMsg;
-import org.zstack.kvm.KVMHostAsyncHttpCallReply;
-import org.zstack.kvm.MergeVolumeSnapshotOnKvmMsg;
+import org.zstack.kvm.*;
 import org.zstack.storage.backup.sftp.GetSftpBackupStorageDownloadCredentialMsg;
 import org.zstack.storage.backup.sftp.GetSftpBackupStorageDownloadCredentialReply;
 import org.zstack.storage.backup.sftp.SftpBackupStorageConstant;
@@ -164,6 +161,15 @@ public class KvmBackend extends HypervisorBackend {
         public boolean existing;
     }
 
+    public static class GetVolumeActualSizeCmd extends AgentCmd {
+        public String volumeUuid;
+        public String installPath;
+    }
+
+    public static class GetVolumeActualSizeRsp extends AgentRsp {
+        public Long actualSize;
+    }
+
     public static final String CONNECT_PATH = "/sharedmountpointpirmarystorage/connect";
     public static final String CREATE_VOLUME_FROM_CACHE_PATH = "/sharedmountpointpirmarystorage/createrootvolume";
     public static final String DELETE_BITS_PATH = "/sharedmountpointpirmarystorage/bits/delete";
@@ -175,6 +181,7 @@ public class KvmBackend extends HypervisorBackend {
     public static final String OFFLINE_MERGE_SNAPSHOT_PATH = "/sharedmountpointpirmarystorage/snapshot/offlinemerge";
     public static final String CREATE_EMPTY_VOLUME_PATH = "/sharedmountpointpirmarystorage/volume/createempty";
     public static final String CHECK_BITS_PATH = "/sharedmountpointpirmarystorage/bits/check";
+    public static final String GET_VOLUME_ACTUAL_SIZE_PATH = "/sharedmountpointpirmarystorage/volume/getactualsize";
 
     public KvmBackend(PrimaryStorageVO self) {
         super(self);
@@ -1495,6 +1502,35 @@ public class KvmBackend extends HypervisorBackend {
         }
 
         connect(hostUuid, completion);
+    }
+
+    @Override
+    void handle(SyncVolumeActualSizeMsg msg, final ReturnValueCompletion<SyncVolumeActualSizeReply> completion) {
+        String hostUuid = findConnectedHost();
+        final GetVolumeActualSizeCmd cmd = new GetVolumeActualSizeCmd();
+        cmd.installPath = msg.getInstallPath();
+        cmd.volumeUuid = msg.getVolumeUuid();
+        new KvmCommandSender(hostUuid).send(cmd, GET_VOLUME_ACTUAL_SIZE_PATH, new KvmCommandFailureChecker() {
+            @Override
+            public ErrorCode getError(KvmResponseWrapper wrapper) {
+                GetVolumeActualSizeRsp rsp = wrapper.getResponse(GetVolumeActualSizeRsp.class);
+                return rsp.success ? null : errf.stringToOperationError(rsp.error);
+            }
+        }, new ReturnValueCompletion<KvmResponseWrapper>() {
+            @Override
+            public void success(KvmResponseWrapper returnValue) {
+                SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+                GetVolumeActualSizeRsp rsp = returnValue.getResponse(GetVolumeActualSizeRsp.class);
+                reply.setActualSize(rsp.actualSize);
+                completion.success(reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+
     }
 
     private void handle(final InitKvmHostMsg msg) {
