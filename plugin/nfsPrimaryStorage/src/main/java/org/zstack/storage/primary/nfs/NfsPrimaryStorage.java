@@ -218,6 +218,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
         chain.then(new ShareFlow() {
             String volumeInWorkSpacePath;
             long volumeSize;
+            long volumeActualSize;
             final String volumeInstallPath = NfsPrimaryStorageKvmHelper.makeDataVolumeInstallUrl(pinv, msg.getVolumeUuid());
 
             @Override
@@ -233,6 +234,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                                     public void success(CreateBitsFromSnapshotResult returnValue) {
                                         volumeInWorkSpacePath = returnValue.getInstallPath();
                                         volumeSize = returnValue.getSize();
+                                        volumeActualSize = returnValue.getActualSize();
                                         trigger.next();
                                     }
 
@@ -272,6 +274,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                     public void handle(Map data) {
                         reply.setInstallPath(volumeInstallPath);
                         reply.setSize(volumeSize);
+                        reply.setActualSize(volumeActualSize);
                         bus.reply(msg, reply);
                     }
                 });
@@ -294,6 +297,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
             public void success(CreateTemplateFromSnapshotResultStruct returnValue) {
                 reply.setResults(returnValue.results);
                 reply.setSize(returnValue.size);
+                reply.setActualSize(returnValue.actualSize);
                 bus.reply(msg, reply);
             }
 
@@ -308,6 +312,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
     private class CreateTemplateFromSnapshotResultStruct {
         List<CreateTemplateFromVolumeSnapshotResult> results;
         long size;
+        long actualSize;
     }
 
     private void createTemplateFromSnapshot(final CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg msg, final ReturnValueCompletion<CreateTemplateFromSnapshotResultStruct> completion) {
@@ -323,6 +328,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
             List<BackupStorageInventory> backupStorage;
             List<CreateTemplateFromVolumeSnapshotResult> results = new ArrayList<CreateTemplateFromVolumeSnapshotResult>();
             long templateSize;
+            long templateActualSize;
 
             {
                 backupStorage = msg.getBackupStorage();
@@ -342,6 +348,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                                     public void success(CreateBitsFromSnapshotResult returnValue) {
                                         templateInstallPathOnPrimaryStorage = returnValue.getInstallPath();
                                         templateSize = returnValue.getSize();
+                                        templateActualSize = returnValue.getActualSize();
                                         trigger.next();
 
                                     }
@@ -453,6 +460,7 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                         CreateTemplateFromSnapshotResultStruct struct = new CreateTemplateFromSnapshotResultStruct();
                         struct.results = results;
                         struct.size = templateSize;
+                        struct.actualSize = templateActualSize;
                         completion.success(struct);
                     }
                 });

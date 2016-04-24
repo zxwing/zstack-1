@@ -18,6 +18,15 @@ public interface NfsPrimaryStorageBackend {
     public static class CreateBitsFromSnapshotResult {
         private String installPath;
         private long size;
+        private long actualSize;
+
+        public long getActualSize() {
+            return actualSize;
+        }
+
+        public void setActualSize(long actualSize) {
+            this.actualSize = actualSize;
+        }
 
         public String getInstallPath() {
             return installPath;

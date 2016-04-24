@@ -133,11 +133,13 @@ public class KvmBackend extends HypervisorBackend {
     }
 
     public static class MergeSnapshotCmd extends AgentCmd {
+        public String volumeUuid;
         public String snapshotInstallPath;
         public String workspaceInstallPath;
     }
 
     public static class MergeSnapshotRsp extends AgentRsp {
+        public long actualSize;
         public long size;
     }
 
@@ -882,6 +884,7 @@ public class KvmBackend extends HypervisorBackend {
         chain.then(new ShareFlow() {
             String workSpaceInstallPath = makeSnapshotWorkspacePath(msg.getImageUuid());
             long templateSize;
+            long templateActualSize;
 
             class Result {
                 BackupStorageInventory backupStorageInventory;
@@ -909,6 +912,7 @@ public class KvmBackend extends HypervisorBackend {
                             public void success(AgentRsp returnValue) {
                                 MergeSnapshotRsp rsp = (MergeSnapshotRsp) returnValue;
                                 templateSize = rsp.size;
+                                templateActualSize = rsp.actualSize;
                                 success = true;
                                 trigger.next();
                             }
@@ -1045,6 +1049,7 @@ public class KvmBackend extends HypervisorBackend {
                         });
                         reply.setResults(ret);
                         reply.setSize(templateSize);
+                        reply.setActualSize(templateActualSize);
                         completion.success(reply);
                     }
                 });
@@ -1066,6 +1071,7 @@ public class KvmBackend extends HypervisorBackend {
         final String installPath = makeDataVolumeInstallUrl(msg.getVolumeUuid());
         VolumeSnapshotInventory latest = infos.get(infos.size()-1).getSnapshot();
         MergeSnapshotCmd cmd = new MergeSnapshotCmd();
+        cmd.volumeUuid = latest.getVolumeUuid();
         cmd.snapshotInstallPath = latest.getPrimaryStorageInstallPath();
         cmd.workspaceInstallPath = installPath;
 
@@ -1074,6 +1080,7 @@ public class KvmBackend extends HypervisorBackend {
             public void success(AgentRsp returnValue) {
                 MergeSnapshotRsp rsp = (MergeSnapshotRsp) returnValue;
                 CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply reply = new CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply();
+                reply.setActualSize(rsp.actualSize);
                 reply.setInstallPath(installPath);
                 reply.setSize(rsp.size);
                 completion.success(reply);

@@ -433,6 +433,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                     dbf.persistCollection(refs);
 
                     vo.setSize(creply.getSize());
+                    vo.setActualSize(creply.getActualSize());
                     vo.setStatus(ImageStatus.Ready);
                     dbf.update(vo);
                     ImageVO imvo = dbf.reload(vo);

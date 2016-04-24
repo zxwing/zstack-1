@@ -427,36 +427,14 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     public static class CpCmd extends AgentCommand {
+        String resourceUuid;
         String srcPath;
         String dstPath;
-
-        public String getSrcPath() {
-            return srcPath;
-        }
-
-        public void setSrcPath(String srcPath) {
-            this.srcPath = srcPath;
-        }
-
-        public String getDstPath() {
-            return dstPath;
-        }
-
-        public void setDstPath(String dstPath) {
-            this.dstPath = dstPath;
-        }
     }
 
     public static class CpRsp extends AgentResponse {
         long size;
-
-        public long getSize() {
-            return size;
-        }
-
-        public void setSize(long size) {
-            this.size = size;
-        }
+        long actualSize;
     }
 
     public static class RollbackSnapshotCmd extends AgentCommand {
@@ -1840,6 +1818,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
             public void success(CpRsp rsp) {
                 reply.setInstallPath(volPath);
                 reply.setSize(rsp.size);
+                reply.setActualSize(rsp.actualSize);
                 bus.reply(msg, reply);
             }
 

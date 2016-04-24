@@ -202,10 +202,16 @@ public class CephPrimaryStorageSimulator {
     @RequestMapping(value= CephPrimaryStorageBase.CP_PATH, method= RequestMethod.POST)
     public @ResponseBody
     String cp(HttpEntity<String> entity) {
+        CpRsp rsp = new CpRsp();
         CpCmd cmd = JSONObjectUtil.toObject(entity.getBody(), CpCmd.class);
         config.cpCmds.add(cmd);
 
-        reply(entity, new CpRsp());
+        Long size = config.bitsSize.get(cmd.resourceUuid);
+        rsp.size = size == null ? 0 : size;
+        Long asize = config.bitsActualSize.get(cmd.resourceUuid);
+        rsp.actualSize = asize == null ? 0 : asize;
+
+        reply(entity, rsp);
         return null;
     }
 

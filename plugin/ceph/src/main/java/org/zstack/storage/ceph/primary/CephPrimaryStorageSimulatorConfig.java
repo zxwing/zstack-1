@@ -33,4 +33,6 @@ public class CephPrimaryStorageSimulatorConfig {
     public List<RollbackSnapshotCmd> rollbackSnapshotCmds = new ArrayList<RollbackSnapshotCmd>();
     public List<CreateKvmSecretCmd> createKvmSecretCmds = new ArrayList<CreateKvmSecretCmd>();
     public List<DeletePoolCmd> deletePoolCmds = new ArrayList<DeletePoolCmd>();
+    public Map<String, Long> bitsSize = new HashMap<String, Long>();
+    public Map<String, Long> bitsActualSize = new HashMap<String, Long>();
 }

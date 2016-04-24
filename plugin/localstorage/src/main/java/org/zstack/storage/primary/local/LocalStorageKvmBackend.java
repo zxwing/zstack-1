@@ -316,8 +316,17 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
     }
 
     public static class MergeSnapshotCmd extends AgentCommand {
+        private String volumeUuid;
         private String snapshotInstallPath;
         private String workspaceInstallPath;
+
+        public String getVolumeUuid() {
+            return volumeUuid;
+        }
+
+        public void setVolumeUuid(String volumeUuid) {
+            this.volumeUuid = volumeUuid;
+        }
 
         public String getSnapshotInstallPath() {
             return snapshotInstallPath;
@@ -338,6 +347,15 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
 
     public static class MergeSnapshotRsp extends AgentResponse {
         private long size;
+        private long actualSize;
+
+        public long getActualSize() {
+            return actualSize;
+        }
+
+        public void setActualSize(long actualSize) {
+            this.actualSize = actualSize;
+        }
 
         public long getSize() {
             return size;
@@ -349,8 +367,17 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
     }
 
     public static class RebaseAndMergeSnapshotsCmd extends AgentCommand {
+        private String volumeUuid;
         private List<String> snapshotInstallPaths;
         private String workspaceInstallPath;
+
+        public String getVolumeUuid() {
+            return volumeUuid;
+        }
+
+        public void setVolumeUuid(String volumeUuid) {
+            this.volumeUuid = volumeUuid;
+        }
 
         public List<String> getSnapshotInstallPaths() {
             return snapshotInstallPaths;
@@ -371,6 +398,15 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
 
     public static class RebaseAndMergeSnapshotsRsp extends AgentResponse {
         private long size;
+        private long actualSize;
+
+        public long getActualSize() {
+            return actualSize;
+        }
+
+        public void setActualSize(long actualSize) {
+            this.actualSize = actualSize;
+        }
 
         public long getSize() {
             return size;
@@ -1336,20 +1372,25 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
         });
     }
 
+    class SnapshotToVolumeSize {
+        long size;
+        long actualSize;
+    }
+
     class CreateTemplateOrVolumeFromSnapshots {
         List<SnapshotDownloadInfo> infos;
         String hostUuid;
         boolean needDownload;
         String primaryStorageInstallPath;
 
-        private void createTemplateWithDownload(final ReturnValueCompletion<Long> completion) {
+        private void createTemplateWithDownload(final ReturnValueCompletion<SnapshotToVolumeSize> completion) {
             FlowChain c = FlowChainBuilder.newShareFlowChain();
             c.setName("download-snapshots-and-create-template");
             c.then(new ShareFlow() {
                 long totalSnapshotSize;
                 List<String> snapshotInstallPaths;
 
-                long templateSize;
+                SnapshotToVolumeSize templateSize;
 
                 @Override
                 public void setup() {
@@ -1433,13 +1474,16 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
                         @Override
                         public void run(final FlowTrigger trigger, Map data) {
                             RebaseAndMergeSnapshotsCmd cmd = new RebaseAndMergeSnapshotsCmd();
+                            cmd.setVolumeUuid(infos.get(0).getSnapshot().getVolumeUuid());
                             cmd.setSnapshotInstallPaths(snapshotInstallPaths);
                             cmd.setWorkspaceInstallPath(primaryStorageInstallPath);
 
                             httpCall(MERGE_AND_REBASE_SNAPSHOT_PATH, hostUuid, cmd, RebaseAndMergeSnapshotsRsp.class, new ReturnValueCompletion<RebaseAndMergeSnapshotsRsp>(trigger) {
                                 @Override
                                 public void success(RebaseAndMergeSnapshotsRsp rsp) {
-                                    templateSize = rsp.getSize();
+                                    templateSize = new SnapshotToVolumeSize();
+                                    templateSize.size = rsp.getSize();
+                                    templateSize.actualSize = rsp.getActualSize();
                                     trigger.next();
                                 }
 
@@ -1482,16 +1526,20 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
         }
 
 
-        private void createTemplateWithoutDownload(final ReturnValueCompletion<Long> completion) {
+        private void createTemplateWithoutDownload(final ReturnValueCompletion<SnapshotToVolumeSize> completion) {
             VolumeSnapshotInventory latest = infos.get(infos.size()-1).getSnapshot();
             MergeSnapshotCmd cmd = new MergeSnapshotCmd();
+            cmd.setVolumeUuid(latest.getVolumeUuid());
             cmd.setSnapshotInstallPath(latest.getPrimaryStorageInstallPath());
             cmd.setWorkspaceInstallPath(primaryStorageInstallPath);
 
             httpCall(MERGE_SNAPSHOT_PATH, hostUuid, cmd, MergeSnapshotRsp.class, new ReturnValueCompletion<MergeSnapshotRsp>(completion) {
                 @Override
                 public void success(MergeSnapshotRsp rsp) {
-                    completion.success(rsp.getSize());
+                    SnapshotToVolumeSize size = new SnapshotToVolumeSize();
+                    size.size = rsp.getSize();
+                    size.actualSize = rsp.getActualSize();
+                    completion.success(size);
                 }
 
                 @Override
@@ -1501,7 +1549,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
             });
         }
 
-        void create(ReturnValueCompletion<Long> completion) {
+        void create(ReturnValueCompletion<SnapshotToVolumeSize> completion) {
             DebugUtils.Assert(infos != null, "infos cannot be null");
             DebugUtils.Assert(hostUuid != null, "hostUuid cannot be null");
             DebugUtils.Assert(primaryStorageInstallPath != null, "workSpaceInstallPath cannot be null");
@@ -1529,6 +1577,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
         chain.then(new ShareFlow() {
             String workSpaceInstallPath = makeSnapshotWorkspacePath(msg.getImageUuid());
             long templateSize;
+            long templateActualSize;
 
             class Result {
                 BackupStorageInventory backupStorageInventory;
@@ -1549,10 +1598,11 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
                         c.primaryStorageInstallPath = workSpaceInstallPath;
                         c.needDownload = msg.isNeedDownload();
                         c.hostUuid = hostUuid;
-                        c.create(new ReturnValueCompletion<Long>(trigger) {
+                        c.create(new ReturnValueCompletion<SnapshotToVolumeSize>(trigger) {
                             @Override
-                            public void success(Long returnValue) {
-                                templateSize = returnValue;
+                            public void success(SnapshotToVolumeSize returnValue) {
+                                templateSize = returnValue.size;
+                                templateActualSize = returnValue.actualSize;
                                 trigger.next();
                             }
 
@@ -1682,6 +1732,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
                         });
                         reply.setResults(ret);
                         reply.setSize(templateSize);
+                        reply.setActualSize(templateActualSize);
                         completion.success(reply);
                     }
                 });
@@ -1703,12 +1754,13 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
         c.needDownload = msg.isNeedDownload();
         c.primaryStorageInstallPath = makeDataVolumeInstallUrl(msg.getVolumeUuid());
         c.infos = msg.getSnapshots();
-        c.create(new ReturnValueCompletion<Long>(completion) {
+        c.create(new ReturnValueCompletion<SnapshotToVolumeSize>(completion) {
             @Override
-            public void success(Long returnValue) {
+            public void success(SnapshotToVolumeSize returnValue) {
                 CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply reply = new CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply();
                 reply.setInstallPath(c.primaryStorageInstallPath);
-                reply.setSize(returnValue);
+                reply.setSize(returnValue.size);
+                reply.setActualSize(returnValue.actualSize);
                 completion.success(reply);
             }
 

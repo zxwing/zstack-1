@@ -19,6 +19,15 @@ public class CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply extends Messa
     }
 
     private long size;
+    private long actualSize;
+
+    public long getActualSize() {
+        return actualSize;
+    }
+
+    public void setActualSize(long actualSize) {
+        this.actualSize = actualSize;
+    }
 
     public long getSize() {
         return size;

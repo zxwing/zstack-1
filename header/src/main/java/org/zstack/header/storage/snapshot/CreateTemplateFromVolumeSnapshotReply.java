@@ -28,8 +28,17 @@ public class CreateTemplateFromVolumeSnapshotReply extends MessageReply {
         }
     }
 
+    private long actualSize;
     private long size;
     private List<CreateTemplateFromVolumeSnapshotResult> results;
+
+    public long getActualSize() {
+        return actualSize;
+    }
+
+    public void setActualSize(long actualSize) {
+        this.actualSize = actualSize;
+    }
 
     public List<CreateTemplateFromVolumeSnapshotResult> getResults() {
         return results;

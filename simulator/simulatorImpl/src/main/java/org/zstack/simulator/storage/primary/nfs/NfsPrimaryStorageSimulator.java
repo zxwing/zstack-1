@@ -11,13 +11,12 @@ import org.zstack.core.thread.AsyncThread;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.rest.RESTFacade;
 import org.zstack.kvm.KVMAgentCommands.AgentResponse;
+import org.zstack.simulator.AsyncRESTReplyer;
+import org.zstack.simulator.kvm.VolumeSnapshotKvmSimulator;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackend;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.*;
 import org.zstack.storage.primary.nfs.NfsPrimaryToSftpBackupKVMBackend;
-import org.zstack.simulator.AsyncRESTReplyer;
-import org.zstack.simulator.kvm.VolumeSnapshotKvmSimulator;
 import org.zstack.utils.Utils;
-import org.zstack.utils.data.SizeUnit;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 
@@ -319,7 +318,10 @@ public class NfsPrimaryStorageSimulator {
             rsp.setError("on purpose");
             rsp.setSuccess(false);
         } else {
-            rsp.setSize(SizeUnit.MEGABYTE.toByte(500));
+            Long size = config.rebaseAndMergeSnapshotsCmdSize.get(cmd.getVolumeUuid());
+            rsp.setSize(size == null ? 0 : size);
+            Long aszie = config.rebaseAndMergeSnapshotsCmdActualSize.get(cmd.getVolumeUuid());
+            rsp.setActualSize(aszie == null ? 0 : aszie);
             config.rebaseAndMergeSnapshotsCmds.add(cmd);
         }
 
@@ -341,7 +343,10 @@ public class NfsPrimaryStorageSimulator {
             rsp.setError("on purpose");
             rsp.setSuccess(false);
         } else {
-            rsp.setSize(SizeUnit.MEGABYTE.toByte(500));
+            Long size = config.mergeSnapshotCmdSize.get(cmd.getVolumeUuid());
+            rsp.setSize(size == null ? 0 : size);
+            Long asize = config.mergeSnapshotCmdActualSize.get(cmd.getVolumeUuid());
+            rsp.setActualSize(asize == null ? 0 : asize);
             config.mergeSnapshotCmds.add(cmd);
         }
         reply(entity, rsp);
