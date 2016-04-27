@@ -1411,8 +1411,8 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     @Override
-    protected void handle(final SyncVolumeActualSizeMsg msg) {
-        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+    protected void handle(final SyncVolumeActualSizeOnPrimaryStorageMsg msg) {
+        final SyncVolumeActualSizeOnPrimaryStorageReply reply = new SyncVolumeActualSizeOnPrimaryStorageReply();
         GetVolumeActualSizeCmd cmd = new GetVolumeActualSizeCmd();
         cmd.installPath = msg.getInstallPath();
         cmd.volumeUuid = msg.getVolumeUuid();

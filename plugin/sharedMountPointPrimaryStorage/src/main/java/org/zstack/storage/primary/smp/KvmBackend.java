@@ -1505,7 +1505,7 @@ public class KvmBackend extends HypervisorBackend {
     }
 
     @Override
-    void handle(SyncVolumeActualSizeMsg msg, final ReturnValueCompletion<SyncVolumeActualSizeReply> completion) {
+    void handle(SyncVolumeActualSizeOnPrimaryStorageMsg msg, final ReturnValueCompletion<SyncVolumeActualSizeOnPrimaryStorageReply> completion) {
         String hostUuid = findConnectedHost();
         final GetVolumeActualSizeCmd cmd = new GetVolumeActualSizeCmd();
         cmd.installPath = msg.getInstallPath();
@@ -1519,7 +1519,7 @@ public class KvmBackend extends HypervisorBackend {
         }, new ReturnValueCompletion<KvmResponseWrapper>() {
             @Override
             public void success(KvmResponseWrapper returnValue) {
-                SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+                SyncVolumeActualSizeOnPrimaryStorageReply reply = new SyncVolumeActualSizeOnPrimaryStorageReply();
                 GetVolumeActualSizeRsp rsp = returnValue.getResponse(GetVolumeActualSizeRsp.class);
                 reply.setActualSize(rsp.actualSize);
                 completion.success(reply);

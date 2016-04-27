@@ -5,7 +5,7 @@ import org.zstack.header.message.NeedReplyMessage;
 /**
  * Created by xing5 on 2016/4/24.
  */
-public class SyncVolumeActualSizeMsg extends NeedReplyMessage implements PrimaryStorageMessage {
+public class SyncVolumeActualSizeOnPrimaryStorageMsg extends NeedReplyMessage implements PrimaryStorageMessage {
     private String volumeUuid;
     private String primaryStorageUuid;
     private String installPath;

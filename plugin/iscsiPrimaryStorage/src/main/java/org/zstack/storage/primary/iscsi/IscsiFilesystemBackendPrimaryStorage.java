@@ -997,7 +997,7 @@ public class IscsiFilesystemBackendPrimaryStorage extends PrimaryStorageBase {
     }
 
     @Override
-    protected void handle(SyncVolumeActualSizeMsg msg) {
+    protected void handle(SyncVolumeActualSizeOnPrimaryStorageMsg msg) {
         throw new CloudRuntimeException("not supported");
     }
 

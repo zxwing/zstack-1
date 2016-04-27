@@ -5,7 +5,7 @@ import org.zstack.header.message.MessageReply;
 /**
  * Created by xing5 on 2016/4/24.
  */
-public class SyncVolumeActualSizeReply extends MessageReply {
+public class SyncVolumeActualSizeOnPrimaryStorageReply extends MessageReply {
     private long actualSize;
 
     public long getActualSize() {

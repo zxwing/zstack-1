@@ -1095,8 +1095,8 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
     }
 
     @Override
-    protected void handle(final SyncVolumeActualSizeMsg msg) {
-        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+    protected void handle(final SyncVolumeActualSizeOnPrimaryStorageMsg msg) {
+        final SyncVolumeActualSizeOnPrimaryStorageReply reply = new SyncVolumeActualSizeOnPrimaryStorageReply();
         NfsPrimaryStorageBackend backend = getUsableBackend();
         if (backend == null) {
             throw new OperationFailureException(errf.stringToOperationError(

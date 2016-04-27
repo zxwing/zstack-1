@@ -1468,19 +1468,19 @@ public class LocalStorageBase extends PrimaryStorageBase {
     }
 
     @Override
-    protected void handle(final SyncVolumeActualSizeMsg msg) {
+    protected void handle(final SyncVolumeActualSizeOnPrimaryStorageMsg msg) {
         LocalStorageHypervisorFactory f = getHypervisorBackendFactoryByResourceUuid(msg.getVolumeUuid(), VolumeVO.class.getSimpleName());
         LocalStorageHypervisorBackend bkd = f.getHypervisorBackend(self);
         String huuid = getHostUuidByResourceUuid(msg.getVolumeUuid());
-        bkd.handle(msg, huuid, new ReturnValueCompletion<SyncVolumeActualSizeReply>(msg) {
+        bkd.handle(msg, huuid, new ReturnValueCompletion<SyncVolumeActualSizeOnPrimaryStorageReply>(msg) {
             @Override
-            public void success(SyncVolumeActualSizeReply returnValue) {
+            public void success(SyncVolumeActualSizeOnPrimaryStorageReply returnValue) {
                 bus.reply(msg, returnValue);
             }
 
             @Override
             public void fail(ErrorCode errorCode) {
-                SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+                SyncVolumeActualSizeOnPrimaryStorageReply reply = new SyncVolumeActualSizeOnPrimaryStorageReply();
                 reply.setError(errorCode);
                 bus.reply(msg, reply);
             }

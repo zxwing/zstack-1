@@ -11,16 +11,18 @@ import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.errorcode.ErrorFacade;
-import org.zstack.header.core.NopeCompletion;
-import org.zstack.header.core.workflow.*;
-import org.zstack.header.errorcode.OperationFailureException;
-import org.zstack.header.errorcode.SysErrors;
 import org.zstack.core.thread.ChainTask;
 import org.zstack.core.thread.SyncTaskChain;
 import org.zstack.core.thread.ThreadFacade;
-import org.zstack.core.workflow.*;
+import org.zstack.core.workflow.FlowChainBuilder;
+import org.zstack.core.workflow.ShareFlow;
 import org.zstack.header.core.Completion;
+import org.zstack.header.core.NopeCompletion;
+import org.zstack.header.core.ReturnValueCompletion;
+import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
+import org.zstack.header.errorcode.OperationFailureException;
+import org.zstack.header.errorcode.SysErrors;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.image.ImageVO;
 import org.zstack.header.message.APIDeleteMessage.DeletionMode;
@@ -115,9 +117,28 @@ public class VolumeBase implements Volume {
             handle((ExpungeVolumeMsg) msg);
         } else if (msg instanceof RecoverVolumeMsg) {
             handle((RecoverVolumeMsg) msg);
+        } else if (msg instanceof SyncVolumeActualSizeMsg) {
+            handle((SyncVolumeActualSizeMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
+    }
+
+    private void handle(final SyncVolumeActualSizeMsg msg) {
+        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+        syncVolumeActualSize(new ReturnValueCompletion<Long>(msg) {
+            @Override
+            public void success(Long returnValue) {
+                reply.setActualSize(returnValue);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     private void handle(final RecoverVolumeMsg msg) {
@@ -420,6 +441,28 @@ public class VolumeBase implements Volume {
         }
     }
 
+    private void syncVolumeActualSize(final ReturnValueCompletion<Long> completion) {
+        SyncVolumeActualSizeOnPrimaryStorageMsg smsg = new SyncVolumeActualSizeOnPrimaryStorageMsg();
+        smsg.setPrimaryStorageUuid(self.getPrimaryStorageUuid());
+        smsg.setVolumeUuid(self.getUuid());
+        smsg.setInstallPath(self.getInstallPath());
+        bus.makeTargetServiceIdByResourceUuid(smsg, PrimaryStorageConstant.SERVICE_ID, self.getPrimaryStorageUuid());
+        bus.send(smsg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (!reply.isSuccess()) {
+                    completion.fail(reply.getError());
+                    return;
+                }
+
+                SyncVolumeActualSizeOnPrimaryStorageReply r = reply.castReply();
+                self.setActualSize(r.getActualSize());
+                self = dbf.updateAndRefresh(self);
+                completion.success(r.getActualSize());
+            }
+        });
+    }
+
     private void handle(APISyncVolumeActualSizeMsg msg) {
         final APISyncVolumeActualSizeEvent evt = new APISyncVolumeActualSizeEvent(msg.getId());
         if (self.getStatus() != VolumeStatus.Ready) {
@@ -428,18 +471,16 @@ public class VolumeBase implements Volume {
             return;
         }
 
-        SyncVolumeActualSizeMsg smsg = new SyncVolumeActualSizeMsg();
-        smsg.setPrimaryStorageUuid(self.getPrimaryStorageUuid());
-        smsg.setVolumeUuid(self.getUuid());
-        smsg.setInstallPath(self.getInstallPath());
-        bus.makeTargetServiceIdByResourceUuid(smsg, PrimaryStorageConstant.SERVICE_ID, self.getPrimaryStorageUuid());
-        bus.send(smsg, new CloudBusCallBack(msg) {
+        syncVolumeActualSize(new ReturnValueCompletion<Long>(msg) {
             @Override
-            public void run(MessageReply reply) {
-                SyncVolumeActualSizeReply r = reply.castReply();
-                self.setActualSize(r.getActualSize());
-                self = dbf.updateAndRefresh(self);
+            public void success(Long returnValue) {
                 evt.setInventory(getSelfInventory());
+                bus.publish(evt);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                evt.setErrorCode(errorCode);
                 bus.publish(evt);
             }
         });
