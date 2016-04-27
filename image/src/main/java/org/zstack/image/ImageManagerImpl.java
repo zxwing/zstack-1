@@ -133,10 +133,34 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
         chain.then(new ShareFlow() {
             List<BackupStorageInventory> backupStorage = new ArrayList<BackupStorageInventory>();
             ImageVO image;
-            long size;
+            long actualSize;
 
             @Override
             public void setup() {
+                flow(new NoRollbackFlow() {
+                    String __name__ = "get-actual-size-of-data-volume";
+
+                    @Override
+                    public void run(final FlowTrigger trigger, Map data) {
+                        SyncVolumeActualSizeMsg smsg = new SyncVolumeActualSizeMsg();
+                        smsg.setVolumeUuid(msg.getVolumeUuid());
+                        bus.makeTargetServiceIdByResourceUuid(smsg, VolumeConstant.SERVICE_ID, msg.getVolumeUuid());
+                        bus.send(smsg, new CloudBusCallBack(trigger) {
+                            @Override
+                            public void run(MessageReply reply) {
+                                if (!reply.isSuccess()) {
+                                    trigger.fail(reply.getError());
+                                    return;
+                                }
+
+                                SyncVolumeActualSizeReply sr = reply.castReply();
+                                actualSize = sr.getActualSize();
+                                trigger.next();
+                            }
+                        });
+                    }
+                });
+
                 flow(new Flow() {
                     String __name__ = "create-image-in-database";
 
@@ -148,7 +172,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                         Tuple t = q.findTuple();
 
                         String format = t.get(0, String.class);
-                        size = t.get(1, Long.class);
+                        long size = t.get(1, Long.class);
 
                         final ImageVO vo = new ImageVO();
                         vo.setUuid(msg.getResourceUuid() == null ? Platform.getUuid() : msg.getResourceUuid());
@@ -157,6 +181,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                         vo.setType(ImageConstant.ZSTACK_IMAGE_TYPE);
                         vo.setMediaType(ImageMediaType.DataVolumeTemplate);
                         vo.setSize(size);
+                        vo.setActualSize(actualSize);
                         vo.setState(ImageState.Enabled);
                         vo.setStatus(ImageStatus.Creating);
                         vo.setFormat(format);
@@ -197,7 +222,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                         if (msg.getBackupStorageUuids() == null) {
                             AllocateBackupStorageMsg amsg = new AllocateBackupStorageMsg();
                             amsg.setRequiredZoneUuid(zoneUuid);
-                            amsg.setSize(size);
+                            amsg.setSize(actualSize);
                             bus.makeLocalServiceId(amsg, BackupStorageConstant.SERVICE_ID);
                             bus.send(amsg, new CloudBusCallBack(trigger) {
                                 @Override
@@ -216,7 +241,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                                 public AllocateBackupStorageMsg call(String arg) {
                                     AllocateBackupStorageMsg amsg = new AllocateBackupStorageMsg();
                                     amsg.setRequiredZoneUuid(zoneUuid);
-                                    amsg.setSize(size);
+                                    amsg.setSize(actualSize);
                                     amsg.setBackupStorageUuid(arg);
                                     bus.makeLocalServiceId(amsg, BackupStorageConstant.SERVICE_ID);
                                     return amsg;
@@ -254,7 +279,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                                 public ReturnBackupStorageMsg call(BackupStorageInventory arg) {
                                     ReturnBackupStorageMsg rmsg = new ReturnBackupStorageMsg();
                                     rmsg.setBackupStorageUuid(arg.getUuid());
-                                    rmsg.setSize(size);
+                                    rmsg.setSize(actualSize);
                                     bus.makeLocalServiceId(rmsg, BackupStorageConstant.SERVICE_ID);
                                     return rmsg;
                                 }
@@ -265,7 +290,7 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                                 public void run(List<MessageReply> replies) {
                                     for (MessageReply r : replies) {
                                         BackupStorageInventory bs = backupStorage.get(replies.indexOf(r));
-                                        logger.warn(String.format("failed to return %s bytes to bacup storage[uuid:%s]", size, bs.getUuid()));
+                                        logger.warn(String.format("failed to return %s bytes to backup storage[uuid:%s]", acntMgr, bs.getUuid()));
                                     }
                                 }
                             });

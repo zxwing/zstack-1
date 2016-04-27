@@ -11,20 +11,25 @@ import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.errorcode.ErrorFacade;
+import org.zstack.core.workflow.FlowChainBuilder;
+import org.zstack.core.workflow.ShareFlow;
+import org.zstack.header.AbstractService;
+import org.zstack.header.core.workflow.*;
+import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.errorcode.SysErrors;
-import org.zstack.header.AbstractService;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.primary.VolumeSnapshotCapability.VolumeSnapshotArrangementType;
 import org.zstack.header.storage.snapshot.*;
-import org.zstack.header.volume.VolumeConstant;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.identity.AccountManager;
+import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.utils.DebugUtils;
+import org.zstack.utils.ExceptionDSL;
 import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
 
@@ -32,6 +37,7 @@ import javax.persistence.TypedQuery;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -235,7 +241,7 @@ public class VolumeSnapshotManagerImpl extends AbstractService implements Volume
         final CreateVolumeSnapshotReply ret = new CreateVolumeSnapshotReply();
 
         final VolumeVO vol = dbf.findByUuid(msg.getVolumeUuid(), VolumeVO.class);
-        String primaryStorageUuid = vol.getPrimaryStorageUuid();
+        final String primaryStorageUuid = vol.getPrimaryStorageUuid();
 
         AskVolumeSnapshotCapabilityMsg askMsg = new AskVolumeSnapshotCapabilityMsg();
         askMsg.setPrimaryStorageUuid(primaryStorageUuid);
@@ -282,39 +288,90 @@ public class VolumeSnapshotManagerImpl extends AbstractService implements Volume
         }
 
         final VolumeSnapshotStruct struct = s;
-        TakeSnapshotMsg tmsg = new TakeSnapshotMsg();
-        tmsg.setPrimaryStorageUuid(primaryStorageUuid);
-        tmsg.setStruct(struct);
-        bus.makeTargetServiceIdByResourceUuid(tmsg, PrimaryStorageConstant.SERVICE_ID, primaryStorageUuid);
-        bus.send(tmsg, new CloudBusCallBack(msg) {
+        FlowChain chain = FlowChainBuilder.newShareFlowChain();
+        chain.setName(String.format("take-volume-snapshot-for-volume-%s", msg.getVolumeUuid()));
+        chain.then(new ShareFlow() {
+            VolumeSnapshotInventory snapshot;
+            String volumeNewInstallPath;
+
             @Override
-            public void run(MessageReply reply) {
-                if (reply.isSuccess()) {
-                    TakeSnapshotReply treply = (TakeSnapshotReply)reply;
-                    if (treply.getNewVolumeInstallPath() != null) {
-                        vol.setInstallPath(treply.getNewVolumeInstallPath());
-                        dbf.update(vol);
+            public void setup() {
+                flow(new NoRollbackFlow() {
+                    String __name__ = "take-volume-snapshot";
+
+                    @Override
+                    public void run(final FlowTrigger trigger, Map data) {
+                        final TakeSnapshotMsg tmsg = new TakeSnapshotMsg();
+                        tmsg.setPrimaryStorageUuid(primaryStorageUuid);
+                        tmsg.setStruct(struct);
+                        bus.makeTargetServiceIdByResourceUuid(tmsg, PrimaryStorageConstant.SERVICE_ID, primaryStorageUuid);
+                        bus.send(tmsg, new CloudBusCallBack(trigger) {
+                            @Override
+                            public void run(MessageReply reply) {
+                                if (!reply.isSuccess()) {
+                                    trigger.fail(reply.getError());
+                                    return;
+                                }
+
+                                TakeSnapshotReply treply = (TakeSnapshotReply)reply;
+                                volumeNewInstallPath = treply.getNewVolumeInstallPath();
+                                snapshot = treply.getInventory();
+                                trigger.next();
+                            }
+                        });
                     }
-                    VolumeSnapshotInventory sinv = treply.getInventory();
-                    VolumeSnapshotVO svo = dbf.findByUuid(sinv.getUuid(), VolumeSnapshotVO.class);
-                    svo.setType(sinv.getType());
-                    svo.setPrimaryStorageUuid(sinv.getPrimaryStorageUuid());
-                    svo.setPrimaryStorageInstallPath(sinv.getPrimaryStorageInstallPath());
-                    svo.setStatus(VolumeSnapshotStatus.Ready);
-                    svo.setSize(sinv.getSize());
-                    if (sinv.getFormat() != null) {
-                        svo.setFormat(sinv.getFormat());
+                });
+
+                flow(new NoRollbackFlow() {
+                    String __name__ = "reserve-snapshot-size-on-primary-storage";
+
+                    @Override
+                    public void run(final FlowTrigger trigger, Map data) {
+                        ExceptionDSL.exceptionSafe(new Runnable() {
+                            @Override
+                            public void run() {
+                                PrimaryStorageCapacityUpdater updater = new PrimaryStorageCapacityUpdater(vol.getPrimaryStorageUuid());
+                                updater.decreaseAvailableCapacity(snapshot.getSize());
+                            }
+                        });
+
+                        trigger.next();
                     }
-                    svo = dbf.updateAndRefresh(svo);
-                    ret.setInventory(VolumeSnapshotInventory.valueOf(svo));
-                    bus.reply(msg, ret);
-                } else {
-                    rollbackSnapshot(struct.getCurrent().getUuid());
-                    ret.setError(reply.getError());
-                    bus.reply(msg, ret);
-                }
+                });
+
+                done(new FlowDoneHandler(msg) {
+                    @Override
+                    public void handle(Map data) {
+                        if (volumeNewInstallPath != null) {
+                            vol.setInstallPath(volumeNewInstallPath);
+                            dbf.update(vol);
+                        }
+
+                        VolumeSnapshotVO svo = dbf.findByUuid(snapshot.getUuid(), VolumeSnapshotVO.class);
+                        svo.setType(snapshot.getType());
+                        svo.setPrimaryStorageUuid(snapshot.getPrimaryStorageUuid());
+                        svo.setPrimaryStorageInstallPath(snapshot.getPrimaryStorageInstallPath());
+                        svo.setStatus(VolumeSnapshotStatus.Ready);
+                        svo.setSize(snapshot.getSize());
+                        if (snapshot.getFormat() != null) {
+                            svo.setFormat(snapshot.getFormat());
+                        }
+                        svo = dbf.updateAndRefresh(svo);
+                        ret.setInventory(VolumeSnapshotInventory.valueOf(svo));
+                        bus.reply(msg, ret);
+                    }
+                });
+
+                error(new FlowErrorHandler(msg) {
+                    @Override
+                    public void handle(ErrorCode errCode, Map data) {
+                        rollbackSnapshot(struct.getCurrent().getUuid());
+                        ret.setError(errCode);
+                        bus.reply(msg, ret);
+                    }
+                });
             }
-        });
+        }).start();
     }
 
     private void handleApiMessage(APIMessage msg) {
