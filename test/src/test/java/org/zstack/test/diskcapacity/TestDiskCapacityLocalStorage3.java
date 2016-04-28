@@ -36,6 +36,16 @@ import org.zstack.utils.logging.CLogger;
 
 import static org.zstack.utils.CollectionDSL.list;
 
+/**
+ * 1. use local storage
+ * 2. add an image
+ * 3. create a vm from the image
+ * 4. create an image from the root volume
+ * 5. create data volume and attach to the vm
+ *
+ * confirm the size of image/volume are correct
+ * confirm the local storage capacity correct
+ */
 public class TestDiskCapacityLocalStorage3 {
     CLogger logger = Utils.getLogger(TestSftpBackupStorageDeleteImage2.class);
     Deployer deployer;

@@ -42,6 +42,15 @@ import java.util.concurrent.CountDownLatch;
 
 import static org.zstack.utils.CollectionDSL.list;
 
+/**
+ * 1. use local storage
+ * 2. add an image
+ * 3. create 100 vm from the image
+ *
+ * confirm the size of image/volume are correct
+ * confirm the local storage capacity correct
+ */
+
 public class TestDiskCapacityLocalStorage2 {
     CLogger logger = Utils.getLogger(TestSftpBackupStorageDeleteImage2.class);
     Deployer deployer;

@@ -17,6 +17,7 @@ import org.zstack.header.message.AbstractBeforeDeliveryMessageInterceptor;
 import org.zstack.header.message.Message;
 import org.zstack.header.network.l3.L3NetworkInventory;
 import org.zstack.header.storage.backup.BackupStorageInventory;
+import org.zstack.header.storage.backup.BackupStorageVO;
 import org.zstack.header.storage.primary.InstantiateVolumeMsg;
 import org.zstack.header.storage.primary.PrimaryStorageCapacityVO;
 import org.zstack.header.storage.primary.PrimaryStorageInventory;
@@ -36,8 +37,20 @@ import org.zstack.utils.Utils;
 import org.zstack.utils.data.SizeUnit;
 import org.zstack.utils.logging.CLogger;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.zstack.utils.CollectionDSL.list;
 
+/**
+ * 1. use local storage
+ * 2. add an image
+ * 3. create a vm from the image
+ * 4. create 50 snapshots from the root volume
+ *
+ * confirm the size of snapshots correct
+ * confirm the local storage capacity correct
+ */
 public class TestDiskCapacityLocalStorage4 {
     CLogger logger = Utils.getLogger(TestSftpBackupStorageDeleteImage2.class);
     Deployer deployer;
@@ -162,6 +175,7 @@ public class TestDiskCapacityLocalStorage4 {
 
         int num = 30;
 
+        List<VolumeSnapshotInventory> snapshots = new ArrayList<VolumeSnapshotInventory>();
         long snapshotSize = 0;
         for (int i=1; i<num; i++) {
             TakeSnapshot takeSnapshot = new TakeSnapshot();
@@ -170,6 +184,7 @@ public class TestDiskCapacityLocalStorage4 {
             VolumeSnapshotInventory sp = takeSnapshot.take();
             Assert.assertEquals(takeSnapshot.size, sp.getSize());
             snapshotSize += takeSnapshot.size;
+            snapshots.add(sp);
         }
 
         PrimaryStorageInventory local = deployer.primaryStorages.get("local");
@@ -183,5 +198,19 @@ public class TestDiskCapacityLocalStorage4 {
         long avail = pscap.getTotalCapacity() - used;
         Assert.assertEquals(avail, pscap.getAvailableCapacity());
         Assert.assertEquals(avail, href.getAvailableCapacity());
+
+        BackupStorageInventory bs = deployer.backupStorages.get("sftp");
+        BackupStorageVO bsBefore = dbf.findByUuid(bs.getUuid(), BackupStorageVO.class);
+        VolumeSnapshotInventory sp = snapshots.get(0);
+        long spToTemplateActualSize = SizeUnit.GIGABYTE.toByte(10);
+
+        lconfig.snapshotToVolumeSize.put(sp.getVolumeUuid(), root.getSize());
+        lconfig.snapshotToVolumeActualSize.put(sp.getVolumeUuid(), spToTemplateActualSize);
+        ImageInventory template = api.createTemplateFromSnapshot(sp.getUuid());
+        Assert.assertEquals(root.getSize(), template.getSize());
+        Assert.assertEquals(spToTemplateActualSize, template.getActualSize().longValue());
+
+        BackupStorageVO bsAfter = dbf.findByUuid(bs.getUuid(), BackupStorageVO.class);
+        Assert.assertEquals(spToTemplateActualSize, bsBefore.getAvailableCapacity() - bsAfter.getAvailableCapacity());
 	}
 }

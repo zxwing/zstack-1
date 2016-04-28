@@ -293,7 +293,10 @@ public class LocalStorageSimulator {
         MergeSnapshotCmd cmd = JSONObjectUtil.toObject(entity.getBody(), MergeSnapshotCmd.class);
         config.mergeSnapshotCmds.add(cmd);
         MergeSnapshotRsp rsp = new MergeSnapshotRsp();
-        rsp.setSize(100);
+        Long size = config.snapshotToVolumeSize.get(cmd.getVolumeUuid());
+        rsp.setSize(size == null ? 0 : size);
+        Long asize = config.snapshotToVolumeActualSize.get(cmd.getVolumeUuid());
+        rsp.setActualSize(asize == null ? 0 : asize);
         reply(entity, rsp);
         return null;
     }
