@@ -710,8 +710,7 @@ public class LocalStorageBase extends PrimaryStorageBase {
     }
 
     private void handle(final CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg msg) {
-        final List<SnapshotDownloadInfo> infos = msg.getSnapshotsDownloadInfo();
-        final VolumeSnapshotInventory sinv = infos.get(0).getSnapshot();
+        VolumeSnapshotInventory sinv = msg.getCurrent();
         String hostUuid = getHostUuidByResourceUuid(sinv.getUuid());
 
         if (hostUuid == null) {

@@ -8,6 +8,8 @@ import java.util.List;
 /**
  */
 public class CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply extends MessageReply {
+    private String temporaryInstallPath;
+
     private List<CreateTemplateFromVolumeSnapshotResult> results;
 
     public List<CreateTemplateFromVolumeSnapshotResult> getResults() {
@@ -20,6 +22,14 @@ public class CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply extends Messa
 
     private long size;
     private long actualSize;
+
+    public String getTemporaryInstallPath() {
+        return temporaryInstallPath;
+    }
+
+    public void setTemporaryInstallPath(String temporaryInstallPath) {
+        this.temporaryInstallPath = temporaryInstallPath;
+    }
 
     public long getActualSize() {
         return actualSize;

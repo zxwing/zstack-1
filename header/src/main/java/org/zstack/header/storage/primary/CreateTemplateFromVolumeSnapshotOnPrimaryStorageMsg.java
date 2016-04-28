@@ -9,41 +9,26 @@ import java.util.List;
 /**
  */
 public class CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg extends NeedReplyMessage implements PrimaryStorageMessage {
-    public static class SnapshotDownloadInfo {
-        private String backupStorageUuid;
-        private String backupStorageInstallPath;
-        private VolumeSnapshotInventory snapshot;
-
-        public VolumeSnapshotInventory getSnapshot() {
-            return snapshot;
-        }
-
-        public void setSnapshot(VolumeSnapshotInventory snapshot) {
-            this.snapshot = snapshot;
-        }
-
-        public String getBackupStorageUuid() {
-            return backupStorageUuid;
-        }
-
-        public void setBackupStorageUuid(String backupStorageUuid) {
-            this.backupStorageUuid = backupStorageUuid;
-        }
-
-        public String getBackupStorageInstallPath() {
-            return backupStorageInstallPath;
-        }
-
-        public void setBackupStorageInstallPath(String backupStorageInstallPath) {
-            this.backupStorageInstallPath = backupStorageInstallPath;
-        }
-    }
-
     private String imageUuid;
     private String primaryStorageUuid;
-    private List<SnapshotDownloadInfo> snapshotsDownloadInfo;
-    private List<BackupStorageInventory> backupStorage;
-    private boolean needDownload;
+    private List<VolumeSnapshotInventory> snapshots;
+    private VolumeSnapshotInventory current;
+
+    public VolumeSnapshotInventory getCurrent() {
+        return current;
+    }
+
+    public void setCurrent(VolumeSnapshotInventory current) {
+        this.current = current;
+    }
+
+    public List<VolumeSnapshotInventory> getSnapshots() {
+        return snapshots;
+    }
+
+    public void setSnapshots(List<VolumeSnapshotInventory> snapshots) {
+        this.snapshots = snapshots;
+    }
 
     public String getImageUuid() {
         return imageUuid;

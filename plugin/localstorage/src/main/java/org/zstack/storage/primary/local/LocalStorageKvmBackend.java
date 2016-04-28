@@ -1575,8 +1575,6 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
 
     @Override
     void handle(final CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg msg, final String hostUuid, final ReturnValueCompletion<CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply> completion) {
-        final List<SnapshotDownloadInfo> infos = msg.getSnapshotsDownloadInfo();
-
         SimpleQuery<ImageVO> q = dbf.createQuery(ImageVO.class);
         q.select(ImageVO_.mediaType);
         q.add(ImageVO_.uuid, Op.EQ, msg.getImageUuid());
