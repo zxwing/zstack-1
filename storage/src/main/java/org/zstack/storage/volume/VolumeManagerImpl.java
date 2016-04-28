@@ -161,7 +161,6 @@ public class VolumeManagerImpl extends AbstractService implements VolumeManager,
 		bus.reply(msg, reply);
     }
 
-
     private void handle(APICreateDataVolumeFromVolumeSnapshotMsg msg) {
         final APICreateDataVolumeFromVolumeSnapshotEvent evt = new APICreateDataVolumeFromVolumeSnapshotEvent(msg.getId());
         final VolumeVO vo = new VolumeVO();

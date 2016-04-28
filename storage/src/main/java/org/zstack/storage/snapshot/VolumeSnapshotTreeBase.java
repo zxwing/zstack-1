@@ -1,5 +1,6 @@
 package org.zstack.storage.snapshot;
 
+import org.codehaus.groovy.util.HashCodeHelper;
 import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
@@ -36,6 +37,7 @@ import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
 import org.zstack.header.storage.backup.*;
 import org.zstack.header.storage.primary.*;
+import org.zstack.header.storage.primary.CreateTemplateFromVolumeSnapshotAndUploadToBackupStorageReply.Result;
 import org.zstack.header.storage.snapshot.*;
 import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotReply.CreateTemplateFromVolumeSnapshotResult;
 import org.zstack.header.storage.snapshot.VolumeSnapshotStatus.StatusEvent;
@@ -711,6 +713,155 @@ public class VolumeSnapshotTreeBase {
         return info;
     }
 
+    @Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
+    public static class BackupStorageSelector implements UploadTemplateBackupStorageSelector {
+        private List<String> backupStorageUuids;
+        private String primaryStorageUuid;
+        private VolumeSnapshotInventory snapshot;
+        private String imageUuid;
+
+        @Autowired
+        private DatabaseFacade dbf;
+        @Autowired
+        private CloudBus bus;
+        @Autowired
+        private ErrorFacade errf;
+
+        public List<String> getBackupStorageUuids() {
+            return backupStorageUuids;
+        }
+
+        public void setBackupStorageUuids(List<String> backupStorageUuids) {
+            this.backupStorageUuids = backupStorageUuids;
+        }
+
+        public String getPrimaryStorageUuid() {
+            return primaryStorageUuid;
+        }
+
+        public void setPrimaryStorageUuid(String primaryStorageUuid) {
+            this.primaryStorageUuid = primaryStorageUuid;
+        }
+
+        public VolumeSnapshotInventory getSnapshot() {
+            return snapshot;
+        }
+
+        public void setSnapshot(VolumeSnapshotInventory snapshot) {
+            this.snapshot = snapshot;
+        }
+
+        public String getImageUuid() {
+            return imageUuid;
+        }
+
+        public void setImageUuid(String imageUuid) {
+            this.imageUuid = imageUuid;
+        }
+
+        @Transactional(readOnly = true)
+        private List<String> getCandidateBackupStorage() {
+            if (backupStorageUuids == null || backupStorageUuids.isEmpty()) {
+                String sql = "select bs.uuid from BackupStorageVO bs, BackupStorageZoneRefVO ref, PrimaryStorageVO pri" +
+                        " where bs.uuid = ref.backupStorageUuid and ref.zoneUuid = pri.zoneUuid and pri.uuid = :psUuid";
+                TypedQuery<String> q = dbf.getEntityManager().createQuery(sql, String.class);
+                q.setParameter("psUuid", primaryStorageUuid);
+                return q.getResultList();
+            } else {
+                String sql = "select bs.uuid from BackupStorageVO bs, BackupStorageZoneRefVO ref, PrimaryStorageVO pri" +
+                        " where bs.uuid = ref.backupStorageUuid and ref.zoneUuid = pri.zoneUuid and pri.uuid = :psUuid" +
+                        " and bs.uuid in (:bsUuids)";
+                TypedQuery<String> q = dbf.getEntityManager().createQuery(sql, String.class);
+                q.setParameter("psUuid", primaryStorageUuid);
+                q.setParameter("bsUuids", backupStorageUuids);
+                List<String> bsUuids = q.getResultList();
+                if (!bsUuids.containsAll(backupStorageUuids)) {
+                    for (String bsUuid : backupStorageUuids) {
+                        if (!bsUuids.contains(bsUuid)) {
+                            //TODO
+                            logger.warn(String.format("the backup storage[uuid:%s] is not attached to the zone of the primary storage[uuid:%s] that" +
+                                    " the snapshot[uuid:%s, name:%s] is on", bsUuid, primaryStorageUuid,
+                                    snapshot.getUuid(), snapshot.getName()));
+                        }
+                    }
+                }
+
+                return bsUuids;
+            }
+        }
+
+        @Override
+        public Map<String, String> select(long templateActualSize) {
+            List<String> targetBackupStorageUuids = new ArrayList<String>();
+
+            List<String> bsUuids = getCandidateBackupStorage();
+            if (bsUuids.isEmpty()) {
+                throw new OperationFailureException(errf.stringToOperationError(
+                        String.format("cannot find any backup storage to upload the template created from the snapshot[uuid:%s, name:%s]",
+                                snapshot.getUuid(), snapshot.getName())
+                ));
+            }
+
+            for (String bsUuid : bsUuids) {
+                BackupStorageCapacityUpdater updater = new BackupStorageCapacityUpdater(bsUuid);
+                if (updater.reserveCapacity(templateActualSize, false)) {
+                    targetBackupStorageUuids.add(bsUuid);
+                } else {
+                    //TODO
+                    logger.warn(String.format("unable to reserve the capacity[%s bytes] on the backup storage[uuid:%s], it's short of capacity",
+                            templateActualSize, bsUuid));
+                }
+            }
+
+            if (targetBackupStorageUuids.isEmpty()) {
+                throw new OperationFailureException(errf.stringToOperationError(String.format("cannot reserve the capacity[%s bytes] on" +
+                        " all backup storage%s", templateActualSize, targetBackupStorageUuids)));
+            }
+
+            SimpleQuery<ImageVO> q = dbf.createQuery(ImageVO.class);
+            q.select(ImageVO_.mediaType);
+            q.add(ImageVO_.uuid, Op.EQ, imageUuid);
+            final String mediaType = q.findValue();
+
+            List<BackupStorageAskInstallPathMsg> bmsgs = CollectionUtils.transformToList(targetBackupStorageUuids, new Function<BackupStorageAskInstallPathMsg, String>() {
+                @Override
+                public BackupStorageAskInstallPathMsg call(String bsUuid) {
+                    BackupStorageAskInstallPathMsg bmsg = new BackupStorageAskInstallPathMsg();
+                    bmsg.setImageMediaType(mediaType);
+                    bmsg.setImageUuid(imageUuid);
+                    bmsg.setBackupStorageUuid(bsUuid);
+                    bus.makeTargetServiceIdByResourceUuid(bmsg, BackupStorageConstant.SERVICE_ID, bsUuid);
+                    return bmsg;
+                }
+            });
+
+            Map<String, String> ret = new HashMap<String, String>();
+            List<ErrorCode> errors = new ArrayList<ErrorCode>();
+            List<MessageReply> replies = bus.call(bmsgs);
+            for (MessageReply reply : replies) {
+                String bsUuid = targetBackupStorageUuids.get(replies.indexOf(reply));
+
+                if (!reply.isSuccess()) {
+                    errors.add(errf.stringToOperationError(
+                            String.format("unable to get installation path on the backup storage[uuid:%s]", bsUuid), reply.getError()
+                    ));
+                    continue;
+                }
+
+                BackupStorageAskInstallPathReply br = reply.castReply();
+                ret.put(bsUuid, br.getInstallPath());
+            }
+
+            if (ret.isEmpty()) {
+                throw new OperationFailureException(errf.stringToOperationError(
+                        String.format("cannot get template installation path on all backup storage %s", targetBackupStorageUuids), errors
+                ));
+            }
+
+            return ret;
+        }
+    }
+
     private void createTemplate(final CreateTemplateFromVolumeSnapshotMsg msg, final NoErrorCompletion completion) {
         final CreateTemplateFromVolumeSnapshotReply reply = new CreateTemplateFromVolumeSnapshotReply();
 
@@ -723,385 +874,40 @@ public class VolumeSnapshotTreeBase {
             return;
         }
 
+        CreateTemplateFromVolumeSnapshotAndUploadToBackupStorageMsg cmsg = new CreateTemplateFromVolumeSnapshotAndUploadToBackupStorageMsg();
+        cmsg.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
+        cmsg.setSnapshot(currentLeaf.getInventory());
+        cmsg.setImageUuid(msg.getImageUuid());
 
-        final CreateBitsFromSnapshotInfoForTemplate info = new CreateBitsFromSnapshotInfoForTemplate(prepareCreateBitsFromSnapshotInfo(null));
+        BackupStorageSelector selector = new BackupStorageSelector();
+        selector.setImageUuid(msg.getImageUuid());
+        selector.setSnapshot(currentLeaf.getInventory());
+        selector.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
+        selector.setBackupStorageUuids(msg.getBackupStorageUuids());
 
-        FlowChain chain = FlowChainBuilder.newShareFlowChain();
-        chain.setName(String.format("create-template-from-snapshot-%s", currentRoot.getUuid()));
-        chain.then(new ShareFlow() {
-            String temporaryInstallPath;
-            long size;
-            long actualSize;
-            List<String> targetBackupStorageUuids = new ArrayList<String>();
-            List<CreateTemplateFromVolumeSnapshotResult> results = new ArrayList<CreateTemplateFromVolumeSnapshotResult>();
-
+        cmsg.setBackupStorageSelector(selector);
+        bus.makeTargetServiceIdByResourceUuid(cmsg, PrimaryStorageConstant.SERVICE_ID, currentRoot.getPrimaryStorageUuid());
+        bus.send(cmsg, new CloudBusCallBack(completion) {
             @Override
-            public void setup() {
-                /*
-                flow(new Flow() {
-                    String __name__ = "allocateHost-destination-backup-storage";
+            public void run(MessageReply r) {
+                if (!r.isSuccess()) {
+                    reply.setError(r.getError());
+                } else {
+                    CreateTemplateFromVolumeSnapshotAndUploadToBackupStorageReply cr = r.castReply();
+                    reply.setActualSize(cr.getActualSize());
+                    reply.setSize(cr.getSize());
 
-                    @Override
-                    public void run(final FlowTrigger trigger, Map data) {
-                        if (msg.getBackupStorageUuids() == null) {
-                            AllocateBackupStorageMsg amsg = new AllocateBackupStorageMsg();
-                            amsg.setSize(info.totalSnapshotSize);
-                            amsg.setRequiredZoneUuid(info.workspacePrimaryStorage.getZoneUuid());
-                            bus.makeLocalServiceId(amsg, BackupStorageConstant.SERVICE_ID);
-                            bus.send(amsg, new CloudBusCallBack(trigger) {
-                                @Override
-                                public void run(MessageReply reply) {
-                                    if (reply.isSuccess()) {
-                                        AllocateBackupStorageReply ar = reply.castReply();
-                                        info.destBackupStorages.add(ar.getInventory());
-                                        trigger.next();
-                                    } else {
-                                        trigger.fail(reply.getError());
-                                    }
-                                }
-                            });
-                        } else {
-                            List<AllocateBackupStorageMsg> amsgs = CollectionUtils.transformToList(msg.getBackupStorageUuids(), new Function<AllocateBackupStorageMsg, String>() {
-                                @Override
-                                public AllocateBackupStorageMsg call(String arg) {
-                                    AllocateBackupStorageMsg amsg = new AllocateBackupStorageMsg();
-                                    amsg.setBackupStorageUuid(arg);
-                                    amsg.setSize(info.totalSnapshotSize);
-                                    amsg.setRequiredZoneUuid(info.workspacePrimaryStorage.getZoneUuid());
-                                    bus.makeLocalServiceId(amsg, BackupStorageConstant.SERVICE_ID);
-                                    return amsg;
-                                }
-                            });
-
-                            bus.send(amsgs, new CloudBusListCallBack(trigger) {
-                                @Override
-                                public void run(List<MessageReply> replies) {
-                                    List<ErrorCode> errs = new ArrayList<ErrorCode>();
-                                    for (MessageReply r : replies) {
-                                        String bsUuid = msg.getBackupStorageUuids().get(replies.indexOf(r));
-                                        if (!r.isSuccess()) {
-                                            errs.add(r.getError());
-                                            logger.warn(String.format("failed to allocate backup storage[uuid:%s] because %s",
-                                                    bsUuid, r.getError()));
-                                        } else {
-                                            info.destBackupStorages.add(((AllocateBackupStorageReply)r).getInventory());
-                                        }
-                                    }
-
-                                    if (info.destBackupStorages.isEmpty()) {
-                                        trigger.fail(errf.stringToOperationError(String.format("failed to allocate all backup storage[uuids:%s], a list of error: %s",
-                                                msg.getBackupStorageUuids(), JSONObjectUtil.toJsonString(errs))));
-                                    } else {
-                                        trigger.next();
-                                    }
-                                }
-                            });
-                        }
+                    Map<String, String> onBs = new HashMap<String, String>();
+                    for (Result ret : cr.getResults()) {
+                        onBs.put(ret.backupStorageUuid, ret.installPath);
                     }
+                    reply.setOnBackupStorage(onBs);
+                }
 
-                    @Override
-                    public void rollback(FlowRollback trigger, Map data) {
-                        if (!info.destBackupStorages.isEmpty()) {
-                            List<ReturnBackupStorageMsg> rmsgs = CollectionUtils.transformToList(info.destBackupStorages, new Function<ReturnBackupStorageMsg, BackupStorageInventory>() {
-                                @Override
-                                public ReturnBackupStorageMsg call(BackupStorageInventory arg) {
-                                    ReturnBackupStorageMsg rmsg = new ReturnBackupStorageMsg();
-                                    rmsg.setBackupStorageUuid(arg.getUuid());
-                                    rmsg.setSize(info.totalSnapshotSize);
-                                    bus.makeTargetServiceIdByResourceUuid(rmsg, BackupStorageConstant.SERVICE_ID, arg.getUuid());
-                                    return rmsg;
-                                }
-                            });
-
-                            bus.send(rmsgs, new CloudBusListCallBack() {
-                                @Override
-                                public void run(List<MessageReply> replies) {
-                                    for (MessageReply r : replies) {
-                                        if (!r.isSuccess()) {
-                                            BackupStorageInventory bs = info.destBackupStorages.get(replies.indexOf(r));
-                                            logger.warn(String.format("failed to return capacity[%s bytes] to backup storage[uuid:%s], because %s",
-                                                    info.totalSnapshotSize, bs.getUuid(), r.getError()));
-                                        }
-                                    }
-                                }
-                            });
-                        }
-
-                        trigger.rollback();
-                    }
-                });
-                */
-
-                flow(new Flow() {
-                    String __name__ = "create-template-from-volume-snapshot-on-primary-storage";
-
-                    private void returnBackupStorageForFailure(CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply reply) {
-
-
-                        // failed to upload to some backup storage, return capacity to them
-                        List<String> successBsUuids = CollectionUtils.transformToList(reply.getResults(), new Function<String, CreateTemplateFromVolumeSnapshotResult>() {
-                            @Override
-                            public String call(CreateTemplateFromVolumeSnapshotResult arg) {
-                                return arg.getBackupStorageUuid();
-                            }
-                        });
-
-                        List<String> allBsUuids = CollectionUtils.transformToList(info.destBackupStorages, new Function<String, BackupStorageInventory>() {
-                            @Override
-                            public String call(BackupStorageInventory arg) {
-                                return arg.getUuid();
-                            }
-                        });
-
-                        allBsUuids.removeAll(successBsUuids);
-
-                        logger.debug(String.format("return capacity to backup storage%s, because they fails to upload image", allBsUuids));
-                        List<ReturnBackupStorageMsg> rmsgs = CollectionUtils.transformToList(allBsUuids, new Function<ReturnBackupStorageMsg, String>() {
-                            @Override
-                            public ReturnBackupStorageMsg call(String arg) {
-                                ReturnBackupStorageMsg rmsg = new ReturnBackupStorageMsg();
-                                rmsg.setBackupStorageUuid(arg);
-                                rmsg.setSize(info.totalSnapshotSize);
-                                bus.makeTargetServiceIdByResourceUuid(rmsg, BackupStorageConstant.SERVICE_ID, arg);
-                                return rmsg;
-                            }
-                        });
-
-                        bus.send(rmsgs);
-                    }
-
-                    @Override
-                    public void run(final FlowTrigger trigger, Map data) {
-                        CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg cmsg = new CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg();
-                        cmsg.setImageUuid(msg.getImageUuid());
-                        cmsg.setBackupStorage(info.destBackupStorages);
-                        cmsg.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
-                        cmsg.setSnapshots(info.snapshots);
-                        cmsg.setCurrent(currentLeaf.getInventory());
-                        bus.makeTargetServiceIdByResourceUuid(cmsg, PrimaryStorageConstant.SERVICE_ID, cmsg.getPrimaryStorageUuid());
-
-                        bus.send(cmsg, new CloudBusCallBack(trigger) {
-                            @Override
-                            public void run(MessageReply reply) {
-                                if (reply.isSuccess()) {
-                                    CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply cr = reply.castReply();
-                                    actualSize = cr.getActualSize();
-                                    size = cr.getSize();
-                                    temporaryInstallPath = cr.getTemporaryInstallPath();
-
-                                    trigger.next();
-                                } else {
-                                    trigger.fail(reply.getError());
-                                }
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void rollback(FlowRollback trigger, Map data) {
-                        if (temporaryInstallPath  != null) {
-                            DeleteBitsOnPrimaryStorageMsg dmsg = new DeleteBitsOnPrimaryStorageMsg();
-                            dmsg.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
-                            dmsg.setInstallPath(temporaryInstallPath);
-                            bus.makeTargetServiceIdByResourceUuid(dmsg, PrimaryStorageConstant.SERVICE_ID, currentRoot.getPrimaryStorageUuid());
-                            bus.send(dmsg);
-                        }
-
-                        trigger.rollback();
-                    }
-                });
-
-                flow(new Flow() {
-                    String __name__ = "reserve-storage-on-backup-storage";
-
-                    @Transactional(readOnly = true)
-                    private List<String> getCandidateBackupStorage() {
-                        if (msg.getBackupStorageUuids() == null && !msg.getBackupStorageUuids().isEmpty()) {
-                            String sql = "select bs.uuid from BackupStorageVO bs, BackupStorageZoneRefVO ref, PrimaryStorageVO pri" +
-                                    " where bs.uuid = ref.backupStorageUuid and ref.zoneUuid = pri.zoneUuid and pri.uuid = :psUuid";
-                            TypedQuery<String> q = dbf.getEntityManager().createQuery(sql, String.class);
-                            q.setParameter("psUuid", currentRoot.getPrimaryStorageUuid());
-                            return q.getResultList();
-                        } else {
-                            String sql = "select bs.uuid from BackupStorageVO bs, BackupStorageZoneRefVO ref, PrimaryStorageVO pri" +
-                                    " where bs.uuid = ref.backupStorageUuid and ref.zoneUuid = pri.zoneUuid and pri.uuid = :psUuid" +
-                                    " and bs.uuid in (:bsUuids)";
-                            TypedQuery<String> q = dbf.getEntityManager().createQuery(sql, String.class);
-                            q.setParameter("psUuid", currentRoot.getPrimaryStorageUuid());
-                            q.setParameter("bsUuids", msg.getBackupStorageUuids());
-                            List<String> bsUuids = q.getResultList();
-                            if (!bsUuids.containsAll(msg.getBackupStorageUuids())) {
-                                for (String bsUuid : msg.getBackupStorageUuids()) {
-                                    if (!bsUuids.contains(bsUuid)) {
-                                        //TODO
-                                        logger.warn(String.format("the backup storage[uuid:%s] is not attached to the zone of the primary storage[uuid:%s] that" +
-                                                " the snapshot[uuid:%s, name:%s] is on", bsUuid, currentRoot.getPrimaryStorageUuid(), currentRoot.getUuid(), currentRoot.getName()));
-                                    }
-                                }
-                            }
-
-                            return bsUuids;
-                        }
-                    }
-
-                    @Override
-                    public void run(FlowTrigger trigger, Map data) {
-                        List<String> bsUuids = getCandidateBackupStorage();
-                        if (bsUuids.isEmpty()) {
-                            throw new OperationFailureException(errf.stringToOperationError(
-                                    String.format("cannot find any backup storage to upload the template created from the snapshot[uuid:%s, name:%s]",
-                                            currentLeaf.getUuid(), currentLeaf.getInventory().getName())
-                            ));
-                        }
-
-                        for (String bsUuid : bsUuids) {
-                            BackupStorageCapacityUpdater updater = new BackupStorageCapacityUpdater(bsUuid);
-                            if (updater.reserveCapacity(actualSize, false)) {
-                                targetBackupStorageUuids.add(bsUuid);
-                            } else {
-                                //TODO
-                                logger.warn(String.format("unable to reserve the capacity[%s bytes] on the backup storage[uuid:%s], it's short of capacity",
-                                        actualSize, bsUuid));
-                            }
-                        }
-
-                        if (targetBackupStorageUuids.isEmpty()) {
-                            throw new OperationFailureException(errf.stringToOperationError(String.format("cannot reserve the capacity[%s bytes] on" +
-                                    " all backup storage%s", actualSize, targetBackupStorageUuids)));
-                        }
-
-                        trigger.next();
-                    }
-
-                    @Override
-                    public void rollback(FlowRollback trigger, Map data) {
-                        for (String bsUuid : targetBackupStorageUuids) {
-                            BackupStorageCapacityUpdater updater = new BackupStorageCapacityUpdater(bsUuid);
-                            updater.increaseAvailableCapacity(actualSize);
-                        }
-
-                        trigger.rollback();
-                    }
-                });
-
-                flow(new NoRollbackFlow() {
-                    String __name__ = "upload-to-backup-storage";
-                    List<ErrorCode> errors = new ArrayList<ErrorCode>();
-                    boolean success = false;
-                    String mediaType;
-
-                    {
-                        SimpleQuery<ImageVO> q = dbf.createQuery(ImageVO.class);
-                        q.select(ImageVO_.mediaType);
-                        q.add(ImageVO_.uuid, Op.EQ, msg.getImageUuid());
-                        mediaType = q.findValue();
-                    }
-
-
-                    @Override
-                    public void run(final FlowTrigger trigger, Map data) {
-                        final AsyncLatch latch = new AsyncLatch(targetBackupStorageUuids.size(), new NoErrorCompletion(trigger) {
-                            @Override
-                            public void done() {
-                                if (!success) {
-                                    trigger.fail(errf.stringToOperationError(
-                                            "failed to upload the image to all backup storage", errors
-                                    ));
-                                } else {
-                                    trigger.next();
-                                }
-                            }
-                        });
-
-                        for (String bsUuid : targetBackupStorageUuids) {
-                            upload(bsUuid, new Completion() {
-                                @Override
-                                public void success() {
-                                    success = true;
-                                    latch.ack();
-                                }
-
-                                @Override
-                                public void fail(ErrorCode errorCode) {
-                                    errors.add(errorCode);
-                                    latch.ack();
-                                }
-                            });
-                        }
-                    }
-
-                    private void upload(final String bsUuid, final Completion completion) {
-                        BackupStorageAskInstallPathMsg bmsg = new BackupStorageAskInstallPathMsg();
-                        bmsg.setImageMediaType(mediaType);
-                        bmsg.setImageUuid(msg.getImageUuid());
-                        bmsg.setBackupStorageUuid(bsUuid);
-                        bus.makeTargetServiceIdByResourceUuid(bmsg, BackupStorageConstant.SERVICE_ID, bsUuid);
-                        MessageReply br = bus.call(bmsg);
-                        if (!br.isSuccess()) {
-                            throw new OperationFailureException(errf.stringToOperationError(
-                                    String.format("unable to get installation path on the backup storage[uuid:%s]", bsUuid), reply.getError()
-                            ));
-                        }
-
-                        final String bsInstallPath = ((BackupStorageAskInstallPathReply)br).getInstallPath();
-                        PrimaryStorageUploadBitsToBackupStorageMsg umsg = new PrimaryStorageUploadBitsToBackupStorageMsg();
-                        umsg.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
-                        umsg.setPrimaryStorageInstallPath(temporaryInstallPath);
-                        umsg.setBackupStorageUuid(bsUuid);
-                        umsg.setBackupStorageInstallPath(bsInstallPath);
-                        bus.makeTargetServiceIdByResourceUuid(umsg, PrimaryStorageConstant.SERVICE_ID, currentRoot.getPrimaryStorageUuid());
-                        bus.send(umsg, new CloudBusCallBack(completion) {
-                            @Override
-                            public void run(MessageReply reply) {
-                                if (reply.isSuccess()) {
-                                    CreateTemplateFromVolumeSnapshotResult result = new CreateTemplateFromVolumeSnapshotResult();
-                                    result.setBackupStorageUuid(bsUuid);
-                                    result.setInstallPath(bsInstallPath);
-                                    results.add(result);
-                                    completion.success();
-                                } else {
-                                    completion.fail(errf.stringToOperationError(String.format("unable to upload the image to the backup storage[uuid:%s]", bsUuid), reply.getError()));
-                                }
-                            }
-                        });
-                    }
-                });
-
-                flow(new NoRollbackFlow() {
-                    String __name__ = "delete-the-temporary-image";
-
-                    @Override
-                    public void run(FlowTrigger trigger, Map data) {
-                        DeleteBitsOnPrimaryStorageMsg dmsg = new DeleteBitsOnPrimaryStorageMsg();
-                        dmsg.setInstallPath(temporaryInstallPath);
-                        dmsg.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
-                        bus.makeTargetServiceIdByResourceUuid(dmsg, PrimaryStorageConstant.SERVICE_ID, currentRoot.getPrimaryStorageUuid());
-                        bus.send(dmsg);
-                        trigger.next();
-                    }
-                });
-
-                done(new FlowDoneHandler(msg, completion) {
-                    @Override
-                    public void handle(Map data) {
-                        reply.setResults(info.results);
-                        reply.setSize(info.bitsSize);
-                        reply.setActualSize(info.bitsActualSize);
-                        bus.reply(msg, reply);
-                        completion.done();
-                    }
-                });
-
-                error(new FlowErrorHandler(msg, completion) {
-                    @Override
-                    public void handle(ErrorCode errCode, Map data) {
-                        reply.setError(errCode);
-                        bus.reply(msg, reply);
-                        completion.done();
-                    }
-                });
+                bus.reply(msg, reply);
+                completion.done();
             }
-        }).start();
+        });
     }
 
     private void handleApiMessage(APIMessage msg) {
