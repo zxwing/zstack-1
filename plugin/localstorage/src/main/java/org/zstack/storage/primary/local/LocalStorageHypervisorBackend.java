@@ -51,7 +51,11 @@ public abstract class LocalStorageHypervisorBackend extends LocalStorageBase {
 
     abstract void handle(LocalStorageDirectlyDeleteBitsMsg msg, String hostUuid, ReturnValueCompletion<LocalStorageDirectlyDeleteBitsReply> completion);
 
+    abstract void handle(CreateTemporaryVolumeFromSnapshotMsg msg, String hostUuid, ReturnValueCompletion<CreateTemporaryVolumeFromSnapshotReply> completion);
+
     abstract void handle(SyncVolumeActualSizeOnPrimaryStorageMsg msg, String hostUuid, ReturnValueCompletion<SyncVolumeActualSizeOnPrimaryStorageReply> completion);
+
+    abstract void handle(UploadBitsFromLocalStorageToBackupStorageMsg msg, String hostUuid, ReturnValueCompletion<UploadBitsFromLocalStorageToBackupStorageReply> completion);
 
     abstract void handleHypervisorSpecificMessage(LocalStorageHypervisorSpecificMessage msg);
 

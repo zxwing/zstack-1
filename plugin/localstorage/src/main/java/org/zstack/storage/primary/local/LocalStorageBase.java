@@ -386,9 +386,49 @@ public class LocalStorageBase extends PrimaryStorageBase {
             handle((LocalStorageReturnHostCapacityMsg) msg);
         } else if (msg instanceof LocalStorageHypervisorSpecificMessage) {
             handle((LocalStorageHypervisorSpecificMessage) msg);
+        } else if (msg instanceof CreateTemporaryVolumeFromSnapshotMsg) {
+            handle((CreateTemporaryVolumeFromSnapshotMsg) msg);
+        } else if (msg instanceof UploadBitsFromLocalStorageToBackupStorageMsg) {
+            handle((UploadBitsFromLocalStorageToBackupStorageMsg) msg);
         } else {
             super.handleLocalMessage(msg);
         }
+    }
+
+    private void handle(final UploadBitsFromLocalStorageToBackupStorageMsg msg) {
+        LocalStorageHypervisorFactory f = getHypervisorBackendFactoryByHostUuid(msg.getHostUuid());
+        LocalStorageHypervisorBackend bkd = f.getHypervisorBackend(self);
+        bkd.handle(msg, msg.getHostUuid(), new ReturnValueCompletion<UploadBitsFromLocalStorageToBackupStorageReply>(msg) {
+            @Override
+            public void success(UploadBitsFromLocalStorageToBackupStorageReply returnValue) {
+                bus.reply(msg, returnValue);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                UploadBitsFromLocalStorageToBackupStorageReply reply = new UploadBitsFromLocalStorageToBackupStorageReply();
+                bus.reply(msg, reply);
+            }
+        });
+    }
+
+    private void handle(final CreateTemporaryVolumeFromSnapshotMsg msg) {
+        String hostUuid = getHostUuidByResourceUuid(msg.getSnapshot().getUuid());
+        LocalStorageHypervisorFactory f = getHypervisorBackendFactoryByHostUuid(hostUuid);
+        LocalStorageHypervisorBackend bkd = f.getHypervisorBackend(self);
+        bkd.handle(msg, hostUuid, new ReturnValueCompletion<CreateTemporaryVolumeFromSnapshotReply>() {
+            @Override
+            public void success(CreateTemporaryVolumeFromSnapshotReply returnValue) {
+                bus.reply(msg, returnValue);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                CreateTemporaryVolumeFromSnapshotReply reply = new CreateTemporaryVolumeFromSnapshotReply();
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     private void handle(LocalStorageHypervisorSpecificMessage msg) {

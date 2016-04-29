@@ -1863,6 +1863,34 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
     }
 
     @Override
+    void handle(CreateTemporaryVolumeFromSnapshotMsg msg, final String hostUuid, final ReturnValueCompletion<CreateTemporaryVolumeFromSnapshotReply> completion) {
+        final String workSpaceInstallPath = makeSnapshotWorkspacePath(msg.getImageUuid());
+
+        VolumeSnapshotInventory sp = msg.getSnapshot();
+        MergeSnapshotCmd cmd = new MergeSnapshotCmd();
+        cmd.setVolumeUuid(sp.getVolumeUuid());
+        cmd.setSnapshotInstallPath(sp.getPrimaryStorageInstallPath());
+        cmd.setWorkspaceInstallPath(workSpaceInstallPath);
+
+        httpCall(MERGE_SNAPSHOT_PATH, hostUuid, cmd, MergeSnapshotRsp.class, new ReturnValueCompletion<MergeSnapshotRsp>(completion) {
+            @Override
+            public void success(MergeSnapshotRsp rsp) {
+                CreateTemporaryVolumeFromSnapshotReply reply = new CreateTemporaryVolumeFromSnapshotReply();
+                reply.setInstallPath(workSpaceInstallPath);
+                reply.setSize(rsp.size);
+                reply.setActualSize(rsp.actualSize);
+                reply.setHostUuid(hostUuid);
+                completion.success(reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    @Override
     void handle(SyncVolumeActualSizeOnPrimaryStorageMsg msg, String hostUuid, final ReturnValueCompletion<SyncVolumeActualSizeOnPrimaryStorageReply> completion) {
         final SyncVolumeActualSizeOnPrimaryStorageReply reply = new SyncVolumeActualSizeOnPrimaryStorageReply();
         GetVolumeActualSizeCmd cmd = new GetVolumeActualSizeCmd();
@@ -1885,6 +1913,29 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
 
             @Override
             public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    @Override
+    void handle(final UploadBitsFromLocalStorageToBackupStorageMsg msg, String hostUuid, final ReturnValueCompletion<UploadBitsFromLocalStorageToBackupStorageReply> completion) {
+        final BackupStorageVO bs = dbf.findByUuid(msg.getBackupStorageUuid(), BackupStorageVO.class);
+        BackupStorageInventory bsinv = BackupStorageInventory.valueOf(bs);
+
+        LocalStorageBackupStorageMediator m = localStorageFactory.getBackupStorageMediator(KVMConstant.KVM_HYPERVISOR_TYPE, bs.getType());
+        m.uploadBits(getSelfInventory(), bsinv, msg.getBackupStorageInstallPath(), msg.getPrimaryStorageInstallPath(),
+                hostUuid, new Completion(completion) {
+            @Override
+            public void success() {
+                UploadBitsFromLocalStorageToBackupStorageReply reply = new UploadBitsFromLocalStorageToBackupStorageReply();
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                logger.warn(String.format("failed to upload template[%s] from local primary storage[uuid: %s] to the backup storage[uuid: %s, path: %s]",
+                        msg.getPrimaryStorageInstallPath(), self.getUuid(), bs.getUuid(), msg.getBackupStorageInstallPath()));
                 completion.fail(errorCode);
             }
         });

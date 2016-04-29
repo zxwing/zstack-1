@@ -7,6 +7,7 @@ import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.MessageSafe;
 import org.zstack.core.cloudbus.ReplyMessagePreSendingExtensionPoint;
+import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
@@ -24,6 +25,7 @@ import org.zstack.header.message.MessageReply;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.primary.VolumeSnapshotCapability.VolumeSnapshotArrangementType;
 import org.zstack.header.storage.snapshot.*;
+import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotExtensionPoint;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.identity.AccountManager;
@@ -31,6 +33,7 @@ import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.utils.DebugUtils;
 import org.zstack.utils.ExceptionDSL;
 import org.zstack.utils.Utils;
+import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
 import javax.persistence.TypedQuery;
@@ -52,6 +55,8 @@ public class VolumeSnapshotManagerImpl extends AbstractService implements Volume
     private AccountManager acntMgr;
     @Autowired
     private ErrorFacade errf;
+    @Autowired
+    private PluginRegistry pluginRgty;
 
     private void passThrough(VolumeSnapshotMessage msg) {
         VolumeSnapshotVO vo = dbf.findByUuid(msg.getSnapshotUuid(), VolumeSnapshotVO.class);
@@ -389,6 +394,13 @@ public class VolumeSnapshotManagerImpl extends AbstractService implements Volume
 
     @Override
     public boolean start() {
+        pluginRgty.saveExtensionAsMap(CreateTemplateFromVolumeSnapshotExtensionPoint.class, new Function<Object, CreateTemplateFromVolumeSnapshotExtensionPoint>() {
+            @Override
+            public Object call(CreateTemplateFromVolumeSnapshotExtensionPoint arg) {
+                return arg.createTemplateFromVolumeSnapshotPrimaryStorageType();
+            }
+        });
+
         return true;
     }
 
