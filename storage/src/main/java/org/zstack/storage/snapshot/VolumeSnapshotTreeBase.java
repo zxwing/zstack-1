@@ -469,72 +469,30 @@ public class VolumeSnapshotTreeBase {
             return;
         }
 
-        final CreateBitsFromSnapshotInfoForDataVolume info = new CreateBitsFromSnapshotInfoForDataVolume(prepareCreateBitsFromSnapshotInfo(msg.getPrimaryStorageUuid()));
         FlowChain chain = FlowChainBuilder.newShareFlowChain();
         chain.setName(String.format("create-data-volume-from-snapshot-%s", currentRoot.getUuid()));
         chain.then(new ShareFlow() {
+            String installPath;
+            long size;
+            long actualSize;
+
             @Override
             public void setup() {
-                if (info.needDownload) {
-                    flow(new Flow() {
-                        String __name__ = "allocateHost-workspace-primary-storage";
-                        boolean success;
-
-                        @Override
-                        public void run(final FlowTrigger trigger, Map data) {
-                            AllocatePrimaryStorageMsg amsg = new AllocatePrimaryStorageMsg();
-                            amsg.setRequiredPrimaryStorageUuid(info.workspacePrimaryStorage.getUuid());
-                            amsg.setSize(info.neededSizeOnWorkspacePrimaryStorage);
-                            amsg.setPurpose(PrimaryStorageAllocationPurpose.DownloadSnapshot.toString());
-                            amsg.setNoOverProvisioning(true);
-                            bus.makeLocalServiceId(amsg, PrimaryStorageConstant.SERVICE_ID);
-                            bus.send(amsg, new CloudBusCallBack(trigger) {
-                                @Override
-                                public void run(MessageReply reply) {
-                                    if (reply.isSuccess()) {
-                                        success = true;
-                                        trigger.next();
-                                    } else {
-                                        trigger.fail(reply.getError());
-                                    }
-                                }
-                            });
-                        }
-
-                        @Override
-                        public void rollback(FlowRollback trigger, Map data) {
-                            if (success) {
-                                ReturnPrimaryStorageCapacityMsg rmsg = new ReturnPrimaryStorageCapacityMsg();
-                                rmsg.setDiskSize(info.neededSizeOnWorkspacePrimaryStorage);
-                                rmsg.setNoOverProvisioning(true);
-                                rmsg.setPrimaryStorageUuid(info.workspacePrimaryStorage.getUuid());
-                                bus.makeTargetServiceIdByResourceUuid(rmsg, PrimaryStorageConstant.SERVICE_ID, rmsg.getPrimaryStorageUuid());
-                                bus.send(rmsg);
-                            }
-
-                            trigger.rollback();
-                        }
-                    });
-                }
-
                 flow(new Flow() {
                     String __name__ = "create-data-volume-on-primary-storage";
 
                     public void run(final FlowTrigger trigger, Map data) {
                         CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg cmsg = new CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg();
-                        cmsg.setNeedDownload(info.needDownload);
-                        cmsg.setSnapshots(info.snapshotDownloadInfos);
+                        cmsg.setSnapshot(currentLeaf.getInventory());
                         cmsg.setVolumeUuid(msg.getVolume().getUuid());
-                        cmsg.setPrimaryStorageUuid(info.workspacePrimaryStorage.getUuid());
+                        cmsg.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
                         bus.makeTargetServiceIdByResourceUuid(cmsg, PrimaryStorageConstant.SERVICE_ID, cmsg.getPrimaryStorageUuid());
                         bus.send(cmsg, new CloudBusCallBack(trigger) {
                             @Override
                             public void run(MessageReply reply) {
                                 if (reply.isSuccess()) {
                                     CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply cr = reply.castReply();
-                                    info.bitsInstallPath = cr.getInstallPath();
-                                    info.bitsSize = cr.getSize();
-                                    info.bitsActualSize = cr.getActualSize();
+                                    installPath = cr.getInstallPath();
                                     trigger.next();
                                 } else {
                                     trigger.fail(reply.getError());
@@ -545,11 +503,11 @@ public class VolumeSnapshotTreeBase {
 
                     @Override
                     public void rollback(FlowRollback trigger, Map data) {
-                        if (info.bitsInstallPath != null) {
+                        if (installPath != null) {
                             DeleteBitsOnPrimaryStorageMsg dmsg = new DeleteBitsOnPrimaryStorageMsg();
                             dmsg.setHypervisorType(VolumeFormat.getMasterHypervisorTypeByVolumeFormat(getSelfInventory().getFormat()).toString());
-                            dmsg.setPrimaryStorageUuid(info.workspacePrimaryStorage.getUuid());
-                            dmsg.setInstallPath(info.bitsInstallPath);
+                            dmsg.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
+                            dmsg.setInstallPath(installPath);
                             dmsg.setBitsType(VolumeVO.class.getSimpleName());
                             dmsg.setBitsUuid(msg.getVolumeUuid());
                             bus.makeTargetServiceIdByResourceUuid(dmsg, PrimaryStorageConstant.SERVICE_ID, dmsg.getPrimaryStorageUuid());
@@ -560,35 +518,17 @@ public class VolumeSnapshotTreeBase {
                     }
                 });
 
-                if (info.needDownload) {
-                    flow(new NoRollbackFlow() {
-                        String __name__ = "return-workspace-primary-storage-capacity";
-
-                        @Override
-                        public void run(FlowTrigger trigger, Map data) {
-                            ReturnPrimaryStorageCapacityMsg rmsg = new ReturnPrimaryStorageCapacityMsg();
-                            rmsg.setPrimaryStorageUuid(info.workspacePrimaryStorage.getUuid());
-                            rmsg.setDiskSize(info.totalSnapshotSize);
-                            rmsg.setNoOverProvisioning(true);
-                            bus.makeTargetServiceIdByResourceUuid(rmsg, PrimaryStorageConstant.SERVICE_ID, rmsg.getPrimaryStorageUuid());
-                            bus.send(rmsg);
-                            trigger.next();
-                        }
-                    });
-                }
-
                 done(new FlowDoneHandler(msg, completion) {
                     @Override
                     public void handle(Map data) {
                         VolumeInventory inv = msg.getVolume();
-                        inv.setInstallPath(info.bitsInstallPath);
-                        inv.setSize(info.bitsSize);
-                        inv.setPrimaryStorageUuid(info.workspacePrimaryStorage.getUuid());
+                        inv.setInstallPath(installPath);
+                        inv.setSize(size);
+                        inv.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
                         inv.setFormat(currentRoot.getFormat());
-                        reply.setActualSize(info.bitsActualSize);
+                        reply.setActualSize(actualSize);
                         reply.setInventory(inv);
                         bus.reply(msg, reply);
-                        completion.done();
                     }
                 });
 
@@ -597,6 +537,12 @@ public class VolumeSnapshotTreeBase {
                     public void handle(ErrorCode errCode, Map data) {
                         reply.setError(errCode);
                         bus.reply(msg, reply);
+                    }
+                });
+
+                Finally(new FlowFinallyHandler() {
+                    @Override
+                    public void Finally() {
                         completion.done();
                     }
                 });

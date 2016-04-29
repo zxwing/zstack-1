@@ -34,7 +34,6 @@ import org.zstack.header.storage.backup.*;
 import org.zstack.header.storage.primary.PrimaryStorageVO;
 import org.zstack.header.storage.primary.PrimaryStorageVO_;
 import org.zstack.header.storage.snapshot.*;
-import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotReply.CreateTemplateFromVolumeSnapshotResult;
 import org.zstack.header.vm.CreateTemplateFromVmRootVolumeMsg;
 import org.zstack.header.vm.CreateTemplateFromVmRootVolumeReply;
 import org.zstack.header.vm.VmInstanceConstant;
@@ -449,10 +448,10 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                 } else {
                     CreateTemplateFromVolumeSnapshotReply creply = reply.castReply();
                     List<ImageBackupStorageRefVO> refs = new ArrayList<ImageBackupStorageRefVO>();
-                    for (CreateTemplateFromVolumeSnapshotResult res : creply.getResults()) {
+                    for (Map.Entry<String, String> e : creply.getOnBackupStorage().entrySet()) {
                         ImageBackupStorageRefVO ref = new ImageBackupStorageRefVO();
-                        ref.setBackupStorageUuid(res.getBackupStorageUuid());
-                        ref.setInstallPath(res.getInstallPath());
+                        ref.setBackupStorageUuid(e.getKey());
+                        ref.setInstallPath(e.getValue());
                         ref.setStatus(ImageStatus.Ready);
                         ref.setImageUuid(vo.getUuid());
                         refs.add(ref);

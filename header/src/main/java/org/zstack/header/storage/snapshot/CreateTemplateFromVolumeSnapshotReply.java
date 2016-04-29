@@ -2,7 +2,6 @@ package org.zstack.header.storage.snapshot;
 
 import org.zstack.header.message.MessageReply;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,14 +26,6 @@ public class CreateTemplateFromVolumeSnapshotReply extends MessageReply {
 
     public void setActualSize(long actualSize) {
         this.actualSize = actualSize;
-    }
-
-    public List<CreateTemplateFromVolumeSnapshotResult> getResults() {
-        return results;
-    }
-
-    public void setResults(List<CreateTemplateFromVolumeSnapshotResult> results) {
-        this.results = results;
     }
 
     public long getSize() {
