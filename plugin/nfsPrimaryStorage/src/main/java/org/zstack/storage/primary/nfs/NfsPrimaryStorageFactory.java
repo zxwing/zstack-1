@@ -11,22 +11,18 @@ import org.zstack.core.config.GlobalConfigValidatorExtensionPoint;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.header.Component;
-import org.zstack.header.core.workflow.Flow;
-import org.zstack.header.core.workflow.FlowRollback;
-import org.zstack.header.core.workflow.FlowTrigger;
+import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.host.*;
 import org.zstack.header.message.MessageReply;
-import org.zstack.header.storage.backup.BackupStorageAskInstallPathMsg;
-import org.zstack.header.storage.backup.BackupStorageAskInstallPathReply;
-import org.zstack.header.storage.backup.BackupStorageConstant;
-import org.zstack.header.storage.backup.BackupStorageType;
+import org.zstack.header.storage.backup.*;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotExtensionPoint;
 import org.zstack.header.volume.VolumeFormat;
 import org.zstack.kvm.KVMConstant;
+import org.zstack.storage.backup.BackupStorageCapacityUpdater;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.header.storage.primary.PrimaryStorageManager;
 import org.zstack.storage.primary.PrimaryStorageSystemTags;
@@ -263,6 +259,7 @@ public class NfsPrimaryStorageFactory implements NfsPrimaryStorageManager, Prima
                     DeleteBitsOnPrimaryStorageMsg msg = new DeleteBitsOnPrimaryStorageMsg();
                     msg.setPrimaryStorageUuid(paramIn.getPrimaryStorageUuid());
                     msg.setInstallPath(ctx.tempInstallPath);
+                    msg.setHypervisorType(hvtype.toString());
                     bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, paramIn.getPrimaryStorageUuid());
                     bus.send(msg);
                 }
@@ -274,14 +271,17 @@ public class NfsPrimaryStorageFactory implements NfsPrimaryStorageManager, Prima
         template.setUploadToBackupStorage(new Flow() {
             String __name__ = "upload-to-backup-storage";
 
-            @Override
-            public void run(FlowTrigger trigger, Map data) {
-                ParamOut out = (ParamOut) data.get(ParamOut.class);
-                List<String> bsUuids = paramIn.getSelectedBackupStorageUuids();
-                List<ErrorCode> errors = new ArrayList<ErrorCode>();
-                List<UploadBitsToBackupStorageMsg> msgs = new ArrayList<UploadBitsToBackupStorageMsg>();
+            @AfterDone
+            List<Runnable> returnCapacityToBackupStorage = new ArrayList<Runnable>();
 
-                for (String bsUuid : bsUuids) {
+            @Override
+            public void run(final FlowTrigger trigger, Map data) {
+                final ParamOut out = (ParamOut) data.get(ParamOut.class);
+                final List<String> bsUuids = paramIn.getSelectedBackupStorageUuids();
+                List<ErrorCode> errors = new ArrayList<ErrorCode>();
+                final List<UploadBitsToBackupStorageMsg> msgs = new ArrayList<UploadBitsToBackupStorageMsg>();
+
+                for (final String bsUuid : bsUuids) {
                     BackupStorageAskInstallPathMsg ask = new BackupStorageAskInstallPathMsg();
                     ask.setImageUuid(paramIn.getImage().getUuid());
                     ask.setBackupStorageUuid(bsUuid);
@@ -290,6 +290,15 @@ public class NfsPrimaryStorageFactory implements NfsPrimaryStorageManager, Prima
                     MessageReply ar = bus.call(ask);
                     if (!ar.isSuccess()) {
                         errors.add(ar.getError());
+
+                        returnCapacityToBackupStorage.add(new Runnable() {
+                            @Override
+                            public void run() {
+                                BackupStorageCapacityUpdater updater = new BackupStorageCapacityUpdater(bsUuid);
+                                updater.increaseAvailableCapacity(out.getActualSize());
+                            }
+                        });
+
                         continue;
                     }
 
@@ -315,14 +324,70 @@ public class NfsPrimaryStorageFactory implements NfsPrimaryStorageManager, Prima
                 bus.send(msgs, new CloudBusListCallBack(trigger) {
                     @Override
                     public void run(List<MessageReply> replies) {
+                        List<ErrorCode> errors = new ArrayList<ErrorCode>();
+                        for (MessageReply reply : replies) {
+                            final UploadBitsToBackupStorageMsg msg = msgs.get(replies.indexOf(reply));
+                            if (!reply.isSuccess()) {
+                                errors.add(reply.getError());
 
+                                returnCapacityToBackupStorage.add(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        BackupStorageCapacityUpdater updater = new BackupStorageCapacityUpdater(msg.getBackupStorageUuid());
+                                        updater.increaseAvailableCapacity(out.getActualSize());
+                                    }
+                                });
+
+                                continue;
+                            }
+
+                            BackupStorageResult res = new BackupStorageResult();
+                            res.setBackupStorageUuid(msg.getBackupStorageUuid());
+                            res.setInstallPath(msg.getBackupStorageInstallPath());
+                            out.getBackupStorageResult().add(res);
+                        }
+
+                        if (out.getBackupStorageResult().isEmpty()) {
+                            trigger.fail(errf.stringToOperationError(
+                                    String.format("failed to upload to all backup storage%s", bsUuids), errors
+                            ));
+                        } else {
+                            trigger.next();
+                        }
                     }
                 });
             }
 
             @Override
             public void rollback(FlowRollback trigger, Map data) {
+                final ParamOut out = (ParamOut) data.get(ParamOut.class);
+                if (!out.getBackupStorageResult().isEmpty()) {
+                    for (BackupStorageResult res : out.getBackupStorageResult()) {
+                        DeleteBitsOnBackupStorageMsg msg = new DeleteBitsOnBackupStorageMsg();
+                        msg.setInstallPath(res.getInstallPath());
+                        msg.setBackupStorageUuid(res.getBackupStorageUuid());
+                        bus.makeTargetServiceIdByResourceUuid(msg, BackupStorageConstant.SERVICE_ID, res.getBackupStorageUuid());
+                        bus.send(msg);
+                    }
+                }
 
+                trigger.rollback();
+            }
+        });
+
+        template.setDeleteTemporaryTemplate(new NoRollbackFlow() {
+            String __name__ = "delete-temporary-template";
+
+            @Override
+            public void run(FlowTrigger trigger, Map data) {
+                DeleteBitsOnPrimaryStorageMsg msg = new DeleteBitsOnPrimaryStorageMsg();
+                msg.setHypervisorType(hvtype.toString());
+                msg.setPrimaryStorageUuid(paramIn.getPrimaryStorageUuid());
+                msg.setInstallPath(ctx.tempInstallPath);
+                bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, paramIn.getPrimaryStorageUuid());
+                bus.send(msg);
+
+                trigger.next();
             }
         });
 

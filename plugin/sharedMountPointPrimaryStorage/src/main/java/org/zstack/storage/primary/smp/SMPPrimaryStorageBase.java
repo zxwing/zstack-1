@@ -22,7 +22,6 @@ import org.zstack.header.host.HostVO_;
 import org.zstack.header.host.HypervisorType;
 import org.zstack.header.message.Message;
 import org.zstack.header.storage.primary.*;
-import org.zstack.header.storage.primary.CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg.SnapshotDownloadInfo;
 import org.zstack.header.storage.primary.VolumeSnapshotCapability.VolumeSnapshotArrangementType;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.volume.VolumeFormat;
@@ -397,9 +396,29 @@ public class SMPPrimaryStorageBase extends PrimaryStorageBase {
             handle((MergeVolumeSnapshotOnPrimaryStorageMsg) msg);
         } else if (msg instanceof SMPPrimaryStorageHypervisorSpecificMessage) {
             handle((SMPPrimaryStorageHypervisorSpecificMessage) msg);
+        } else if (msg instanceof UploadBitsToBackupStorageMsg) {
+            handle((UploadBitsToBackupStorageMsg) msg);
         } else {
             super.handleLocalMessage(msg);
         }
+    }
+
+    private void handle(final UploadBitsToBackupStorageMsg msg) {
+        HypervisorFactory f = getHypervisorFactoryByHypervisorType(msg.getHypervisorType());
+        HypervisorBackend bkd = f.getHypervisorBackend(self);
+        bkd.handle(msg, new ReturnValueCompletion<UploadBitsToBackupStorageReply>(msg) {
+            @Override
+            public void success(UploadBitsToBackupStorageReply reply) {
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                UploadBitsToBackupStorageReply reply = new UploadBitsToBackupStorageReply();
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     private void handle(SMPPrimaryStorageHypervisorSpecificMessage msg) {

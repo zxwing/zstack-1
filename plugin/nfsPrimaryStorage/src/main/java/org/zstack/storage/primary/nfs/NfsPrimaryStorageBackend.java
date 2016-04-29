@@ -47,6 +47,8 @@ public interface NfsPrimaryStorageBackend {
 
     HypervisorType getHypervisorType();
 
+    void handle(PrimaryStorageInventory inv, CreateTemporaryVolumeFromSnapshotMsg msg, ReturnValueCompletion<CreateTemporaryVolumeFromSnapshotReply> completion);
+
     void getPhysicalCapacity(PrimaryStorageInventory inv, ReturnValueCompletion<PhysicalCapacityUsage> completion);
 
     void checkIsBitsExisting(PrimaryStorageInventory inv, String installPath, ReturnValueCompletion<Boolean> completion);

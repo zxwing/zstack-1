@@ -231,6 +231,39 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
     }
 
     @Override
+    public void handle(PrimaryStorageInventory inv, CreateTemporaryVolumeFromSnapshotMsg msg, final ReturnValueCompletion<CreateTemporaryVolumeFromSnapshotReply> completion) {
+        HostInventory host = nfsFactory.getConnectedHostForOperation(inv);
+        VolumeSnapshotInventory sp = msg.getSnapshot();
+        final String workspaceInstallPath = NfsPrimaryStorageKvmHelper.makeSnapshotWorkspacePath(inv, msg.getTemporaryVolumeUuid());
+
+        MergeSnapshotCmd cmd = new MergeSnapshotCmd();
+        cmd.setSnapshotInstallPath(sp.getPrimaryStorageInstallPath());
+        cmd.setWorkspaceInstallPath(workspaceInstallPath);
+        cmd.setUuid(inv.getUuid());
+        cmd.setVolumeUuid(sp.getVolumeUuid());
+
+        new KvmCommandSender(host.getUuid()).send(cmd, MERGE_SNAPSHOT_PATH, new KvmCommandFailureChecker() {
+            @Override
+            public ErrorCode getError(KvmResponseWrapper wrapper) {
+                MergeSnapshotResponse rsp = wrapper.getResponse(MergeSnapshotResponse.class);
+                return rsp.isSuccess() ? null : errf.stringToOperationError(rsp.getError());
+            }
+        }, new ReturnValueCompletion<KvmResponseWrapper>(completion) {
+            @Override
+            public void success(KvmResponseWrapper wrapper) {
+                CreateTemporaryVolumeFromSnapshotReply reply = new CreateTemporaryVolumeFromSnapshotReply();
+                reply.setInstallPath(workspaceInstallPath);
+                completion.success(reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    @Override
     public void getPhysicalCapacity(PrimaryStorageInventory inv, final ReturnValueCompletion<PhysicalCapacityUsage> completion) {
         final HostInventory host = nfsFactory.getConnectedHostForOperation(inv);
 

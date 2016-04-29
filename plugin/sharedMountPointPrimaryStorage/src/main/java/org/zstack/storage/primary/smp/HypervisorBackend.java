@@ -45,6 +45,8 @@ public abstract class HypervisorBackend extends SMPPrimaryStorageBase {
 
     abstract void handle(CreateTemplateFromVolumeOnPrimaryStorageMsg msg, ReturnValueCompletion<CreateTemplateFromVolumeOnPrimaryStorageReply> completion);
 
+    abstract void handle(UploadBitsToBackupStorageMsg msg, ReturnValueCompletion<UploadBitsToBackupStorageReply> completion);
+
     abstract void handleHypervisorSpecificMessage(SMPPrimaryStorageHypervisorSpecificMessage msg);
 
     abstract void connectByClusterUuid(String clusterUuid, Completion completion);

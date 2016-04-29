@@ -90,10 +90,29 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
         } else if (msg instanceof CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg) {
             handle((CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg) msg);
         } else if (msg instanceof MergeVolumeSnapshotOnPrimaryStorageMsg) {
-            handle((MergeVolumeSnapshotOnPrimaryStorageMsg)msg);
+            handle((MergeVolumeSnapshotOnPrimaryStorageMsg) msg);
+        } else if (msg instanceof CreateTemporaryVolumeFromSnapshotMsg) {
+            handle((CreateTemporaryVolumeFromSnapshotMsg) msg);
         } else {
             super.handleLocalMessage(msg);
         }
+    }
+
+    private void handle(final CreateTemporaryVolumeFromSnapshotMsg msg) {
+        NfsPrimaryStorageBackend bkd = getBackend(HypervisorType.valueOf(msg.getHypervisorType()));
+        bkd.handle(getSelfInventory(), msg, new ReturnValueCompletion<CreateTemporaryVolumeFromSnapshotReply>(msg) {
+            @Override
+            public void success(CreateTemporaryVolumeFromSnapshotReply returnValue) {
+                bus.reply(msg, returnValue);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                CreateTemporaryVolumeFromSnapshotReply reply = new CreateTemporaryVolumeFromSnapshotReply();
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     @Override
