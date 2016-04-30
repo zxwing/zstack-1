@@ -11,6 +11,15 @@ public class CreateTemporaryVolumeFromSnapshotMsg extends NeedReplyMessage imple
     private String primaryStorageUuid;
     private VolumeSnapshotInventory snapshot;
     private String temporaryVolumeUuid;
+    private String hypervisorType;
+
+    public String getHypervisorType() {
+        return hypervisorType;
+    }
+
+    public void setHypervisorType(String hypervisorType) {
+        this.hypervisorType = hypervisorType;
+    }
 
     @Override
     public String getPrimaryStorageUuid() {

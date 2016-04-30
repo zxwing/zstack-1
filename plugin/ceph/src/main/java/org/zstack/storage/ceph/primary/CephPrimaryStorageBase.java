@@ -25,7 +25,6 @@ import org.zstack.header.host.HostVO;
 import org.zstack.header.host.HostVO_;
 import org.zstack.header.image.ImageConstant.ImageMediaType;
 import org.zstack.header.image.ImageInventory;
-import org.zstack.header.image.ImageVO;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
@@ -1864,16 +1863,12 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     private void handle(final CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg msg) {
-        if (msg.isNeedDownload()) {
-            throw new OperationFailureException(errf.stringToOperationError("downloading snapshots to create template is not supported"));
-        }
-
         final CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply reply = new CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply();
 
         final String volPath = makeDataVolumeInstallPath(msg.getVolumeUuid());
-        SnapshotDownloadInfo sp = msg.getSnapshots().get(0);
+        VolumeSnapshotInventory sp = msg.getSnapshot();
         CpCmd cmd = new CpCmd();
-        cmd.srcPath = sp.getSnapshot().getPrimaryStorageInstallPath();
+        cmd.srcPath = sp.getPrimaryStorageInstallPath();
         cmd.dstPath = volPath;
         httpCall(CP_PATH, cmd, CpRsp.class, new ReturnValueCompletion<CpRsp>(msg) {
             @Override

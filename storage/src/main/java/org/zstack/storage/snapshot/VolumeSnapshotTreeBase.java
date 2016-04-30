@@ -27,7 +27,6 @@ import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.errorcode.SysErrors;
-import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.image.ImageVO;
 import org.zstack.header.message.APIDeleteMessage;
@@ -37,18 +36,17 @@ import org.zstack.header.message.MessageReply;
 import org.zstack.header.storage.backup.*;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.snapshot.*;
-import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotReply.CreateTemplateFromVolumeSnapshotResult;
-import org.zstack.header.storage.snapshot.VolumeSnapshotStatus.StatusEvent;
-import org.zstack.header.storage.snapshot.VolumeSnapshotTree.SnapshotLeaf;
-import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotExtensionPoint;
 import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotExtensionPoint.BackupStorageResult;
 import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotExtensionPoint.ParamIn;
 import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotExtensionPoint.ParamOut;
 import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotExtensionPoint.WorkflowTemplate;
+import org.zstack.header.storage.snapshot.VolumeSnapshotStatus.StatusEvent;
+import org.zstack.header.storage.snapshot.VolumeSnapshotTree.SnapshotLeaf;
 import org.zstack.header.volume.VolumeFormat;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.storage.backup.BackupStorageCapacityUpdater;
+import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
@@ -86,6 +84,8 @@ public class VolumeSnapshotTreeBase {
     private CascadeFacade casf;
     @Autowired
     private PluginRegistry pluginRgty;
+    @Autowired
+    private PrimaryStorageOverProvisioningManager psRaitoMgr;
 
     protected static OperationChecker allowedStatus = new OperationChecker(true);
 
@@ -493,6 +493,8 @@ public class VolumeSnapshotTreeBase {
                                 if (reply.isSuccess()) {
                                     CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply cr = reply.castReply();
                                     installPath = cr.getInstallPath();
+                                    actualSize = cr.getActualSize();
+                                    size = cr.getSize();
                                     trigger.next();
                                 } else {
                                     trigger.fail(reply.getError());
@@ -515,6 +517,18 @@ public class VolumeSnapshotTreeBase {
                         }
 
                         trigger.rollback();
+                    }
+                });
+
+                flow(new NoRollbackFlow() {
+                    String __name__ = "reserve-capacity-on-primary-storage";
+
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        long requiredSize = psRaitoMgr.calculateByRatio(currentRoot.getPrimaryStorageUuid(), size);
+                        PrimaryStorageCapacityUpdater updater = new PrimaryStorageCapacityUpdater(currentRoot.getPrimaryStorageUuid());
+                        updater.reserve(requiredSize);
+                        trigger.next();
                     }
                 });
 
@@ -611,61 +625,6 @@ public class VolumeSnapshotTreeBase {
                 }
             }
         });
-    }
-
-    class CreateBitsFromSnapshotInfo {
-        List<VolumeSnapshotInventory> snapshots;
-        PrimaryStorageInventory workspacePrimaryStorage;
-        long totalSnapshotSize;
-        long bitsSize;
-        long bitsActualSize;
-        List<String> zoneUuidsForFindingWorkspacePrimaryStorage;
-    }
-
-    class CreateBitsFromSnapshotInfoForTemplate extends  CreateBitsFromSnapshotInfo {
-        CreateBitsFromSnapshotInfoForTemplate(CreateBitsFromSnapshotInfo info) {
-            workspacePrimaryStorage = info.workspacePrimaryStorage;
-            totalSnapshotSize = info.totalSnapshotSize;
-            bitsSize = info.bitsSize;
-            zoneUuidsForFindingWorkspacePrimaryStorage = info.zoneUuidsForFindingWorkspacePrimaryStorage;
-        }
-
-        List<BackupStorageInventory> destBackupStorages = new ArrayList<BackupStorageInventory>();
-        List<CreateTemplateFromVolumeSnapshotResult> results = new ArrayList<CreateTemplateFromVolumeSnapshotResult>();
-    }
-
-    class CreateBitsFromSnapshotInfoForDataVolume extends CreateBitsFromSnapshotInfo {
-        String bitsInstallPath;
-
-        CreateBitsFromSnapshotInfoForDataVolume(CreateBitsFromSnapshotInfo info) {
-            workspacePrimaryStorage = info.workspacePrimaryStorage;
-            totalSnapshotSize = info.totalSnapshotSize;
-            bitsSize = info.bitsSize;
-            zoneUuidsForFindingWorkspacePrimaryStorage = info.zoneUuidsForFindingWorkspacePrimaryStorage;
-        }
-    }
-
-    private CreateBitsFromSnapshotInfo prepareCreateBitsFromSnapshotInfo(final String requiredPrimaryStorage) {
-        final CreateBitsFromSnapshotInfo info = new CreateBitsFromSnapshotInfo();
-        final List<VolumeSnapshotInventory> ancestors = currentLeaf.getAncestors();
-
-        for (VolumeSnapshotInventory inv : ancestors) {
-            if (inv.getPrimaryStorageUuid() == null) {
-                throw new CloudRuntimeException(String.format("the volume snapshot[uuid:%s, name:%s] is not on any primary storage", inv.getUuid() ,inv.getName()));
-            }
-
-            info.totalSnapshotSize += inv.getSize();
-        }
-
-        info.snapshots = new ArrayList<VolumeSnapshotInventory>();
-        for (VolumeSnapshotInventory inv : ancestors) {
-            info.snapshots.add(inv);
-        }
-
-        PrimaryStorageVO privo = dbf.findByUuid(currentRoot.getPrimaryStorageUuid(), PrimaryStorageVO.class);
-        info.workspacePrimaryStorage  = PrimaryStorageInventory.valueOf(privo);
-
-        return info;
     }
 
     private void createTemplate(final CreateTemplateFromVolumeSnapshotMsg msg, final NoErrorCompletion completion) {

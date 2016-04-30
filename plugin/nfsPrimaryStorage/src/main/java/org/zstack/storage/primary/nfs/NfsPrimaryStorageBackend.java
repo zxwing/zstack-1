@@ -5,14 +5,13 @@ import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.host.HostInventory;
 import org.zstack.header.host.HypervisorType;
 import org.zstack.header.image.ImageInventory;
-import org.zstack.header.storage.primary.CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg.SnapshotDownloadInfo;
+import org.zstack.header.storage.primary.CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg;
+import org.zstack.header.storage.primary.CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply;
 import org.zstack.header.storage.primary.ImageCacheInventory;
 import org.zstack.header.storage.primary.PrimaryStorageInventory;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.storage.primary.PrimaryStorageBase.PhysicalCapacityUsage;
-
-import java.util.List;
 
 public interface NfsPrimaryStorageBackend {
     public static class CreateBitsFromSnapshotResult {
@@ -49,6 +48,8 @@ public interface NfsPrimaryStorageBackend {
 
     void handle(PrimaryStorageInventory inv, CreateTemporaryVolumeFromSnapshotMsg msg, ReturnValueCompletion<CreateTemporaryVolumeFromSnapshotReply> completion);
 
+    void handle(PrimaryStorageInventory inv, CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg msg, ReturnValueCompletion<CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply> completion);
+
     void getPhysicalCapacity(PrimaryStorageInventory inv, ReturnValueCompletion<PhysicalCapacityUsage> completion);
 
     void checkIsBitsExisting(PrimaryStorageInventory inv, String installPath, ReturnValueCompletion<Boolean> completion);
@@ -68,14 +69,6 @@ public interface NfsPrimaryStorageBackend {
     void revertVolumeFromSnapshot(VolumeSnapshotInventory sinv, VolumeInventory vol, HostInventory host, ReturnValueCompletion<String> completion);
 
     void createTemplateFromVolume(PrimaryStorageInventory primaryStorage, VolumeInventory rootVolume, ImageInventory image, ReturnValueCompletion<String> completion);
-
-    void createTemplateFromVolumeSnapshot(PrimaryStorageInventory pinv, List<SnapshotDownloadInfo> infos, String imageUuid,
-                                          boolean needDownload, ReturnValueCompletion<CreateBitsFromSnapshotResult> completion);
-
-    void createDataVolumeFromVolumeSnapshot(PrimaryStorageInventory pinv, List<SnapshotDownloadInfo> infos, String volumeUuid,
-                                          boolean needDownload, ReturnValueCompletion<CreateBitsFromSnapshotResult> completion);
-
-    void moveBits(PrimaryStorageInventory pinv, String srcPath, String destPath, Completion completion);
 
     void mergeSnapshotToVolume(PrimaryStorageInventory pinv, VolumeSnapshotInventory snapshot, VolumeInventory volume, boolean fullRebase, Completion completion);
 

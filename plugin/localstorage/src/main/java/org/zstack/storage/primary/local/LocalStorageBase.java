@@ -7,7 +7,8 @@ import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.thread.AsyncThread;
-import org.zstack.core.workflow.*;
+import org.zstack.core.workflow.FlowChainBuilder;
+import org.zstack.core.workflow.ShareFlow;
 import org.zstack.header.cluster.ClusterInventory;
 import org.zstack.header.cluster.ClusterVO;
 import org.zstack.header.cluster.ClusterVO_;
@@ -29,7 +30,6 @@ import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
 import org.zstack.header.storage.primary.*;
-import org.zstack.header.storage.primary.CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg.SnapshotDownloadInfo;
 import org.zstack.header.storage.primary.VolumeSnapshotCapability.VolumeSnapshotArrangementType;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.storage.snapshot.VolumeSnapshotVO;
@@ -37,7 +37,9 @@ import org.zstack.header.storage.snapshot.VolumeSnapshotVO_;
 import org.zstack.header.vm.VmInstanceState;
 import org.zstack.header.vm.VmInstanceVO;
 import org.zstack.header.vm.VmInstanceVO_;
-import org.zstack.header.volume.*;
+import org.zstack.header.volume.VolumeInventory;
+import org.zstack.header.volume.VolumeStatus;
+import org.zstack.header.volume.VolumeVO;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.storage.primary.PrimaryStoragePhysicalCapacityManager;
@@ -49,7 +51,10 @@ import org.zstack.utils.function.Function;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 
-import javax.persistence.*;
+import javax.persistence.LockModeType;
+import javax.persistence.Query;
+import javax.persistence.Tuple;
+import javax.persistence.TypedQuery;
 import java.util.*;
 import java.util.concurrent.Callable;
 
@@ -368,8 +373,6 @@ public class LocalStorageBase extends PrimaryStorageBase {
             handle((RevertVolumeFromSnapshotOnPrimaryStorageMsg) msg);
         } else if (msg instanceof BackupVolumeSnapshotFromPrimaryStorageToBackupStorageMsg) {
             handle((BackupVolumeSnapshotFromPrimaryStorageToBackupStorageMsg) msg);
-        } else if (msg instanceof CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg) {
-            handle((CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg) msg);
         } else if (msg instanceof CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg) {
             handle((CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg) msg);
         } else if (msg instanceof MergeVolumeSnapshotOnPrimaryStorageMsg) {
@@ -662,7 +665,7 @@ public class LocalStorageBase extends PrimaryStorageBase {
     }
 
     private void handle(final CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg msg) {
-        final VolumeSnapshotInventory sinv = msg.getSnapshots().get(0).getSnapshot();
+        final VolumeSnapshotInventory sinv = msg.getSnapshot();
         final String hostUuid = getHostUuidByResourceUuid(sinv.getUuid());
         if (hostUuid == null) {
             throw new OperationFailureException(errf.stringToInternalError(
@@ -678,35 +681,6 @@ public class LocalStorageBase extends PrimaryStorageBase {
 
             @Override
             public void setup() {
-                flow(new Flow() {
-                    String __name__ = "reserve-capacity-on-host";
-
-                    long size;
-
-                    @Override
-                    public void run(FlowTrigger trigger, Map data) {
-                        if (sinv.getVolumeUuid() != null) {
-                            SimpleQuery<VolumeVO> q = dbf.createQuery(VolumeVO.class);
-                            q.select(VolumeVO_.size);
-                            q.add(VolumeVO_.uuid, Op.EQ, sinv.getVolumeUuid());
-                            size = q.findValue();
-                        } else {
-                            for (SnapshotDownloadInfo sp : msg.getSnapshots()) {
-                                size += sp.getSnapshot().getSize();
-                            }
-                        }
-
-                        reserveCapacityOnHost(hostUuid, size);
-                        trigger.next();
-                    }
-
-                    @Override
-                    public void rollback(FlowRollback trigger, Map data) {
-                        returnCapacityToHost(hostUuid,size);
-                        trigger.rollback();
-                    }
-                });
-
                 flow(new NoRollbackFlow() {
                     String __name__ = "create-volume";
 
@@ -729,6 +703,28 @@ public class LocalStorageBase extends PrimaryStorageBase {
                     }
                 });
 
+                flow(new Flow() {
+                    String __name__ = "reserve-capacity-on-host";
+
+                    Long size;
+
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        size = reply.getSize();
+                        reserveCapacityOnHost(hostUuid, size);
+                        trigger.next();
+                    }
+
+                    @Override
+                    public void rollback(FlowRollback trigger, Map data) {
+                        if (size != null) {
+                            returnCapacityToHost(hostUuid, size);
+                        }
+
+                        trigger.rollback();
+                    }
+                });
+
                 done(new FlowDoneHandler(msg) {
                     @Override
                     public void handle(Map data) {
@@ -747,34 +743,6 @@ public class LocalStorageBase extends PrimaryStorageBase {
                 });
             }
         }).start();
-    }
-
-    private void handle(final CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg msg) {
-        VolumeSnapshotInventory sinv = msg.getCurrent();
-        String hostUuid = getHostUuidByResourceUuid(sinv.getUuid());
-
-        if (hostUuid == null) {
-            throw new OperationFailureException(errf.stringToInternalError(
-                    String.format("the volume snapshot[uuid:%s] is not on the local primary storage[uuid: %s]; the local primary storage" +
-                            " doesn't support the manner of downloading snapshots and creating the volume", sinv.getUuid(), self.getUuid())
-            ));
-        }
-
-        LocalStorageHypervisorFactory f = getHypervisorBackendFactoryByHostUuid(hostUuid);
-        LocalStorageHypervisorBackend bkd = f.getHypervisorBackend(self);
-        bkd.handle(msg, hostUuid, new ReturnValueCompletion<CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply>(msg) {
-            @Override
-            public void success(CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply returnValue) {
-                bus.reply(msg, returnValue);
-            }
-
-            @Override
-            public void fail(ErrorCode errorCode) {
-                CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply reply = new CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply();
-                reply.setError(errorCode);
-                bus.reply(msg, reply);
-            }
-        });
     }
 
     private void handle(final BackupVolumeSnapshotFromPrimaryStorageToBackupStorageMsg msg) {

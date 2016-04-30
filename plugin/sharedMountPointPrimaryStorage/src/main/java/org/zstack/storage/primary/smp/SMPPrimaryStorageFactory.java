@@ -85,6 +85,7 @@ public class SMPPrimaryStorageFactory implements PrimaryStorageFactory, CreateTe
             @Override
             public void run(final FlowTrigger trigger, Map data) {
                 CreateTemporaryVolumeFromSnapshotMsg msg = new CreateTemporaryVolumeFromSnapshotMsg();
+                msg.setHypervisorType(hvType.toString());
                 msg.setPrimaryStorageUuid(paramIn.getPrimaryStorageUuid());
                 msg.setTemporaryVolumeUuid(paramIn.getImage().getUuid());
                 msg.setSnapshot(paramIn.getSnapshot());

@@ -11,18 +11,16 @@ import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.timeout.ApiTimeoutManager;
-import org.zstack.header.core.*;
-import org.zstack.header.core.workflow.*;
-import org.zstack.header.errorcode.OperationFailureException;
-import org.zstack.core.workflow.*;
+import org.zstack.header.core.Completion;
+import org.zstack.header.core.ReturnValueCompletion;
+import org.zstack.header.core.workflow.Flow;
+import org.zstack.header.core.workflow.FlowTrigger;
+import org.zstack.header.core.workflow.NoRollbackFlow;
 import org.zstack.header.errorcode.ErrorCode;
+import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.host.*;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.message.MessageReply;
-import org.zstack.header.storage.backup.BackupStorageInventory;
-import org.zstack.header.storage.backup.BackupStorageType;
-import org.zstack.header.storage.backup.BackupStorageVO;
-import org.zstack.header.storage.primary.CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg.SnapshotDownloadInfo;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.vm.VmInstanceState;
@@ -35,7 +33,6 @@ import org.zstack.kvm.*;
 import org.zstack.storage.primary.PrimaryStorageBase.PhysicalCapacityUsage;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.*;
-import org.zstack.utils.Bucket;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
@@ -44,7 +41,9 @@ import org.zstack.utils.logging.CLogger;
 
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
 
@@ -252,6 +251,42 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
             @Override
             public void success(KvmResponseWrapper wrapper) {
                 CreateTemporaryVolumeFromSnapshotReply reply = new CreateTemporaryVolumeFromSnapshotReply();
+                reply.setInstallPath(workspaceInstallPath);
+                completion.success(reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    @Override
+    public void handle(PrimaryStorageInventory inv, CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg msg, final ReturnValueCompletion<CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply> completion) {
+        HostInventory host = nfsFactory.getConnectedHostForOperation(inv);
+        VolumeSnapshotInventory sp = msg.getSnapshot();
+        final String workspaceInstallPath = NfsPrimaryStorageKvmHelper.makeDataVolumeInstallUrl(inv, msg.getVolumeUuid());
+
+        MergeSnapshotCmd cmd = new MergeSnapshotCmd();
+        cmd.setSnapshotInstallPath(sp.getPrimaryStorageInstallPath());
+        cmd.setWorkspaceInstallPath(workspaceInstallPath);
+        cmd.setUuid(inv.getUuid());
+        cmd.setVolumeUuid(sp.getVolumeUuid());
+
+        new KvmCommandSender(host.getUuid()).send(cmd, MERGE_SNAPSHOT_PATH, new KvmCommandFailureChecker() {
+            @Override
+            public ErrorCode getError(KvmResponseWrapper wrapper) {
+                MergeSnapshotResponse rsp = wrapper.getResponse(MergeSnapshotResponse.class);
+                return rsp.isSuccess() ? null : errf.stringToOperationError(rsp.getError());
+            }
+        }, new ReturnValueCompletion<KvmResponseWrapper>(completion) {
+            @Override
+            public void success(KvmResponseWrapper wrapper) {
+                CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply reply = new CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply();
+                MergeSnapshotResponse rsp = wrapper.getResponse(MergeSnapshotResponse.class);
+                reply.setActualSize(rsp.getActualSize());
+                reply.setSize(rsp.getSize());
                 reply.setInstallPath(workspaceInstallPath);
                 completion.success(reply);
             }
@@ -608,104 +643,6 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
         });
     }
 
-    private void createBitsFromVolumeSnapshot(final PrimaryStorageInventory pinv, List<SnapshotDownloadInfo> snapshots,
-                                              final String bitsUuid, final String bitsName, boolean needDownload,
-                                              final ReturnValueCompletion<CreateBitsFromSnapshotResult> completion) {
-        if (!needDownload) {
-            HostInventory host = nfsFactory.getConnectedHostForOperation(pinv);
-            final VolumeSnapshotInventory latest = snapshots.get(snapshots.size()-1).getSnapshot();
-            final String workspaceInstallPath = NfsPrimaryStorageKvmHelper.makeSnapshotWorkspacePath(pinv, bitsUuid);
-            MergeSnapshotCmd cmd = new MergeSnapshotCmd();
-            cmd.setSnapshotInstallPath(latest.getPrimaryStorageInstallPath());
-            cmd.setWorkspaceInstallPath(workspaceInstallPath);
-            cmd.setUuid(pinv.getUuid());
-            cmd.setVolumeUuid(latest.getVolumeUuid());
-
-            KVMHostAsyncHttpCallMsg msg = new KVMHostAsyncHttpCallMsg();
-            msg.setCommand(cmd);
-            msg.setCommandTimeout(timeoutMgr.getTimeout(cmd.getClass(), "5m"));
-            msg.setPath(MERGE_SNAPSHOT_PATH);
-            msg.setHostUuid(host.getUuid());
-            bus.makeTargetServiceIdByResourceUuid(msg, HostConstant.SERVICE_ID, host.getUuid());
-            bus.send(msg, new CloudBusCallBack(completion) {
-                @Override
-                public void run(MessageReply reply) {
-                    if (!reply.isSuccess()) {
-                        completion.fail(reply.getError());
-                        return;
-                    }
-
-                    MergeSnapshotResponse rsp = ((KVMHostAsyncHttpCallReply)reply).toResponse(MergeSnapshotResponse.class);
-                    if (!rsp.isSuccess()) {
-                        completion.fail(errf.stringToOperationError(
-                                String.format("failed to create %s[uuid:%s] from snapshot[uuid:%s] on nfs primary storage[uuid:%s], %s",
-                                        bitsName, bitsUuid, latest.getUuid(), pinv.getUuid(), rsp.getError())
-                        ));
-                        return;
-                    }
-
-                    CreateBitsFromSnapshotResult result = new CreateBitsFromSnapshotResult();
-                    result.setInstallPath(workspaceInstallPath);
-                    result.setSize(rsp.getSize());
-                    result.setActualSize(rsp.getActualSize());
-                    completion.success(result);
-                }
-            });
-        } else {
-            downloadAndCreateBitsFromVolumeSnapshots(pinv, snapshots, bitsName, bitsUuid, completion);
-        }
-    }
-
-    @Override
-    public void createTemplateFromVolumeSnapshot(final PrimaryStorageInventory pinv, List<SnapshotDownloadInfo> snapshots,
-                                                 final String imageUuid, boolean needDownload,
-                                                 final ReturnValueCompletion<CreateBitsFromSnapshotResult> completion) {
-        createBitsFromVolumeSnapshot(pinv, snapshots, imageUuid, "template", needDownload, completion);
-    }
-
-    @Override
-    public void createDataVolumeFromVolumeSnapshot(PrimaryStorageInventory pinv,
-                                                   List<SnapshotDownloadInfo> infos,
-                                                   String volumeUuid, boolean needDownload,
-                                                   ReturnValueCompletion<CreateBitsFromSnapshotResult> completion) {
-        createBitsFromVolumeSnapshot(pinv, infos, volumeUuid, "volume", needDownload, completion);
-    }
-
-    @Override
-    public void moveBits(final PrimaryStorageInventory pinv, String srcPath, String destPath, final Completion completion) {
-        HostInventory host = nfsFactory.getConnectedHostForOperation(pinv);
-        MoveBitsCmd cmd = new MoveBitsCmd();
-        cmd.setSrcPath(srcPath);
-        cmd.setDestPath(destPath);
-        cmd.setUuid(pinv.getUuid());
-
-        KVMHostAsyncHttpCallMsg msg = new KVMHostAsyncHttpCallMsg();
-        msg.setCommand(cmd);
-        msg.setPath(MOVE_BITS_PATH);
-        msg.setHostUuid(host.getUuid());
-        msg.setCommandTimeout(timeoutMgr.getTimeout(cmd.getClass(), "5m"));
-        bus.makeTargetServiceIdByResourceUuid(msg, HostConstant.SERVICE_ID, host.getUuid());
-        bus.send(msg, new CloudBusCallBack(completion) {
-            @Override
-            public void run(MessageReply reply) {
-                if (!reply.isSuccess()) {
-                    completion.fail(reply.getError());
-                    return;
-                }
-
-                KVMHostAsyncHttpCallReply hreply = reply.castReply();
-                MoveBitsRsp rsp = hreply.toResponse(MoveBitsRsp.class);
-                if (!rsp.isSuccess()) {
-                    completion.fail(errf.stringToOperationError(rsp.getError()));
-                    return;
-                }
-
-                nfsMgr.reportCapacityIfNeeded(pinv.getUuid(), rsp);
-                completion.success();
-            }
-        });
-    }
-
     @Override
     public void mergeSnapshotToVolume(final PrimaryStorageInventory pinv, VolumeSnapshotInventory snapshot,
                                       VolumeInventory volume, boolean fullRebase, final Completion completion) {
@@ -882,190 +819,6 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
                 completion.fail(errorCode);
             }
         });
-    }
-
-    private void downloadAndCreateBitsFromVolumeSnapshots(final PrimaryStorageInventory pinv,
-                                                          final List<SnapshotDownloadInfo> snapshots,
-                                                          final String bitsName,
-                                                          final String bitsUuid,
-                                                          final ReturnValueCompletion<CreateBitsFromSnapshotResult> completion) {
-        final HostInventory host = nfsFactory.getConnectedHostForOperation(pinv);
-
-        FlowChain chain = FlowChainBuilder.newShareFlowChain();
-        chain.setName(String.format("download-merge-snapshot-on-nfs-primary-storage-%s", pinv.getUuid()));
-        chain.then(new ShareFlow() {
-            List<String> snapshotInstallPaths = new ArrayList<String>();
-            String workspaceInstallPath = NfsPrimaryStorageKvmHelper.makeSnapshotWorkspacePath(pinv, bitsUuid);
-            long templateSize;
-            long templateActualSize;
-
-            @Override
-            public void setup() {
-                flow(new Flow() {
-                    String __name__ = "download-snapshot-from-backup-storage";
-
-                    Map<String, Bucket> mediatorMap = new HashMap<String, Bucket>();
-
-                    private Bucket findMediatorAndBackupStorage(SnapshotDownloadInfo info) {
-                        Bucket ret = mediatorMap.get(info.getBackupStorageUuid());
-                        if (ret == null) {
-                            BackupStorageVO bsvo = dbf.findByUuid(info.getBackupStorageUuid(), BackupStorageVO.class);
-                            BackupStorageInventory bsinv = BackupStorageInventory.valueOf(bsvo);
-
-                            NfsPrimaryToBackupStorageMediator mediator = nfsFactory.getPrimaryToBackupStorageMediator(
-                                    BackupStorageType.valueOf(bsinv.getType()),
-                                    nfsMgr.findHypervisorTypeByImageFormatAndPrimaryStorageUuid(info.getSnapshot().getFormat(), pinv.getUuid())
-                            );
-
-                            ret = Bucket.newBucket(mediator, bsinv);
-                            mediatorMap.put(info.getBackupStorageUuid(), ret);
-                        }
-
-                        return ret;
-                    }
-
-                    private void download(final Iterator<SnapshotDownloadInfo> it, final Completion completion1) {
-                        if (!it.hasNext()) {
-                            Collections.reverse(snapshotInstallPaths);
-                            completion1.success();
-                            return;
-                        }
-
-                        final SnapshotDownloadInfo info = it.next();
-                        final VolumeSnapshotInventory sinv = info.getSnapshot();
-                        Bucket bucket = findMediatorAndBackupStorage(info);
-                        NfsPrimaryToBackupStorageMediator mediator = bucket.get(0);
-                        final BackupStorageInventory bsinv = bucket.get(1);
-                        final String installPath = NfsPrimaryStorageKvmHelper.makeSnapshotWorkspacePath(pinv, sinv.getUuid());
-
-                        mediator.downloadBits(pinv, bsinv, info.getBackupStorageInstallPath(), installPath, new Completion(completion1) {
-                            @Override
-                            public void success() {
-                                logger.debug(String.format("download volume snapshot[uuid:%s, name:%s] from backup storage[uuid:%s, %s] to nfs primary storage[uuid:%s, path:%s]",
-                                        sinv.getUuid(), sinv.getName(), bsinv.getUuid(), info.getBackupStorageInstallPath(), pinv.getUuid(), installPath));
-                                snapshotInstallPaths.add(installPath);
-                                download(it, completion1);
-                            }
-
-                            @Override
-                            public void fail(ErrorCode errorCode) {
-                                completion1.fail(errorCode);
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void run(final FlowTrigger trigger, Map data) {
-                        download(snapshots.iterator(), new Completion(trigger) {
-                            @Override
-                            public void success() {
-                                trigger.next();
-                            }
-
-                            @Override
-                            public void fail(ErrorCode errorCode) {
-                                trigger.fail(errorCode);
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void rollback(FlowRollback trigger, Map data) {
-                        for (String installPath : snapshotInstallPaths) {
-                            delete(pinv, installPath, new NopeCompletion());
-                        }
-
-                        trigger.rollback();
-                    }
-                });
-
-                flow(new Flow() {
-                    String __name__ = "merge-snapshot-on-primary-storage";
-
-                    boolean mergeSuccess;
-
-                    @Override
-                    public void run(final FlowTrigger trigger, Map data) {
-                        RebaseAndMergeSnapshotsCmd cmd = new RebaseAndMergeSnapshotsCmd();
-                        cmd.setVolumeUuid(snapshots.get(0).getSnapshot().getVolumeUuid());
-                        cmd.setSnapshotInstallPaths(snapshotInstallPaths);
-                        cmd.setWorkspaceInstallPath(workspaceInstallPath);
-                        cmd.setUuid(pinv.getUuid());
-
-                        KVMHostAsyncHttpCallMsg msg = new KVMHostAsyncHttpCallMsg();
-                        msg.setCommand(cmd);
-                        msg.setCommandTimeout(timeoutMgr.getTimeout(cmd.getClass(), "5m"));
-                        msg.setPath(REBASE_MERGE_SNAPSHOT_PATH);
-                        msg.setHostUuid(host.getUuid());
-                        bus.makeTargetServiceIdByResourceUuid(msg, HostConstant.SERVICE_ID, host.getUuid());
-                        bus.send(msg, new CloudBusCallBack(trigger) {
-                            @Override
-                            public void run(MessageReply reply) {
-                                if (!reply.isSuccess()) {
-                                    trigger.fail(reply.getError());
-                                    return;
-                                }
-
-                                RebaseAndMergeSnapshotsResponse rsp = ((KVMHostAsyncHttpCallReply) reply).toResponse(RebaseAndMergeSnapshotsResponse.class);
-                                if (!rsp.isSuccess()) {
-                                    trigger.fail(errf.stringToOperationError(
-                                            String.format("failed to rebase and merge snapshots for %s[uuid:%s] on nfs primary storage[uuid:%s], %s",
-                                                    bitsName, bitsUuid, pinv.getUuid(), rsp.getError())
-                                    ));
-                                    return;
-                                }
-
-                                nfsMgr.reportCapacityIfNeeded(pinv.getUuid(), rsp);
-                                templateSize = rsp.getSize();
-                                templateActualSize = rsp.getActualSize();
-                                mergeSuccess = true;
-                                trigger.next();
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void rollback(FlowRollback trigger, Map data) {
-                        if (mergeSuccess) {
-                            delete(pinv, workspaceInstallPath, new NopeCompletion());
-                        }
-
-                        trigger.rollback();
-                    }
-                });
-
-                flow(new NoRollbackFlow() {
-                    String __name__ = "delete-temporary-snapshot-in-workspace";
-
-                    @Override
-                    public void run(FlowTrigger trigger, Map data) {
-                        for (String installPath : snapshotInstallPaths) {
-                            delete(pinv, installPath, new NopeCompletion());
-                        }
-                        trigger.next();
-                    }
-                });
-
-                done(new FlowDoneHandler(completion) {
-                    @Override
-                    public void handle(Map data) {
-                        CreateBitsFromSnapshotResult result = new CreateBitsFromSnapshotResult();
-                        result.setSize(templateSize);
-                        result.setActualSize(templateActualSize);
-                        result.setInstallPath(workspaceInstallPath);
-                        completion.success(result);
-                    }
-                });
-
-                error(new FlowErrorHandler(completion) {
-                    @Override
-                    public void handle(ErrorCode errCode, Map data) {
-                        completion.fail(errCode);
-                    }
-                });
-            }
-        }).start();
-
     }
 
     @Override

@@ -31,15 +31,9 @@ public abstract class HypervisorBackend extends SMPPrimaryStorageBase {
 
     abstract void handle(RevertVolumeFromSnapshotOnPrimaryStorageMsg msg, ReturnValueCompletion<RevertVolumeFromSnapshotOnPrimaryStorageReply> completion);
 
-    abstract void handle(BackupVolumeSnapshotFromPrimaryStorageToBackupStorageMsg msg, ReturnValueCompletion<BackupVolumeSnapshotFromPrimaryStorageToBackupStorageReply> completion);
-
-    abstract void handle(CreateTemplateFromVolumeSnapshotOnPrimaryStorageMsg msg, ReturnValueCompletion<CreateTemplateFromVolumeSnapshotOnPrimaryStorageReply> completion);
-
     abstract void handle(CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg msg, ReturnValueCompletion<CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply> completion);
 
     abstract void handle(MergeVolumeSnapshotOnPrimaryStorageMsg msg, ReturnValueCompletion<MergeVolumeSnapshotOnPrimaryStorageReply> completion);
-
-    abstract void downloadImageToCache(ImageInventory img, ReturnValueCompletion<String> completion);
 
     abstract void deleteBits(String path, Completion completion);
 
@@ -52,4 +46,8 @@ public abstract class HypervisorBackend extends SMPPrimaryStorageBase {
     abstract void connectByClusterUuid(String clusterUuid, Completion completion);
 
     abstract void handle(SyncVolumeActualSizeOnPrimaryStorageMsg msg, ReturnValueCompletion<SyncVolumeActualSizeOnPrimaryStorageReply> completion);
+
+    abstract void handle(CreateTemporaryVolumeFromSnapshotMsg msg, ReturnValueCompletion<CreateTemporaryVolumeFromSnapshotReply> completion);
+
+    abstract void downloadImageToCache(ImageInventory img, final ReturnValueCompletion<String> completion);
 }
