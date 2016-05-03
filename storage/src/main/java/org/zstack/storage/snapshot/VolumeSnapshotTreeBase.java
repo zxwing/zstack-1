@@ -58,7 +58,6 @@ import javax.persistence.TypedQuery;
 import java.util.*;
 
 import static org.zstack.utils.CollectionDSL.e;
-import static org.zstack.utils.CollectionDSL.map;
 
 /**
  */
@@ -651,8 +650,15 @@ public class VolumeSnapshotTreeBase {
         paramIn.setImage(ImageInventory.valueOf(dbf.findByUuid(msg.getImageUuid(), ImageVO.class)));
         WorkflowTemplate workflowTemplate = ext.createTemplateFromVolumeSnapshot(paramIn);
 
+        ParamOut paramOut = new ParamOut();
+
         FlowChain chain = FlowChainBuilder.newSimpleFlowChain();
-        chain.setData(map(e(ParamIn.class, paramIn)));
+        chain.setName(String.format("create-template-from-snapshot-%s-%s", currentLeaf.getInventory().getName(),
+                currentLeaf.getUuid()));
+        chain.putData(
+                e(ParamIn.class, paramIn),
+                e(ParamOut.class, paramOut)
+        );
         chain.then(workflowTemplate.getCreateTemporaryTemplate());
         chain.then(new Flow() {
             String __name__ = "select-backup-storage";

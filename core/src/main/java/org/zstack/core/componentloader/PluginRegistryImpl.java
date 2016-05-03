@@ -144,6 +144,7 @@ public class PluginRegistryImpl implements PluginRegistryIN {
                 m.put(key, ext);
             }
         }
+        extensionAsMap.put(clazz, m);
     }
 
     @Override

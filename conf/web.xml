@@ -9,22 +9,22 @@
     <servlet>
         <servlet-name>ZStack Dispatcher Servlet</servlet-name>
         <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
-        <init-paramIn>
-            <paramIn-name>contextConfigLocation</paramIn-name>
-            <paramIn-value>/WEB-INF/classes/zstack-servlet-context.xml</paramIn-value>
-        </init-paramIn>
+        <init-param>
+            <param-name>contextConfigLocation</param-name>
+            <param-value>/WEB-INF/classes/zstack-servlet-context.xml</param-value>
+        </init-param>
         <load-on-startup>1</load-on-startup>
     </servlet>
 
-    <context-paramIn>
-        <paramIn-name>contextConfigLocation</paramIn-name>
-        <paramIn-value>/WEB-INF/classes/zstack-servlet-context.xml</paramIn-value>
-    </context-paramIn>
+    <context-param>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>/WEB-INF/classes/zstack-servlet-context.xml</param-value>
+    </context-param>
 
-    <context-paramIn>
-        <paramIn-name>parentContextKey</paramIn-name>
-        <paramIn-value>parentContext</paramIn-value>
-    </context-paramIn>
+    <context-param>
+        <param-name>parentContextKey</param-name>
+        <param-value>parentContext</param-value>
+    </context-param>
     
     <servlet-mapping>
         <servlet-name>ZStack Dispatcher Servlet</servlet-name>

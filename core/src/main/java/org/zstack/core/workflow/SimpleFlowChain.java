@@ -24,6 +24,7 @@ import org.zstack.utils.logging.CLogger;
 
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -210,8 +211,16 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
 
     @Override
     public FlowChain setData(Map data) {
-        this.data = data;
-        return  this;
+        this.data.putAll(data);
+        return this;
+    }
+
+    @Override
+    public FlowChain putData(Entry...es) {
+        for (Map.Entry e : es) {
+            data.put(e.getKey(), e.getValue());
+        }
+        return this;
     }
 
     @Override

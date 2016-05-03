@@ -212,5 +212,20 @@ public class TestDiskCapacityLocalStorage4 {
 
         BackupStorageVO bsAfter = dbf.findByUuid(bs.getUuid(), BackupStorageVO.class);
         Assert.assertEquals(spToTemplateActualSize, bsBefore.getAvailableCapacity() - bsAfter.getAvailableCapacity());
+
+        long dataVolumeActualSize = SizeUnit.GIGABYTE.toByte(2);
+        long dataVolumeSize = SizeUnit.GIGABYTE.toByte(20);
+        lconfig.snapshotToVolumeSize.put(sp.getVolumeUuid(), dataVolumeSize);
+        lconfig.snapshotToVolumeActualSize.put(sp.getVolumeUuid(), dataVolumeActualSize);
+        // create a data volume from the snapshot
+        VolumeInventory vol = api.createDataVolumeFromSnapshot(sp.getUuid());
+        Assert.assertEquals(dataVolumeActualSize, vol.getActualSize().longValue());
+        Assert.assertEquals(dataVolumeSize, vol.getSize());
+
+        avail = avail - dataVolumeSize;
+        pscap = dbf.findByUuid(local.getUuid(), PrimaryStorageCapacityVO.class);
+        href = dbf.findByUuid(host.getUuid(), LocalStorageHostRefVO.class);
+        Assert.assertEquals(avail, pscap.getAvailableCapacity());
+        Assert.assertEquals(avail, href.getAvailableCapacity());
 	}
 }
