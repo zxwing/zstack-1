@@ -17,6 +17,7 @@ import org.zstack.core.thread.ThreadFacade;
 import org.zstack.core.workflow.FlowChainBuilder;
 import org.zstack.core.workflow.ShareFlow;
 import org.zstack.header.core.Completion;
+import org.zstack.header.core.NoErrorCompletion;
 import org.zstack.header.core.NopeCompletion;
 import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.core.workflow.*;
@@ -165,6 +166,14 @@ public class VolumeBase implements Volume {
             ));
         }
 
+        final VolumeInventory inv = getSelfInventory();
+        CollectionUtils.safeForEach(pluginRgty.getExtensionList(VolumeBeforeExpungeExtensionPoint.class), new ForEachFunction<VolumeBeforeExpungeExtensionPoint>() {
+            @Override
+            public void run(VolumeBeforeExpungeExtensionPoint arg) {
+                arg.volumeBeforeExpunge(inv);
+            }
+        });
+
         if (self.getPrimaryStorageUuid() != null) {
             DeleteVolumeOnPrimaryStorageMsg dmsg = new DeleteVolumeOnPrimaryStorageMsg();
             dmsg.setVolume(getSelfInventory());
@@ -176,13 +185,35 @@ public class VolumeBase implements Volume {
                     if (!r.isSuccess()) {
                         completion.fail(r.getError());
                     } else {
+                        ReturnPrimaryStorageCapacityMsg msg = new ReturnPrimaryStorageCapacityMsg();
+                        msg.setPrimaryStorageUuid(self.getPrimaryStorageUuid());
+                        msg.setDiskSize(self.getSize());
+                        bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, self.getPrimaryStorageUuid());
+                        bus.send(msg);
+
                         dbf.remove(self);
+
+                        CollectionUtils.safeForEach(pluginRgty.getExtensionList(VolumeAfterExpungeExtensionPoint.class), new ForEachFunction<VolumeAfterExpungeExtensionPoint>() {
+                            @Override
+                            public void run(VolumeAfterExpungeExtensionPoint arg) {
+                                arg.volumeAfterExpunge(inv);
+                            }
+                        });
+
                         completion.success();
                     }
                 }
             });
         } else {
             dbf.remove(self);
+
+            CollectionUtils.safeForEach(pluginRgty.getExtensionList(VolumeAfterExpungeExtensionPoint.class), new ForEachFunction<VolumeAfterExpungeExtensionPoint>() {
+                @Override
+                public void run(VolumeAfterExpungeExtensionPoint arg) {
+                    arg.volumeAfterExpunge(inv);
+                }
+            });
+
             completion.success();
         }
     }
@@ -246,32 +277,8 @@ public class VolumeBase implements Volume {
         });
     }
 
-    private void handle(final VolumeDeletionMsg msg) {
+    private void deleteVolume(final VolumeDeletionMsg msg, final NoErrorCompletion completion) {
         final VolumeDeletionReply reply = new VolumeDeletionReply();
-        thdf.chainSubmit(new ChainTask() {
-            @Override
-            public String getSyncSignature() {
-                return getName();
-            }
-
-            @Override
-            public void run(SyncTaskChain chain) {
-                self = dbf.reload(self);
-                if (self.getStatus() == VolumeStatus.Deleted) {
-                    // the volume has been deleted
-                    // we run into this case because the cascading framework
-                    // will send duplicate messages when deleting a vm as the cascading
-                    // framework has no knowledge about
-                }
-
-            }
-
-            @Override
-            public String getName() {
-                return String.format("delete-volume-%s", self.getUuid());
-            }
-        });
-
         for (VolumeDeletionExtensionPoint extp : pluginRgty.getExtensionList(VolumeDeletionExtensionPoint.class)) {
             extp.preDeleteVolume(getSelfInventory());
         }
@@ -304,7 +311,7 @@ public class VolumeBase implements Volume {
             public void setup() {
                 if (self.getVmInstanceUuid() != null && self.getType() == VolumeType.Data && msg.isDetachBeforeDeleting()) {
                     flow(new NoRollbackFlow() {
-                        String __name__ = String.format("detach-volume-from-vm");
+                        String __name__ = "detach-volume-from-vm";
 
                         public void run(final FlowTrigger trigger, Map data) {
                             DetachDataVolumeFromVmMsg dmsg = new DetachDataVolumeFromVmMsg();
@@ -353,7 +360,7 @@ public class VolumeBase implements Volume {
                 }
 
 
-                if (self.getPrimaryStorageUuid() != null) {
+                if (self.getPrimaryStorageUuid() != null && deletionPolicy == VolumeDeletionPolicy.Direct) {
                     flow(new NoRollbackFlow() {
                         String __name__ = "return-primary-storage-capacity";
 
@@ -411,8 +418,52 @@ public class VolumeBase implements Volume {
                         bus.reply(msg, reply);
                     }
                 });
+
+                Finally(new FlowFinallyHandler() {
+                    @Override
+                    public void Finally() {
+                        completion.done();
+                    }
+                });
             }
         }).start();
+    }
+
+    private void handle(final VolumeDeletionMsg msg) {
+        thdf.chainSubmit(new ChainTask() {
+            @Override
+            public String getSyncSignature() {
+                return getName();
+            }
+
+            @Override
+            public void run(final SyncTaskChain chain) {
+                self = dbf.reload(self);
+                if (self.getStatus() == VolumeStatus.Deleted) {
+                    // the volume has been deleted
+                    // we run into this case because the cascading framework
+                    // will send duplicate messages when deleting a vm as the cascading
+                    // framework has no knowledge about if the volume has been deleted
+                    VolumeDeletionReply reply = new VolumeDeletionReply();
+                    bus.reply(msg, reply);
+                    chain.next();
+                    return;
+                }
+
+                deleteVolume(msg, new NoErrorCompletion(chain) {
+                    @Override
+                    public void done() {
+                        chain.next();
+                    }
+                });
+            }
+
+            @Override
+            public String getName() {
+                return String.format("delete-volume-%s", self.getUuid());
+            }
+        });
+
     }
 
     private void handleApiMessage(APIMessage msg) {

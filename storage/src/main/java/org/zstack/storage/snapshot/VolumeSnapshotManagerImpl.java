@@ -26,6 +26,7 @@ import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.primary.VolumeSnapshotCapability.VolumeSnapshotArrangementType;
 import org.zstack.header.storage.snapshot.*;
 import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotExtensionPoint;
+import org.zstack.header.volume.VolumeAfterExpungeExtensionPoint;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.identity.AccountManager;
@@ -36,6 +37,7 @@ import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
+import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,7 +46,8 @@ import java.util.Map;
 
 /**
  */
-public class VolumeSnapshotManagerImpl extends AbstractService implements VolumeSnapshotManager, ReplyMessagePreSendingExtensionPoint {
+public class VolumeSnapshotManagerImpl extends AbstractService implements VolumeSnapshotManager,
+        ReplyMessagePreSendingExtensionPoint, VolumeAfterExpungeExtensionPoint {
     private static final CLogger logger = Utils.getLogger(VolumeSnapshotManagerImpl.class);
 
     @Autowired
@@ -436,5 +439,47 @@ public class VolumeSnapshotManagerImpl extends AbstractService implements Volume
             VolumeSnapshotTree tree = VolumeSnapshotTree.fromVOs(vos);
             inv.setTree(tree.getRoot().toLeafInventory());
         }
+    }
+
+    @Override
+    public void volumeAfterExpunge(VolumeInventory volume) {
+        List<VolumeSnapshotDeletionMsg> msgs = new ArrayList<VolumeSnapshotDeletionMsg>();
+        SimpleQuery<VolumeSnapshotTreeVO> cq = dbf.createQuery(VolumeSnapshotTreeVO.class);
+        cq.select(VolumeSnapshotTreeVO_.uuid);
+        cq.add(VolumeSnapshotTreeVO_.volumeUuid, Op.EQ, volume.getUuid());
+        List<String> cuuids = cq.listValue();
+        for (String cuuid : cuuids) {
+            // deleting full snapshot of chain will cause whole chain to be deleted
+            SimpleQuery<VolumeSnapshotVO> q = dbf.createQuery(VolumeSnapshotVO.class);
+            q.select(VolumeSnapshotVO_.uuid);
+            q.add(VolumeSnapshotVO_.treeUuid, Op.EQ, cuuid);
+            q.add(VolumeSnapshotVO_.parentUuid, Op.NULL);
+            q.add(VolumeSnapshotVO_.type, Op.EQ, VolumeSnapshotConstant.HYPERVISOR_SNAPSHOT_TYPE.toString());
+            String suuid = q.findValue();
+
+            if (suuid == null) {
+                // this is a storage snapshot, don't delete it on primary storage
+                continue;
+            }
+
+            SimpleQuery<VolumeSnapshotVO> sq = dbf.createQuery(VolumeSnapshotVO.class);
+            sq.select(VolumeSnapshotVO_.volumeUuid, VolumeSnapshotVO_.treeUuid);
+            sq.add(VolumeSnapshotVO_.uuid, Op.EQ, suuid);
+            Tuple t = sq.findTuple();
+            String volumeUuid = t.get(0, String.class);
+            String treeUuid = t.get(1, String.class);
+
+            VolumeSnapshotDeletionMsg msg = new VolumeSnapshotDeletionMsg();
+            msg.setSnapshotUuid(suuid);
+            msg.setTreeUuid(treeUuid);
+            msg.setVolumeUuid(volumeUuid);
+            msg.setVolumeDeletion(true);
+            String resourceUuid = volumeUuid != null ? volumeUuid : treeUuid;
+            bus.makeTargetServiceIdByResourceUuid(msg, VolumeSnapshotConstant.SERVICE_ID, resourceUuid);
+
+            msgs.add(msg);
+        }
+
+        bus.send(msgs);
     }
 }

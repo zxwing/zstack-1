@@ -3,10 +3,12 @@ package org.zstack.test.diskcapacity;
 import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.zstack.compute.vm.VmGlobalConfig;
 import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.header.configuration.DiskOfferingInventory;
 import org.zstack.header.configuration.InstanceOfferingInventory;
 import org.zstack.header.host.HostInventory;
 import org.zstack.header.identity.SessionInventory;
@@ -20,6 +22,7 @@ import org.zstack.header.storage.backup.BackupStorageInventory;
 import org.zstack.header.storage.primary.InstantiateVolumeMsg;
 import org.zstack.header.storage.primary.PrimaryStorageCapacityVO;
 import org.zstack.header.storage.primary.PrimaryStorageInventory;
+import org.zstack.header.vm.VmInstanceDeletionPolicyManager.VmInstanceDeletionPolicy;
 import org.zstack.header.vm.VmInstanceInventory;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeType;
@@ -38,13 +41,15 @@ import static org.zstack.utils.CollectionDSL.list;
 
 /**
  * 1. use local storage
- * 2. add an image
- * 3. create a vm from the image
+ * 2. create a vm
+ * 3. attach a data volume to the vm
+ * 4. delete the vm
+ * 5. delete the data volume
  *
  * confirm the size of image/volume are correct
  * confirm the local storage capacity correct
  */
-public class TestDiskCapacityLocalStorage1 {
+public class TestDiskCapacityLocalStorage5 {
     CLogger logger = Utils.getLogger(TestSftpBackupStorageDeleteImage2.class);
     Deployer deployer;
     Api api;
@@ -154,8 +159,17 @@ public class TestDiskCapacityLocalStorage1 {
         VmInstanceInventory vm = createVm.create();
         VolumeInventory root = vm.getRootVolume();
 
-        Assert.assertEquals(addImage.size, root.getSize());
-        Assert.assertEquals(addImage.actualSize, root.getActualSize().longValue());
+        DiskOfferingInventory doinv = deployer.diskOfferings.get("DataOffering");
+        VolumeInventory data = api.createDataVolume("data", doinv.getUuid());
+        data = api.attachVolumeToVm(vm.getUuid(), data.getUuid());
+
+        VmGlobalConfig.VM_DELETION_POLICY.updateValue(VmInstanceDeletionPolicy.Direct.toString());
+
+        // delete the vm, check the capacity
+        api.destroyVmInstance(vm.getUuid());
+
+        // image cache + volume
+        long used = addImage.actualSize + data.getSize();
 
         PrimaryStorageInventory local = deployer.primaryStorages.get("local");
         PrimaryStorageCapacityVO pscap = dbf.findByUuid(local.getUuid(), PrimaryStorageCapacityVO.class);
@@ -163,9 +177,18 @@ public class TestDiskCapacityLocalStorage1 {
         HostInventory host = deployer.hosts.get("host1");
         LocalStorageHostRefVO href = dbf.findByUuid(host.getUuid(), LocalStorageHostRefVO.class);
 
-        // image cache + volume
-        long used = addImage.actualSize + root.getSize();
         long avail = pscap.getTotalCapacity() - used;
+        Assert.assertEquals(avail, pscap.getAvailableCapacity());
+        Assert.assertEquals(avail, href.getAvailableCapacity());
+
+        // delete the data volume, check the capacity
+        api.deleteDataVolume(data.getUuid());
+
+        // image cache
+        used = addImage.actualSize;
+        pscap = dbf.findByUuid(local.getUuid(), PrimaryStorageCapacityVO.class);
+        href = dbf.findByUuid(host.getUuid(), LocalStorageHostRefVO.class);
+        avail = pscap.getTotalCapacity() - used;
         Assert.assertEquals(avail, pscap.getAvailableCapacity());
         Assert.assertEquals(avail, href.getAvailableCapacity());
 	}

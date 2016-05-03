@@ -47,9 +47,12 @@ import static org.zstack.utils.CollectionDSL.list;
  * 2. add an image
  * 3. create a vm from the image
  * 4. create 50 snapshots from the root volume
+ * 5. create a template from a snapshot
+ * 6. create a data volume from a snapshot
  *
  * confirm the size of snapshots correct
  * confirm the local storage capacity correct
+ * confirm the capacity of the backup storage correct
  */
 public class TestDiskCapacityLocalStorage4 {
     CLogger logger = Utils.getLogger(TestSftpBackupStorageDeleteImage2.class);

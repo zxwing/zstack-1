@@ -89,6 +89,7 @@ public class TestDiskCapacityLocalStorage2 {
         deployer.build();
 
         api = deployer.getApi();
+        api.prepare();
         session = api.loginAsAdmin();
     }
 
