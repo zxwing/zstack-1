@@ -57,7 +57,7 @@ import static org.zstack.utils.CollectionDSL.list;
 public class LocalStorageFactory implements PrimaryStorageFactory, Component,
         MarshalVmOperationFlowExtensionPoint, HostDeleteExtensionPoint, VmAttachVolumeExtensionPoint,
         GetAttachableVolumeExtensionPoint, RecalculatePrimaryStorageCapacityExtensionPoint, HostMaintenancePolicyExtensionPoint,
-        VolumeAfterExpungeExtensionPoint, AddExpandedQueryExtensionPoint, VolumeGetAttachableVmExtensionPoint, RecoverDataVolumeExtensionPoint,
+        AddExpandedQueryExtensionPoint, VolumeGetAttachableVmExtensionPoint, RecoverDataVolumeExtensionPoint,
         RecoverVmExtensionPoint, VmPreMigrationExtensionPoint, CreateTemplateFromVolumeSnapshotExtensionPoint {
     private final static CLogger logger = Utils.getLogger(LocalStorageFactory.class);
     public static PrimaryStorageType type = new PrimaryStorageType(LocalStorageConstants.LOCAL_STORAGE_TYPE);
@@ -783,28 +783,6 @@ public class LocalStorageFactory implements PrimaryStorageFactory, Component,
                     String.format("unable to live migrate with local storage. The vm[uuid:%s] has volumes on local storage," +
                             "to protect your data, please stop the vm and do the volume migration", vm.getUuid())
             ));
-        }
-    }
-
-    @Override
-    public void volumeAfterExpunge(VolumeInventory volume) {
-        if (volume.getPrimaryStorageUuid() != null && VolumeStatus.Deleted.toString().equals(volume.getStatus())) {
-            SimpleQuery<LocalStorageResourceRefVO> q = dbf.createQuery(LocalStorageResourceRefVO.class);
-            q.select(LocalStorageResourceRefVO_.hostUuid);
-            q.add(LocalStorageResourceRefVO_.resourceUuid, Op.EQ, volume.getUuid());
-            q.add(LocalStorageResourceRefVO_.resourceType, Op.EQ, VolumeVO.class.getSimpleName());
-            String huuid = q.findValue();
-
-            if (huuid == null) {
-                return;
-            }
-
-            LocalStorageReturnHostCapacityMsg msg = new LocalStorageReturnHostCapacityMsg();
-            msg.setHostUuid(huuid);
-            msg.setPrimaryStorageUuid(volume.getPrimaryStorageUuid());
-            msg.setSize(volume.getSize());
-            bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, volume.getPrimaryStorageUuid());
-            bus.send(msg);
         }
     }
 }

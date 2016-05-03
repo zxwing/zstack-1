@@ -203,14 +203,20 @@ public class TestDiskCapacityLocalStorage6 {
         Assert.assertEquals(avail, href2.getAvailableCapacity());
 
         // expunge the data volume
+        api.deleteDataVolume(data.getUuid());
+        PrimaryStorageCapacityVO pscap3 = dbf.findByUuid(local.getUuid(), PrimaryStorageCapacityVO.class);
+        LocalStorageHostRefVO href3 = dbf.findByUuid(host.getUuid(), LocalStorageHostRefVO.class);
+        Assert.assertEquals(pscap2.getAvailableCapacity(), pscap3.getAvailableCapacity());
+        Assert.assertEquals(href3.getAvailableCapacity(), href3.getAvailableCapacity());
+
         api.expungeDataVolume(data.getUuid(), null);
         TimeUnit.SECONDS.sleep(2);
         // used size = image cache
         used = addImage.actualSize;
         avail = pscap2.getTotalCapacity() - used;
-        PrimaryStorageCapacityVO pscap3 = dbf.findByUuid(local.getUuid(), PrimaryStorageCapacityVO.class);
-        LocalStorageHostRefVO href3 = dbf.findByUuid(host.getUuid(), LocalStorageHostRefVO.class);
-        Assert.assertEquals(avail, pscap3.getAvailableCapacity());
-        Assert.assertEquals(avail, href3.getAvailableCapacity());
+        PrimaryStorageCapacityVO pscap4 = dbf.findByUuid(local.getUuid(), PrimaryStorageCapacityVO.class);
+        LocalStorageHostRefVO href4 = dbf.findByUuid(host.getUuid(), LocalStorageHostRefVO.class);
+        Assert.assertEquals(avail, pscap4.getAvailableCapacity());
+        Assert.assertEquals(avail, href4.getAvailableCapacity());
 	}
 }

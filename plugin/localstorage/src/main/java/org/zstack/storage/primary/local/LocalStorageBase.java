@@ -38,7 +38,6 @@ import org.zstack.header.vm.VmInstanceState;
 import org.zstack.header.vm.VmInstanceVO;
 import org.zstack.header.vm.VmInstanceVO_;
 import org.zstack.header.volume.VolumeInventory;
-import org.zstack.header.volume.VolumeStatus;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
@@ -808,23 +807,65 @@ public class LocalStorageBase extends PrimaryStorageBase {
     }
 
     private void handle(final DeleteSnapshotOnPrimaryStorageMsg msg) {
-        String hostUuid = getHostUuidByResourceUuid(msg.getSnapshot().getUuid());
-        LocalStorageHypervisorFactory f = getHypervisorBackendFactoryByHostUuid(hostUuid);
-        LocalStorageHypervisorBackend bkd = f.getHypervisorBackend(self);
-        bkd.handle(msg, hostUuid, new ReturnValueCompletion<DeleteSnapshotOnPrimaryStorageReply>(msg) {
-            @Override
-            public void success(DeleteSnapshotOnPrimaryStorageReply returnValue) {
-                deleteResourceRefVO(msg.getSnapshot().getUuid());
-                bus.reply(msg, returnValue);
-            }
+        final String hostUuid = getHostUuidByResourceUuid(msg.getSnapshot().getUuid());
+
+        FlowChain chain = FlowChainBuilder.newShareFlowChain();
+        chain.setName(String.format("delete-snapshot-%s-on-local-storage-%s", msg.getSnapshot().getUuid(), self.getUuid()));
+        chain.then(new ShareFlow() {
+            DeleteSnapshotOnPrimaryStorageReply reply;
 
             @Override
-            public void fail(ErrorCode errorCode) {
-                DeleteSnapshotOnPrimaryStorageReply reply = new DeleteSnapshotOnPrimaryStorageReply();
-                reply.setError(errorCode);
-                bus.reply(msg, reply);
+            public void setup() {
+                flow(new NoRollbackFlow() {
+                    String __name__ = "delete-snapshot-on-host";
+
+                    @Override
+                    public void run(final FlowTrigger trigger, Map data) {
+                        LocalStorageHypervisorFactory f = getHypervisorBackendFactoryByHostUuid(hostUuid);
+                        LocalStorageHypervisorBackend bkd = f.getHypervisorBackend(self);
+                        bkd.handle(msg, hostUuid, new ReturnValueCompletion<DeleteSnapshotOnPrimaryStorageReply>(trigger) {
+                            @Override
+                            public void success(DeleteSnapshotOnPrimaryStorageReply returnValue) {
+                                reply = returnValue;
+                                trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
+                            }
+                        });
+                    }
+                });
+
+                flow(new NoRollbackFlow() {
+                    String __name__ = "return-capacity-to-host";
+
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        returnCapacityToHost(hostUuid, msg.getSnapshot().getSize());
+                        trigger.next();
+                    }
+                });
+
+                done(new FlowDoneHandler(msg) {
+                    @Override
+                    public void handle(Map data) {
+                        deleteResourceRefVO(msg.getSnapshot().getUuid());
+                        bus.reply(msg, reply);
+                    }
+                });
+
+                error(new FlowErrorHandler(msg) {
+                    @Override
+                    public void handle(ErrorCode errCode, Map data) {
+                        DeleteSnapshotOnPrimaryStorageReply reply = new DeleteSnapshotOnPrimaryStorageReply();
+                        reply.setError(errCode);
+                        bus.reply(msg, reply);
+                    }
+                });
             }
-        });
+        }).start();
     }
 
     private void handle(final TakeSnapshotMsg msg) {
@@ -1147,19 +1188,15 @@ public class LocalStorageBase extends PrimaryStorageBase {
                     }
                 });
 
-                if (!VolumeStatus.Deleted.toString().endsWith(msg.getVolume().getStatus())) {
-                    // if the volume's status is Deleted, its capacity has been returned
-                    // when it's deleted
-                    flow(new NoRollbackFlow() {
-                        String __name__ = "return-capacity-to-host";
+                flow(new NoRollbackFlow() {
+                    String __name__ = "return-capacity-to-host";
 
-                        @Override
-                        public void run(FlowTrigger trigger, Map data) {
-                            returnCapacityToHostByResourceUuid(msg.getVolume().getUuid());
-                            trigger.next();
-                        }
-                    });
-                }
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        returnCapacityToHostByResourceUuid(msg.getVolume().getUuid());
+                        trigger.next();
+                    }
+                });
 
                 done(new FlowDoneHandler(msg) {
                     @Override
