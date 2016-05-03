@@ -14,6 +14,9 @@
         </instanceOffering>
     </instanceOfferings>
 
+    <diskOffering name="DataOffering" description="Test"
+                  diskSize="20G" />
+
     <zones>
         <zone name="Zone1" description="Test">
             <clusters>

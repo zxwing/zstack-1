@@ -24,7 +24,6 @@ import org.zstack.header.volume.VolumeFormat;
 import org.zstack.kvm.KVMConstant;
 import org.zstack.storage.backup.BackupStorageCapacityUpdater;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
-import org.zstack.header.storage.primary.PrimaryStorageManager;
 import org.zstack.storage.primary.PrimaryStorageSystemTags;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.NfsPrimaryStorageAgentResponse;
 import org.zstack.tag.TagManager;
@@ -233,6 +232,8 @@ public class NfsPrimaryStorageFactory implements NfsPrimaryStorageManager, Prima
 
             @Override
             public void run(final FlowTrigger trigger, Map data) {
+                final ParamOut out = (ParamOut) data.get(ParamOut.class);
+
                 CreateTemporaryVolumeFromSnapshotMsg msg = new CreateTemporaryVolumeFromSnapshotMsg();
                 msg.setPrimaryStorageUuid(paramIn.getPrimaryStorageUuid());
                 msg.setSnapshot(paramIn.getSnapshot());
@@ -247,6 +248,8 @@ public class NfsPrimaryStorageFactory implements NfsPrimaryStorageManager, Prima
                         } else {
                             CreateTemporaryVolumeFromSnapshotReply r = reply.castReply();
                             ctx.tempInstallPath = r.getInstallPath();
+                            out.setActualSize(r.getActualSize());
+                            out.setSize(r.getSize());
                             trigger.next();
                         }
                     }

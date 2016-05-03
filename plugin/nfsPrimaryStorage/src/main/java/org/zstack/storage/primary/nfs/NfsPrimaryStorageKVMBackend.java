@@ -21,6 +21,9 @@ import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.host.*;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.message.MessageReply;
+import org.zstack.header.storage.backup.BackupStorageInventory;
+import org.zstack.header.storage.backup.BackupStorageType;
+import org.zstack.header.storage.backup.BackupStorageVO;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.vm.VmInstanceState;
@@ -250,8 +253,11 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
         }, new ReturnValueCompletion<KvmResponseWrapper>(completion) {
             @Override
             public void success(KvmResponseWrapper wrapper) {
+                MergeSnapshotResponse rsp = wrapper.getResponse(MergeSnapshotResponse.class);
                 CreateTemporaryVolumeFromSnapshotReply reply = new CreateTemporaryVolumeFromSnapshotReply();
                 reply.setInstallPath(workspaceInstallPath);
+                reply.setActualSize(rsp.getActualSize());
+                reply.setSize(rsp.getSize());
                 completion.success(reply);
             }
 
@@ -288,6 +294,25 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
                 reply.setActualSize(rsp.getActualSize());
                 reply.setSize(rsp.getSize());
                 reply.setInstallPath(workspaceInstallPath);
+                completion.success(reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    @Override
+    public void handle(PrimaryStorageInventory inv, UploadBitsToBackupStorageMsg msg, final ReturnValueCompletion<UploadBitsToBackupStorageReply> completion) {
+        BackupStorageVO bs = dbf.findByUuid(msg.getBackupStorageUuid(), BackupStorageVO.class);
+
+        NfsPrimaryToBackupStorageMediator m = nfsFactory.getPrimaryToBackupStorageMediator(BackupStorageType.valueOf(bs.getType()), HypervisorType.valueOf(msg.getHypervisorType()));
+        m.uploadBits(inv, BackupStorageInventory.valueOf(bs), msg.getBackupStorageInstallPath(), msg.getPrimaryStorageInstallPath(), new Completion(completion) {
+            @Override
+            public void success() {
+                UploadBitsToBackupStorageReply reply = new UploadBitsToBackupStorageReply();
                 completion.success(reply);
             }
 

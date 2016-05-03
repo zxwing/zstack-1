@@ -175,21 +175,12 @@ public abstract class PrimaryStorageBase extends AbstractPrimaryStorage {
             handle((DeleteIsoFromPrimaryStorageMsg) msg);
         } else if (msg instanceof AskVolumeSnapshotCapabilityMsg) {
             handle((AskVolumeSnapshotCapabilityMsg) msg);
-        } else if (msg instanceof TakePrimaryStorageCapacityMsg) {
-            handle((TakePrimaryStorageCapacityMsg) msg);
         } else if (msg instanceof SyncVolumeActualSizeOnPrimaryStorageMsg) {
             handle((SyncVolumeActualSizeOnPrimaryStorageMsg) msg);
 	    } else {
 	        bus.dealWithUnknownMessage(msg);
 	    }
 	}
-
-    private void handle(TakePrimaryStorageCapacityMsg msg) {
-        PrimaryStorageCapacityUpdater updater = new PrimaryStorageCapacityUpdater(self.getUuid());
-        updater.decreaseAvailableCapacity(msg.getSize());
-        TakePrimaryStorageCapacityReply reply = new TakePrimaryStorageCapacityReply();
-        bus.reply(msg, reply);
-    }
 
     private void handleBase(DownloadIsoToPrimaryStorageMsg msg) {
         checkIfBackupStorageAttachedToMyZone(msg.getIsoSpec().getSelectedBackupStorage().getBackupStorageUuid());

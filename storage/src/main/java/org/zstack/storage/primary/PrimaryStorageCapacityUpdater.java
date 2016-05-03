@@ -242,7 +242,7 @@ public class PrimaryStorageCapacityUpdater {
     }
 
     public boolean reserve(long size) {
-        return reserve(size, false);
+        return reserve(size, true);
     }
 
     @Transactional

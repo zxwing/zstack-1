@@ -88,9 +88,28 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
             handle((MergeVolumeSnapshotOnPrimaryStorageMsg) msg);
         } else if (msg instanceof CreateTemporaryVolumeFromSnapshotMsg) {
             handle((CreateTemporaryVolumeFromSnapshotMsg) msg);
+        } else if (msg instanceof UploadBitsToBackupStorageMsg) {
+            handle((UploadBitsToBackupStorageMsg) msg);
         } else {
             super.handleLocalMessage(msg);
         }
+    }
+
+    private void handle(final UploadBitsToBackupStorageMsg msg) {
+        NfsPrimaryStorageBackend bkd = getBackend(HypervisorType.valueOf(msg.getHypervisorType()));
+        bkd.handle(getSelfInventory(), msg, new ReturnValueCompletion<UploadBitsToBackupStorageReply>(msg) {
+            @Override
+            public void success(UploadBitsToBackupStorageReply returnValue) {
+                bus.reply(msg, returnValue);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                UploadBitsToBackupStorageReply reply = new UploadBitsToBackupStorageReply();
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     private void handle(final CreateTemporaryVolumeFromSnapshotMsg msg) {
@@ -372,7 +391,6 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
             huuid = host.getUuid();
         }
 
-
         VolumeInventory volInv = VolumeInventory.valueOf(vol);
         TakeSnapshotOnHypervisorMsg hmsg = new TakeSnapshotOnHypervisorMsg();
         hmsg.setHostUuid(huuid);
@@ -395,12 +413,6 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
                     inv.setType(VolumeSnapshotConstant.HYPERVISOR_SNAPSHOT_TYPE.toString());
                     reply.setNewVolumeInstallPath(treply.getNewVolumeInstallPath());
                     reply.setInventory(inv);
-
-                    TakePrimaryStorageCapacityMsg tmsg = new TakePrimaryStorageCapacityMsg();
-                    tmsg.setPrimaryStorageUuid(self.getUuid());
-                    tmsg.setSize(inv.getSize());
-                    bus.makeTargetServiceIdByResourceUuid(tmsg, PrimaryStorageConstant.SERVICE_ID, self.getUuid());
-                    bus.send(tmsg);
                 } else {
                     reply.setError(ret.getError());
                 }

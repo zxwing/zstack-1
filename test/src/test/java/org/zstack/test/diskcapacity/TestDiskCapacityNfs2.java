@@ -141,8 +141,8 @@ public class TestDiskCapacityNfs2 {
 	@Test
 	public void test() throws ApiSenderException, InterruptedException {
         AddImage addImage = new AddImage();
-        addImage.size = SizeUnit.GIGABYTE.toByte(1);
-        addImage.actualSize = SizeUnit.GIGABYTE.toByte(10);
+        addImage.size = SizeUnit.GIGABYTE.toByte(10);
+        addImage.actualSize = SizeUnit.GIGABYTE.toByte(1);
         ImageInventory image = addImage.add();
 
         VmGlobalConfig.VM_DELETION_POLICY.updateValue(VmInstanceDeletionPolicy.Direct.toString());

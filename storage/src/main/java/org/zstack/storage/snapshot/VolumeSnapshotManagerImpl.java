@@ -338,8 +338,9 @@ public class VolumeSnapshotManagerImpl extends AbstractService implements Volume
                         ExceptionDSL.exceptionSafe(new Runnable() {
                             @Override
                             public void run() {
+                                // TODO
                                 PrimaryStorageCapacityUpdater updater = new PrimaryStorageCapacityUpdater(vol.getPrimaryStorageUuid());
-                                updater.decreaseAvailableCapacity(snapshot.getSize());
+                                updater.reserve(snapshot.getSize());
                             }
                         });
 
