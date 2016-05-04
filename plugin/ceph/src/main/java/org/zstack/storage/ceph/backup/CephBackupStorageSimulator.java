@@ -97,9 +97,9 @@ public class CephBackupStorageSimulator {
         DownloadCmd cmd = JSONObjectUtil.toObject(entity.getBody(), DownloadCmd.class);
         config.downloadCmds.add(cmd);
 
-        Long size = config.imageSize.get(cmd.uuid);
+        Long size = config.imageSize.get(cmd.imageUuid);
         rsp.setSize(size == null ? 0 : size);
-        Long asize = config.imageActualSize.get(cmd.uuid);
+        Long asize = config.imageActualSize.get(cmd.imageUuid);
         rsp.setActualSize(asize == null ? 0 : asize);
 
         reply(entity, rsp);

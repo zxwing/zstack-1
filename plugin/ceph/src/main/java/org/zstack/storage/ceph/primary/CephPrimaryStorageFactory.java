@@ -405,7 +405,26 @@ public class CephPrimaryStorageFactory implements PrimaryStorageFactory, CephCap
         WorkflowTemplate template = new WorkflowTemplate();
         template.setCreateTemporaryTemplate(new NoRollbackFlow() {
             @Override
-            public void run(FlowTrigger trigger, Map data) {
+            public void run(final FlowTrigger trigger, final Map data) {
+                GetVolumeSizeMsg msg = new GetVolumeSizeMsg();
+                msg.setPrimaryStorageUuid(paramIn.getPrimaryStorageUuid());
+                msg.setVolumeUuid(paramIn.getSnapshot().getVolumeUuid());
+                bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, paramIn.getPrimaryStorageUuid());
+                bus.send(msg, new CloudBusCallBack(trigger) {
+                    @Override
+                    public void run(MessageReply reply) {
+                        if (reply.isSuccess()) {
+                            ParamOut paramOut = (ParamOut) data.get(ParamOut.class);
+                            GetVolumeSizeReply gr = reply.castReply();
+                            paramOut.setActualSize(gr.getActualSize());
+                            paramOut.setSize(gr.getSize());
+                            trigger.next();
+                        } else {
+                            trigger.fail(reply.getError());
+                        }
+                    }
+                });
+
                 throw new CloudRuntimeException("get volume size here");
             }
         });

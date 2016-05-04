@@ -125,6 +125,15 @@ public class CephBackupStorageBase extends BackupStorageBase {
     public static class DownloadCmd extends AgentCommand {
         String url;
         String installPath;
+        String imageUuid;
+
+        public String getImageUuid() {
+            return imageUuid;
+        }
+
+        public void setImageUuid(String imageUuid) {
+            this.imageUuid = imageUuid;
+        }
 
         public String getUrl() {
             return url;
@@ -287,6 +296,7 @@ public class CephBackupStorageBase extends BackupStorageBase {
         final DownloadCmd cmd = new DownloadCmd();
         cmd.url = msg.getImageInventory().getUrl();
         cmd.installPath = makeImageInstallPath(msg.getImageInventory().getUuid());
+        cmd.imageUuid = msg.getImageInventory().getUuid();
 
         final DownloadImageReply reply = new DownloadImageReply();
         httpCall(DOWNLOAD_IMAGE_PATH, cmd, DownloadRsp.class, new ReturnValueCompletion<DownloadRsp>(msg) {
