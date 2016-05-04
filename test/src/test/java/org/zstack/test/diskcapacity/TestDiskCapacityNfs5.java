@@ -7,6 +7,7 @@ import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.header.configuration.DiskOfferingInventory;
 import org.zstack.header.configuration.InstanceOfferingInventory;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.header.image.APIAddImageEvent;
@@ -16,7 +17,6 @@ import org.zstack.header.message.AbstractBeforeDeliveryMessageInterceptor;
 import org.zstack.header.message.Message;
 import org.zstack.header.network.l3.L3NetworkInventory;
 import org.zstack.header.storage.backup.BackupStorageInventory;
-import org.zstack.header.storage.backup.BackupStorageVO;
 import org.zstack.header.storage.primary.InstantiateVolumeMsg;
 import org.zstack.header.storage.primary.PrimaryStorageCapacityVO;
 import org.zstack.header.storage.primary.PrimaryStorageInventory;
@@ -34,24 +34,26 @@ import org.zstack.utils.Utils;
 import org.zstack.utils.data.SizeUnit;
 import org.zstack.utils.logging.CLogger;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.zstack.utils.CollectionDSL.list;
 
 /**
- * 1. use nfs primary storage
- * 2. add an image
- * 3. create a vm from the image
- * 4. create 50 snapshots from the root volume
- * 5. create a template from a snapshot
- * 6. create a data volume from a snapshot
+ * 1. use nfs storage
+ * 2. create a vm
+ * 3. attach a data volume to the vm
+ * 4. create snapshots from the root volume and the data volume
+ * 5. delay to delete the vm and data volume
  *
- * confirm the size of snapshots correct
- * confirm the nfs storage capacity correct
- * confirm the capacity of the backup storage correct
+ * confirm the capacity of the nfs storage correct
+ *
+ * 6. expunge the vm
+ * 7. expunge the data volume
+ *
+ * confirm the capacity of the nfs storage correct
+ *
  */
-public class TestDiskCapacityNfs4 {
+public class TestDiskCapacityNfs5 {
     CLogger logger = Utils.getLogger(TestSftpBackupStorageDeleteImage2.class);
     Deployer deployer;
     Api api;
@@ -134,18 +136,8 @@ public class TestDiskCapacityNfs4 {
         }
     }
 
-    class TakeSnapshot {
-        String volumeUuid;
-        long size;
-
-        VolumeSnapshotInventory take() throws ApiSenderException {
-            kconfig.takeSnapshotCmdSize.put(volumeUuid, size);
-            return api.createSnapshot(volumeUuid);
-        }
-    }
-
 	@Test
-	public void test() throws ApiSenderException {
+	public void test() throws ApiSenderException, InterruptedException {
         AddImage addImage = new AddImage();
         addImage.size = SizeUnit.GIGABYTE.toByte(10);
         addImage.actualSize = SizeUnit.GIGABYTE.toByte(1);
@@ -160,57 +152,48 @@ public class TestDiskCapacityNfs4 {
         VmInstanceInventory vm = createVm.create();
         VolumeInventory root = vm.getRootVolume();
 
-        // create 30 snapshots
-        int num = 30;
-        List<VolumeSnapshotInventory> snapshots = new ArrayList<VolumeSnapshotInventory>();
-        long snapshotSize = 0;
-        for (int i=1; i<num; i++) {
-            TakeSnapshot takeSnapshot = new TakeSnapshot();
-            takeSnapshot.size = SizeUnit.MEGABYTE.toByte(i);
-            takeSnapshot.volumeUuid = root.getUuid();
-            VolumeSnapshotInventory sp = takeSnapshot.take();
-            Assert.assertEquals(takeSnapshot.size, sp.getSize());
-            snapshotSize += takeSnapshot.size;
-            snapshots.add(sp);
-        }
+        DiskOfferingInventory doinv = deployer.diskOfferings.get("DataOffering");
+        VolumeInventory data = api.createDataVolume("data", doinv.getUuid());
+        data = api.attachVolumeToVm(vm.getUuid(), data.getUuid());
 
-        // image cache + volume + snapshot
-        long used = addImage.actualSize + root.getSize() + snapshotSize;
+        long rootSpSize = SizeUnit.GIGABYTE.toByte(2);
+        kconfig.takeSnapshotCmdSize.put(root.getUuid(), rootSpSize);
+        long dataSpSize = SizeUnit.GIGABYTE.toByte(3);
+        kconfig.takeSnapshotCmdSize.put(data.getUuid(), dataSpSize);
+        VolumeSnapshotInventory spRoot = api.createSnapshot(root.getUuid());
+        VolumeSnapshotInventory spData = api.createSnapshot(data.getUuid());
 
         PrimaryStorageInventory nfs = deployer.primaryStorages.get("nfs");
         PrimaryStorageCapacityVO pscap = dbf.findByUuid(nfs.getUuid(), PrimaryStorageCapacityVO.class);
 
-        long avail = pscap.getTotalCapacity() - used;
-        Assert.assertEquals(avail, pscap.getAvailableCapacity());
+        api.destroyVmInstance(vm.getUuid());
 
-        BackupStorageInventory sftp = deployer.backupStorages.get("sftp");
-        BackupStorageVO bs1 = dbf.findByUuid(sftp.getUuid(), BackupStorageVO.class);
-
-        VolumeSnapshotInventory sp1 = snapshots.get(0);
-
-        // create a template from the snapshot
-        long templateActualSize = SizeUnit.GIGABYTE.toByte(2);
-        nconfig.mergeSnapshotCmdActualSize.put(sp1.getVolumeUuid(), templateActualSize);
-        long templateSize = SizeUnit.GIGABYTE.toByte(5);
-        nconfig.mergeSnapshotCmdSize.put(sp1.getVolumeUuid(), templateSize);
-        ImageInventory template = api.createTemplateFromSnapshot(sp1.getUuid());
-        Assert.assertEquals(templateSize, template.getSize());
-        Assert.assertEquals(templateActualSize, template.getActualSize().longValue());
-
-        BackupStorageVO bs2 = dbf.findByUuid(sftp.getUuid(), BackupStorageVO.class);
-        Assert.assertEquals(bs1.getAvailableCapacity() - bs2.getAvailableCapacity(), templateActualSize);
-
-        long volumeSize = SizeUnit.GIGABYTE.toByte(2);
-        nconfig.mergeSnapshotCmdSize.put(sp1.getVolumeUuid(), volumeSize);
-        long volumeActualSize = SizeUnit.GIGABYTE.toByte(1);
-        nconfig.mergeSnapshotCmdActualSize.put(sp1.getVolumeUuid(), volumeActualSize);
-        // primary storage capacity not changed
+        // delay delete, primary storage capacity not changed
         PrimaryStorageCapacityVO pscap1 = dbf.findByUuid(nfs.getUuid(), PrimaryStorageCapacityVO.class);
         Assert.assertEquals(pscap.getAvailableCapacity(), pscap1.getAvailableCapacity());
 
-        // create a data volume from the snapshot
-        api.createDataVolumeFromSnapshot(sp1.getUuid());
+        api.deleteDataVolume(data.getUuid());
+
+        // delay delete, primary storage capacity not changed
         PrimaryStorageCapacityVO pscap2 = dbf.findByUuid(nfs.getUuid(), PrimaryStorageCapacityVO.class);
-        Assert.assertEquals(avail - volumeSize, pscap2.getAvailableCapacity());
+        Assert.assertEquals(pscap.getAvailableCapacity(), pscap2.getAvailableCapacity());
+
+        api.expungeVm(vm.getUuid(), null);
+        TimeUnit.SECONDS.sleep(2);
+
+        PrimaryStorageCapacityVO pscap3 = dbf.findByUuid(nfs.getUuid(), PrimaryStorageCapacityVO.class);
+        // image cache + data volume + data volume snapshot
+        long used = addImage.actualSize + data.getSize() + spData.getSize();
+        long avail = pscap3.getTotalCapacity() - used;
+        Assert.assertEquals(avail, pscap3.getAvailableCapacity());
+
+        api.expungeDataVolume(data.getUuid(), null);
+        TimeUnit.SECONDS.sleep(2);
+
+        PrimaryStorageCapacityVO pscap4 = dbf.findByUuid(nfs.getUuid(), PrimaryStorageCapacityVO.class);
+        // image cache
+        used = addImage.actualSize;
+        avail = pscap4.getTotalCapacity() - used;
+        Assert.assertEquals(avail, pscap4.getAvailableCapacity());
 	}
 }

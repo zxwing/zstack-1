@@ -1353,9 +1353,12 @@ public class KvmBackend extends HypervisorBackend {
 
         new Do().go(MERGE_SNAPSHOT_PATH, cmd, MergeSnapshotRsp.class, new ReturnValueCompletion<AgentRsp>(completion) {
             @Override
-            public void success(AgentRsp returnValue) {
+            public void success(AgentRsp rsp) {
                 CreateTemporaryVolumeFromSnapshotReply reply = new CreateTemporaryVolumeFromSnapshotReply();
                 reply.setInstallPath(installPath);
+                MergeSnapshotRsp mrsp = (MergeSnapshotRsp) rsp;
+                reply.setSize(mrsp.size);
+                reply.setActualSize(mrsp.actualSize);
                 completion.success(reply);
             }
 

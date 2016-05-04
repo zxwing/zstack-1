@@ -481,6 +481,6 @@ public class VolumeSnapshotManagerImpl extends AbstractService implements Volume
             msgs.add(msg);
         }
 
-        bus.send(msgs);
+        bus.call(msgs);
     }
 }

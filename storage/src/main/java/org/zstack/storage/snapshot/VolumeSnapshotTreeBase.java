@@ -27,6 +27,7 @@ import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.errorcode.SysErrors;
+import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.image.ImageVO;
 import org.zstack.header.message.APIDeleteMessage;
@@ -644,6 +645,10 @@ public class VolumeSnapshotTreeBase {
         String psType = q.findValue();
 
         CreateTemplateFromVolumeSnapshotExtensionPoint ext = pluginRgty.getExtensionFromMap(psType, CreateTemplateFromVolumeSnapshotExtensionPoint.class);
+        if (ext == null) {
+            throw new CloudRuntimeException(String.format("the primary storage[type:%s] doesn't implement CreateTemplateFromVolumeSnapshotExtensionPoint", psType));
+        }
+
         ParamIn paramIn = new ParamIn();
         paramIn.setPrimaryStorageUuid(currentRoot.getPrimaryStorageUuid());
         paramIn.setSnapshot(currentLeaf.getInventory());

@@ -83,7 +83,7 @@ public class SMPPrimaryStorageFactory implements PrimaryStorageFactory, CreateTe
             String __name__ = "create-temporary-template";
 
             @Override
-            public void run(final FlowTrigger trigger, Map data) {
+            public void run(final FlowTrigger trigger, final Map data) {
                 CreateTemporaryVolumeFromSnapshotMsg msg = new CreateTemporaryVolumeFromSnapshotMsg();
                 msg.setHypervisorType(hvType.toString());
                 msg.setPrimaryStorageUuid(paramIn.getPrimaryStorageUuid());
@@ -96,8 +96,11 @@ public class SMPPrimaryStorageFactory implements PrimaryStorageFactory, CreateTe
                         if (!reply.isSuccess()) {
                             trigger.fail(reply.getError());
                         } else {
+                            ParamOut paramOut = (ParamOut) data.get(ParamOut.class);
                             CreateTemporaryVolumeFromSnapshotReply ar = reply.castReply();
                             ctx.temporaryInstallPath = ar.getInstallPath();
+                            paramOut.setSize(ar.getSize());
+                            paramOut.setActualSize(ar.getActualSize());
                             trigger.next();
                         }
                     }
@@ -157,6 +160,7 @@ public class SMPPrimaryStorageFactory implements PrimaryStorageFactory, CreateTe
 
                     UploadBitsToBackupStorageMsg msg = new UploadBitsToBackupStorageMsg();
                     msg.setPrimaryStorageUuid(paramIn.getPrimaryStorageUuid());
+                    msg.setHypervisorType(hvType.toString());
                     msg.setPrimaryStorageInstallPath(paramIn.getSnapshot().getPrimaryStorageInstallPath());
                     msg.setBackupStorageUuid(bsUuid);
                     msg.setBackupStorageInstallPath(bsInstallPath);

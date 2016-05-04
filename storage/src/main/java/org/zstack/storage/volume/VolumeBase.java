@@ -191,7 +191,6 @@ public class VolumeBase implements Volume {
                         bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, self.getPrimaryStorageUuid());
                         bus.send(msg);
 
-                        dbf.remove(self);
 
                         CollectionUtils.safeForEach(pluginRgty.getExtensionList(VolumeAfterExpungeExtensionPoint.class), new ForEachFunction<VolumeAfterExpungeExtensionPoint>() {
                             @Override
@@ -200,13 +199,12 @@ public class VolumeBase implements Volume {
                             }
                         });
 
+                        dbf.remove(self);
                         completion.success();
                     }
                 }
             });
         } else {
-            dbf.remove(self);
-
             CollectionUtils.safeForEach(pluginRgty.getExtensionList(VolumeAfterExpungeExtensionPoint.class), new ForEachFunction<VolumeAfterExpungeExtensionPoint>() {
                 @Override
                 public void run(VolumeAfterExpungeExtensionPoint arg) {
@@ -214,6 +212,7 @@ public class VolumeBase implements Volume {
                 }
             });
 
+            dbf.remove(self);
             completion.success();
         }
     }
