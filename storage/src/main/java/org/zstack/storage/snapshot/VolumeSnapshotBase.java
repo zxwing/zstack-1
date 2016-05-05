@@ -259,25 +259,20 @@ public class VolumeSnapshotBase implements VolumeSnapshot {
                     }
                 });
 
-                if (VolumeSnapshotConstant.HYPERVISOR_SNAPSHOT_TYPE.toString().equals(self.getType())) {
-                    // only hypervisor based snapshots have accurate size.
-                    // for storage based snapshots, as we didn't count their size after taking, we don't
-                    // return the size here.
-                    flow(new NoRollbackFlow() {
-                        String __name__ = "return-capacity-to-primary-storage";
+                flow(new NoRollbackFlow() {
+                    String __name__ = "return-capacity-to-primary-storage";
 
-                        @Override
-                        public void run(FlowTrigger trigger, Map data) {
-                            ReturnPrimaryStorageCapacityMsg rmsg = new ReturnPrimaryStorageCapacityMsg();
-                            rmsg.setDiskSize(self.getSize());
-                            rmsg.setNoOverProvisioning(true);
-                            rmsg.setPrimaryStorageUuid(self.getPrimaryStorageUuid());
-                            bus.makeTargetServiceIdByResourceUuid(rmsg, PrimaryStorageConstant.SERVICE_ID, rmsg.getPrimaryStorageUuid());
-                            bus.send(rmsg);
-                            trigger.next();
-                        }
-                    });
-                }
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        ReturnPrimaryStorageCapacityMsg rmsg = new ReturnPrimaryStorageCapacityMsg();
+                        rmsg.setDiskSize(self.getSize());
+                        rmsg.setNoOverProvisioning(true);
+                        rmsg.setPrimaryStorageUuid(self.getPrimaryStorageUuid());
+                        bus.makeTargetServiceIdByResourceUuid(rmsg, PrimaryStorageConstant.SERVICE_ID, rmsg.getPrimaryStorageUuid());
+                        bus.send(rmsg);
+                        trigger.next();
+                    }
+                });
 
                 done(new FlowDoneHandler(msg) {
                     @Override

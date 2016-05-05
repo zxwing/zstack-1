@@ -139,12 +139,26 @@ public class CephPrimaryStorageFactory implements PrimaryStorageFactory, CephCap
     }
 
     @Override
-    public void update(String fsid, long total, long avail) {
+    public void update(String fsid, final long total, final long avail) {
         String sql = "select cap from PrimaryStorageCapacityVO cap, CephPrimaryStorageVO pri where pri.uuid = cap.uuid and pri.fsid = :fsid";
         TypedQuery<PrimaryStorageCapacityVO> q = dbf.getEntityManager().createQuery(sql, PrimaryStorageCapacityVO.class);
         q.setParameter("fsid", fsid);
         PrimaryStorageCapacityUpdater updater = new PrimaryStorageCapacityUpdater(q);
-        updater.update(total, avail, total, avail);
+        updater.run(new PrimaryStorageCapacityUpdaterRunnable() {
+            @Override
+            public PrimaryStorageCapacityVO call(PrimaryStorageCapacityVO cap) {
+                if (cap.getTotalCapacity() == 0 && cap.getAvailableCapacity() == 0) {
+                    // init
+                    cap.setTotalCapacity(total);
+                    cap.setAvailableCapacity(avail);
+                }
+
+                cap.setTotalPhysicalCapacity(total);
+                cap.setAvailablePhysicalCapacity(avail);
+
+                return cap;
+            }
+        });
     }
 
     private IsoTO convertIsoToCephIfNeeded(final IsoTO to) {

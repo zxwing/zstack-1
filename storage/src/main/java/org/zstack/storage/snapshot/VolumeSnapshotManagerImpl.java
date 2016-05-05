@@ -449,13 +449,13 @@ public class VolumeSnapshotManagerImpl extends AbstractService implements Volume
         cq.select(VolumeSnapshotTreeVO_.uuid);
         cq.add(VolumeSnapshotTreeVO_.volumeUuid, Op.EQ, volume.getUuid());
         List<String> cuuids = cq.listValue();
+
         for (String cuuid : cuuids) {
             // deleting full snapshot of chain will cause whole chain to be deleted
             SimpleQuery<VolumeSnapshotVO> q = dbf.createQuery(VolumeSnapshotVO.class);
             q.select(VolumeSnapshotVO_.uuid);
             q.add(VolumeSnapshotVO_.treeUuid, Op.EQ, cuuid);
             q.add(VolumeSnapshotVO_.parentUuid, Op.NULL);
-            q.add(VolumeSnapshotVO_.type, Op.EQ, VolumeSnapshotConstant.HYPERVISOR_SNAPSHOT_TYPE.toString());
             String suuid = q.findValue();
 
             if (suuid == null) {
@@ -481,6 +481,8 @@ public class VolumeSnapshotManagerImpl extends AbstractService implements Volume
             msgs.add(msg);
         }
 
-        bus.call(msgs);
+        if (!msgs.isEmpty()) {
+            bus.call(msgs);
+        }
     }
 }
