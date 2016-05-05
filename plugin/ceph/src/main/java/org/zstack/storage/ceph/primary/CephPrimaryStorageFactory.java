@@ -438,8 +438,6 @@ public class CephPrimaryStorageFactory implements PrimaryStorageFactory, CephCap
                         }
                     }
                 });
-
-                throw new CloudRuntimeException("get volume size here");
             }
         });
 

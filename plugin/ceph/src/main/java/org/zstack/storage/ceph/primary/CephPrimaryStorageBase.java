@@ -1919,6 +1919,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
         final String volPath = makeDataVolumeInstallPath(msg.getVolumeUuid());
         VolumeSnapshotInventory sp = msg.getSnapshot();
         CpCmd cmd = new CpCmd();
+        cmd.resourceUuid = msg.getSnapshot().getVolumeUuid();
         cmd.srcPath = sp.getPrimaryStorageInstallPath();
         cmd.dstPath = volPath;
         httpCall(CP_PATH, cmd, CpRsp.class, new ReturnValueCompletion<CpRsp>(msg) {

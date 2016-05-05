@@ -210,9 +210,9 @@ public class CephPrimaryStorageSimulator {
         CpCmd cmd = JSONObjectUtil.toObject(entity.getBody(), CpCmd.class);
         config.cpCmds.add(cmd);
 
-        Long size = config.bitsSize.get(cmd.resourceUuid);
+        Long size = config.cpCmdSize.get(cmd.resourceUuid);
         rsp.size = size == null ? 0 : size;
-        Long asize = config.bitsActualSize.get(cmd.resourceUuid);
+        Long asize = config.cpCmdActualSize.get(cmd.resourceUuid);
         rsp.actualSize = asize == null ? 0 : asize;
 
         reply(entity, rsp);

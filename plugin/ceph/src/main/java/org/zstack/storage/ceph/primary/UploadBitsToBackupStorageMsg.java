@@ -1,16 +1,18 @@
 package org.zstack.storage.ceph.primary;
 
 import org.zstack.header.message.NeedReplyMessage;
+import org.zstack.header.storage.primary.PrimaryStorageMessage;
 
 /**
  * Created by xing5 on 2016/4/29.
  */
-public class UploadBitsToBackupStorageMsg extends NeedReplyMessage {
+public class UploadBitsToBackupStorageMsg extends NeedReplyMessage implements PrimaryStorageMessage {
     private String primaryStorageUuid;
     private String primaryStorageInstallPath;
     private String backupStorageUuid;
     private String backupStorageInstallPath;
 
+    @Override
     public String getPrimaryStorageUuid() {
         return primaryStorageUuid;
     }
