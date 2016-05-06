@@ -68,7 +68,7 @@ public class SftpBackupStorageTestHelper {
         long size = SizeUnit.GIGABYTE.toByte(8);
         config.imageSizes.put(iinv.getUuid(), size);
         long asize = SizeUnit.GIGABYTE.toByte(4);
-        config.imageActualSizes.put(iinv.getUuid(), size);
+        config.imageActualSizes.put(iinv.getUuid(), asize);
 
         iinv = api.addImage(iinv, sinv.getUuid());
         Assert.assertEquals(size, iinv.getSize());

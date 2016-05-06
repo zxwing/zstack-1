@@ -16,6 +16,7 @@ import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
+import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.rest.JsonAsyncRESTCallback;
@@ -402,6 +403,11 @@ public class CephBackupStorageBase extends BackupStorageBase {
         BackupStorageAskInstallPathReply reply = new BackupStorageAskInstallPathReply();
         reply.setInstallPath(makeImageInstallPath(msg.getImageUuid()));
         bus.reply(msg, reply);
+    }
+
+    @Override
+    protected void handle(SyncImageActualSizeOnBackupStorageMsg msg) {
+        throw new CloudRuntimeException("not supported yet");
     }
 
     @Override

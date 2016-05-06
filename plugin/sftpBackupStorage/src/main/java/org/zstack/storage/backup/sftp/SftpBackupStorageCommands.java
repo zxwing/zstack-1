@@ -172,4 +172,13 @@ public class SftpBackupStorageCommands {
             this.sshKey = sshKey;
         }
     }
+
+    public static class GetImageActualSizeCmd extends AgentCommand {
+        public String imageUuid;
+        public String installPath;
+    }
+
+    public static class GetImageActualSizeRsp extends AgentResponse {
+        public long actualSize;
+    }
 }

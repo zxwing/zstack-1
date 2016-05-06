@@ -92,13 +92,23 @@ public class SftpBackupStorageSimulator {
     @RequestMapping(value=SftpBackupStorageConstant.DOWNLOAD_IMAGE_PATH, method=RequestMethod.POST)
     public @ResponseBody String download(HttpServletRequest req) throws InterruptedException {
         HttpEntity<String> entity = restf.httpServletRequestToHttpEntity(req);
-        String ret = null;
         if (!config.downloadSuccess1) {
             throw new CloudRuntimeException("Fail download on purpose");
         } else {
             doDownload(entity);
         }
-        return ret;
+        return null;
+    }
+
+    @RequestMapping(value=SftpBackupStorageConstant.GET_IMAGE_ACTUAL_SIZE, method=RequestMethod.POST)
+    public @ResponseBody String getImageActualSize(HttpServletRequest req) throws InterruptedException {
+        HttpEntity<String> entity = restf.httpServletRequestToHttpEntity(req);
+        GetImageActualSizeCmd cmd = JSONObjectUtil.toObject(entity.getBody(), GetImageActualSizeCmd.class);
+        GetImageActualSizeRsp rsp = new GetImageActualSizeRsp();
+        Long asize = config.getImageActualSizeCmdSize.get(cmd.imageUuid);
+        rsp.actualSize = asize == null ? 0 : asize;
+        reply(entity, rsp);
+        return null;
     }
     
     @AsyncThread

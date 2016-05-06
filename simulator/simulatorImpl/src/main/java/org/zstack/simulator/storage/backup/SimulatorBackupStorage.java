@@ -2,6 +2,7 @@ package org.zstack.simulator.storage.backup;
 
 import org.zstack.core.Platform;
 import org.zstack.header.core.Completion;
+import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.storage.backup.*;
 import org.zstack.storage.backup.BackupStorageBase;
@@ -78,6 +79,11 @@ public class SimulatorBackupStorage extends BackupStorageBase {
         BackupStorageAskInstallPathReply reply = new BackupStorageAskInstallPathReply();
         reply.setInstallPath(String.format("/%s/%s/%s.img", msg.getImageMediaType(), msg.getImageUuid(), msg.getImageUuid()));
         bus.reply(msg, reply);
+    }
+
+    @Override
+    protected void handle(SyncImageActualSizeOnBackupStorageMsg msg) {
+        throw new CloudRuntimeException("not supported yet");
     }
 
     @Override

@@ -739,6 +739,16 @@ public class Api implements CloudBusEventListener {
         deleteImage(uuid, null, null);
     }
 
+    public ImageInventory getImageActualSize(String imageUuid, SessionInventory session) throws ApiSenderException {
+        APISyncImageActualSizeMsg msg = new APISyncImageActualSizeMsg();
+        msg.setUuid(imageUuid);
+        msg.setSession(session == null ? adminSession : session);
+        ApiSender sender = new ApiSender();
+        sender.setTimeout(timeout);
+        APISyncImageActualSizeEvent evt = sender.send(msg, APISyncImageActualSizeEvent.class);
+        return evt.getInventory();
+    }
+
     public List<ImageInventory> listImage(List<String> uuids) throws ApiSenderException {
         return listImage(0, -1, uuids);
     }

@@ -8,6 +8,7 @@ import org.zstack.core.cascade.CascadeConstant;
 import org.zstack.core.cascade.CascadeFacade;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.CloudBusCallBack;
+import org.zstack.core.cloudbus.EventFacade;
 import org.zstack.core.config.GlobalConfigFacade;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.TransactionalCallback;
@@ -31,6 +32,7 @@ import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
 import org.zstack.header.storage.backup.*;
+import org.zstack.header.storage.backup.BackupStorageCanonicalEvents.BackupStorageStatusChangedData;
 import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
 
@@ -65,6 +67,8 @@ public abstract class BackupStorageBase extends AbstractBackupStorage {
     protected ThreadFacade thdf;
     @Autowired
     protected BackupStoragePingTracker tracker;
+    @Autowired
+    protected EventFacade evtf;
 
 	abstract protected void handle(DownloadImageMsg msg);
 
@@ -75,6 +79,8 @@ public abstract class BackupStorageBase extends AbstractBackupStorage {
     abstract protected void handle(PingBackupStorageMsg msg);
 
     abstract protected void handle(BackupStorageAskInstallPathMsg msg);
+
+    abstract protected void handle(SyncImageActualSizeOnBackupStorageMsg msg);
 
     abstract protected void connectHook(boolean newAdd, Completion completion);
 
@@ -159,6 +165,8 @@ public abstract class BackupStorageBase extends AbstractBackupStorage {
             handle((PingBackupStorageMsg) msg);
         } else if (msg instanceof BackupStorageAskInstallPathMsg) {
             handle((BackupStorageAskInstallPathMsg) msg);
+        } else if (msg instanceof SyncImageActualSizeOnBackupStorageMsg) {
+            handle((SyncImageActualSizeOnBackupStorageMsg) msg);
 	    } else {
 	        bus.dealWithUnknownMessage(msg);
 	    }
@@ -569,8 +577,22 @@ public abstract class BackupStorageBase extends AbstractBackupStorage {
 	}
 	
     protected void changeStatus(BackupStorageStatus status) {
+        if (status == self.getStatus()) {
+            return;
+        }
+
+        BackupStorageStatus oldStatus = self.getStatus();
+
         self.setStatus(status);
         dbf.update(self);
+
+        BackupStorageStatusChangedData d = new BackupStorageStatusChangedData();
+        d.setBackupStorageUuid(self.getUuid());
+        d.setNewStatus(status.toString());
+        d.setOldStatus(oldStatus.toString());
+        d.setInventory(BackupStorageInventory.valueOf(self));
+        evtf.fire(BackupStorageCanonicalEvents.BACKUP_STORAGE_STATUS_CHANGED, d);
+
         logger.debug(String.format("change backup storage[uuid:%s] status to %s", self.getUuid(), status));
     }
 }

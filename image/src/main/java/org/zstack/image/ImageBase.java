@@ -9,14 +9,17 @@ import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.CloudBusListCallBack;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.core.db.SimpleQuery;
+import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.errorcode.ErrorFacade;
+import org.zstack.core.workflow.FlowChainBuilder;
+import org.zstack.header.core.Completion;
 import org.zstack.header.core.NopeCompletion;
+import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.core.workflow.*;
+import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.errorcode.SysErrors;
-import org.zstack.core.workflow.*;
-import org.zstack.header.core.Completion;
-import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.image.*;
 import org.zstack.header.image.ImageConstant.ImageMediaType;
 import org.zstack.header.image.ImageDeletionPolicyManager.ImageDeletionPolicy;
@@ -24,9 +27,8 @@ import org.zstack.header.message.APIDeleteMessage;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
-import org.zstack.header.storage.backup.BackupStorageConstant;
-import org.zstack.header.storage.backup.DeleteBitsOnBackupStorageMsg;
-import org.zstack.header.storage.backup.ReturnBackupStorageMsg;
+import org.zstack.header.storage.backup.*;
+import org.zstack.header.volume.SyncVolumeActualSizeReply;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
@@ -88,10 +90,73 @@ public class ImageBase implements Image {
             handle((ImageDeletionMsg) msg);
         } else if (msg instanceof ExpungeImageMsg) {
             handle((ExpungeImageMsg) msg);
+        } else if (msg instanceof SyncImageActualSizeMsg) {
+            handle((SyncImageActualSizeMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
     }
+
+    private void handle(final SyncImageActualSizeMsg msg) {
+        final SyncImageActualSizeReply reply = new SyncImageActualSizeReply();
+
+        syncImageActualSize(msg.getBackupStorageUuid(), new ReturnValueCompletion<Long>(msg) {
+            @Override
+            public void success(Long returnValue) {
+                reply.setActualSize(returnValue);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
+    }
+
+    private void syncImageActualSize(String backupStorageUuid, final ReturnValueCompletion<Long> completion) {
+        if (backupStorageUuid == null) {
+            List<String> bsUuids = CollectionUtils.transformToList(self.getBackupStorageRefs(), new Function<String, ImageBackupStorageRefVO>() {
+                @Override
+                public String call(ImageBackupStorageRefVO arg) {
+                    return arg.getBackupStorageUuid();
+                }
+            });
+
+            if (bsUuids.isEmpty()) {
+                throw new OperationFailureException(errf.stringToOperationError(
+                        String.format("the image[uuid:%s, name:%s] is not on any backup storage", self.getUuid(), self.getName())
+                ));
+            }
+
+            SimpleQuery<BackupStorageVO> q = dbf.createQuery(BackupStorageVO.class);
+            q.select(BackupStorageVO_.uuid);
+            q.add(BackupStorageVO_.uuid, Op.IN, bsUuids);
+            q.add(BackupStorageVO_.status, Op.EQ, BackupStorageStatus.Connected);
+            q.setLimit(1);
+            backupStorageUuid = q.findValue();
+        }
+
+        SyncImageActualSizeOnBackupStorageMsg smsg = new SyncImageActualSizeOnBackupStorageMsg();
+        smsg.setBackupStorageUuid(backupStorageUuid);
+        smsg.setImage(ImageInventory.valueOf(self));
+        bus.makeTargetServiceIdByResourceUuid(smsg, BackupStorageConstant.SERVICE_ID, backupStorageUuid);
+        bus.send(smsg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (!reply.isSuccess()) {
+                    completion.fail(reply.getError());
+                } else {
+                    SyncVolumeActualSizeReply sr = reply.castReply();
+                    self.setActualSize(sr.getActualSize());
+                    dbf.update(self);
+                    completion.success(sr.getActualSize());
+                }
+            }
+        });
+    }
+
 
     private void handle(final ExpungeImageMsg msg) {
         final ExpungeImageReply reply = new ExpungeImageReply();
@@ -264,9 +329,29 @@ public class ImageBase implements Image {
             handle((APIUpdateImageMsg) msg);
         } else if (msg instanceof APIRecoverImageMsg) {
             handle((APIRecoverImageMsg) msg);
+        } else if (msg instanceof APISyncImageActualSizeMsg) {
+            handle((APISyncImageActualSizeMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
+    }
+
+    private void handle(APISyncImageActualSizeMsg msg) {
+        final APISyncImageActualSizeEvent evt = new APISyncImageActualSizeEvent(msg.getId());
+        syncImageActualSize(null, new ReturnValueCompletion<Long>(msg) {
+            @Override
+            public void success(Long returnValue) {
+                self = dbf.reload(self);
+                evt.setInventory(getSelfInventory());
+                bus.publish(evt);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                evt.setErrorCode(errorCode);
+                bus.publish(evt);
+            }
+        });
     }
 
     private void handle(APIRecoverImageMsg msg) {
