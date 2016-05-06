@@ -213,6 +213,8 @@ public abstract class BackupStorageBase extends AbstractBackupStorage {
             @Override
             public void run(final SyncTaskChain chain) {
                 final ConnectBackupStorageReply reply = new ConnectBackupStorageReply();
+                changeStatus(BackupStorageStatus.Connecting);
+
                 connectHook(msg.isNewAdd(), new Completion(msg, chain) {
                     @Override
                     public void success() {
@@ -269,10 +271,9 @@ public abstract class BackupStorageBase extends AbstractBackupStorage {
                     return null;
                 }
 
+                changeStatus(status);
                 logger.debug(String.format("backup storage[uuid:%s, name:%s] change status from %s to %s",
                         self.getUuid(), self.getName(), self.getStatus(), status));
-                self.setStatus(status);
-                dbf.update(self);
                 completion.done();
                 return null;
             }
