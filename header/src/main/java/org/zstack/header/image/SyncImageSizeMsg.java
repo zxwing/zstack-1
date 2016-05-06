@@ -5,7 +5,7 @@ import org.zstack.header.message.NeedReplyMessage;
 /**
  * Created by xing5 on 2016/5/6.
  */
-public class SyncImageActualSizeMsg extends NeedReplyMessage implements ImageMessage {
+public class SyncImageSizeMsg extends NeedReplyMessage implements ImageMessage {
     private String imageUuid;
     private String backupStorageUuid;
 

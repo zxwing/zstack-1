@@ -1,7 +1,7 @@
 package org.zstack.simulator.storage.backup.sftp;
 
 import org.zstack.storage.backup.sftp.SftpBackupStorageCommands;
-import org.zstack.storage.backup.sftp.SftpBackupStorageCommands.GetImageActualSizeCmd;
+import org.zstack.storage.backup.sftp.SftpBackupStorageCommands.GetImageSizeCmd;
 import org.zstack.utils.data.SizeUnit;
 
 import java.util.ArrayList;
@@ -26,6 +26,7 @@ public class SftpBackupStorageSimulatorConfig {
     public volatile boolean getSshkeySuccess = true;
     public volatile boolean getSshkeyException = false;
     public volatile List<SftpBackupStorageCommands.DeleteCmd> deleteCmds = new ArrayList<SftpBackupStorageCommands.DeleteCmd>();
-    public List<GetImageActualSizeCmd> getImageActualSizeCmds = new ArrayList<GetImageActualSizeCmd>();
-    public Map<String, Long> getImageActualSizeCmdSize = new HashMap<String, Long>();
+    public List<GetImageSizeCmd> getImageSizeCmds = new ArrayList<GetImageSizeCmd>();
+    public Map<String, Long> getImageSizeCmdActualSize = new HashMap<String, Long>();
+    public Map<String, Long> getImageSizeCmdSize = new HashMap<String, Long>();
 }

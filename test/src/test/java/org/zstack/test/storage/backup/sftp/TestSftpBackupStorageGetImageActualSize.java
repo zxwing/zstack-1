@@ -55,11 +55,15 @@ public class TestSftpBackupStorageGetImageActualSize {
         ImageInventory iinv = helper.addImage(api, sinv);
 
         long asize = SizeUnit.GIGABYTE.toByte(10);
-        config.getImageActualSizeCmdSize.put(iinv.getUuid(), asize);
+        config.getImageSizeCmdActualSize.put(iinv.getUuid(), asize);
+        long size = SizeUnit.GIGABYTE.toByte(100);
+        config.getImageSizeCmdSize.put(iinv.getUuid(), size);
         iinv = api.getImageActualSize(iinv.getUuid(), null);
         Assert.assertEquals(asize, iinv.getActualSize().longValue());
+        Assert.assertEquals(size, iinv.getSize());
 
         ImageVO imvo = dbf.findByUuid(iinv.getUuid(), ImageVO.class);
         Assert.assertEquals(asize, imvo.getActualSize());
+        Assert.assertEquals(size, imvo.getSize());
     }
 }

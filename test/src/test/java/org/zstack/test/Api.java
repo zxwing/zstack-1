@@ -740,12 +740,12 @@ public class Api implements CloudBusEventListener {
     }
 
     public ImageInventory getImageActualSize(String imageUuid, SessionInventory session) throws ApiSenderException {
-        APISyncImageActualSizeMsg msg = new APISyncImageActualSizeMsg();
+        APISyncImageSizeMsg msg = new APISyncImageSizeMsg();
         msg.setUuid(imageUuid);
         msg.setSession(session == null ? adminSession : session);
         ApiSender sender = new ApiSender();
         sender.setTimeout(timeout);
-        APISyncImageActualSizeEvent evt = sender.send(msg, APISyncImageActualSizeEvent.class);
+        APISyncImageSizeEvent evt = sender.send(msg, APISyncImageSizeEvent.class);
         return evt.getInventory();
     }
 

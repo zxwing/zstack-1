@@ -22,7 +22,6 @@ import org.zstack.header.message.Message;
 import org.zstack.header.rest.JsonAsyncRESTCallback;
 import org.zstack.header.rest.RESTFacade;
 import org.zstack.header.storage.backup.*;
-import org.zstack.header.volume.SyncVolumeActualSizeReply;
 import org.zstack.storage.backup.BackupStorageBase;
 import org.zstack.storage.backup.BackupStoragePathMaker;
 import org.zstack.storage.backup.sftp.SftpBackupStorageCommands.*;
@@ -348,11 +347,11 @@ public class SftpBackupStorage extends BackupStorageBase {
     }
 
     @Override
-    protected void handle(final SyncImageActualSizeOnBackupStorageMsg msg) {
-        final SyncVolumeActualSizeReply reply = new SyncVolumeActualSizeReply();
+    protected void handle(final SyncImageSizeOnBackupStorageMsg msg) {
+        final SyncImageSizeOnBackupStorageReply reply = new SyncImageSizeOnBackupStorageReply();
 
         ImageInventory image = msg.getImage();
-        GetImageActualSizeCmd cmd = new GetImageActualSizeCmd();
+        GetImageSizeCmd cmd = new GetImageSizeCmd();
         cmd.imageUuid = image.getUuid();
 
         ImageBackupStorageRefInventory ref = CollectionUtils.find(image.getBackupStorageRefs(), new Function<ImageBackupStorageRefInventory, ImageBackupStorageRefInventory>() {
@@ -368,7 +367,7 @@ public class SftpBackupStorage extends BackupStorageBase {
         }
 
         cmd.installPath = ref.getInstallPath();
-        restf.asyncJsonPost(buildUrl(SftpBackupStorageConstant.GET_IMAGE_ACTUAL_SIZE), cmd, new JsonAsyncRESTCallback<GetImageActualSizeRsp>(msg) {
+        restf.asyncJsonPost(buildUrl(SftpBackupStorageConstant.GET_IMAGE_SIZE), cmd, new JsonAsyncRESTCallback<GetImageSizeRsp>(msg) {
             @Override
             public void fail(ErrorCode err) {
                 reply.setError(err);
@@ -376,19 +375,20 @@ public class SftpBackupStorage extends BackupStorageBase {
             }
 
             @Override
-            public void success(GetImageActualSizeRsp rsp) {
+            public void success(GetImageSizeRsp rsp) {
                 if (!rsp.isSuccess()) {
                     reply.setError(errf.stringToOperationError(rsp.getError()));
                 } else {
                     reply.setActualSize(rsp.actualSize);
+                    reply.setSize(rsp.size);
                 }
 
                 bus.reply(msg, reply);
             }
 
             @Override
-            public Class<GetImageActualSizeRsp> getReturnClass() {
-                return GetImageActualSizeRsp.class;
+            public Class<GetImageSizeRsp> getReturnClass() {
+                return GetImageSizeRsp.class;
             }
         });
     }

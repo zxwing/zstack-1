@@ -5,13 +5,13 @@ import org.zstack.header.message.APIEvent;
 /**
  * Created by xing5 on 2016/5/6.
  */
-public class APISyncImageActualSizeEvent extends APIEvent {
+public class APISyncImageSizeEvent extends APIEvent {
     private ImageInventory inventory;
 
-    public APISyncImageActualSizeEvent() {
+    public APISyncImageSizeEvent() {
     }
 
-    public APISyncImageActualSizeEvent(String apiId) {
+    public APISyncImageSizeEvent(String apiId) {
         super(apiId);
     }
 

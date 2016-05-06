@@ -28,7 +28,6 @@ import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
 import org.zstack.header.storage.backup.*;
-import org.zstack.header.volume.SyncVolumeActualSizeReply;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
@@ -90,20 +89,26 @@ public class ImageBase implements Image {
             handle((ImageDeletionMsg) msg);
         } else if (msg instanceof ExpungeImageMsg) {
             handle((ExpungeImageMsg) msg);
-        } else if (msg instanceof SyncImageActualSizeMsg) {
-            handle((SyncImageActualSizeMsg) msg);
+        } else if (msg instanceof SyncImageSizeMsg) {
+            handle((SyncImageSizeMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
     }
 
-    private void handle(final SyncImageActualSizeMsg msg) {
-        final SyncImageActualSizeReply reply = new SyncImageActualSizeReply();
+    class ImageSize {
+        long size;
+        long actualSize;
+    }
 
-        syncImageActualSize(msg.getBackupStorageUuid(), new ReturnValueCompletion<Long>(msg) {
+    private void handle(final SyncImageSizeMsg msg) {
+        final SyncImageSizeReply reply = new SyncImageSizeReply();
+
+        syncImageSize(msg.getBackupStorageUuid(), new ReturnValueCompletion<ImageSize>(msg) {
             @Override
-            public void success(Long returnValue) {
-                reply.setActualSize(returnValue);
+            public void success(ImageSize ret) {
+                reply.setActualSize(ret.actualSize);
+                reply.setSize(ret.size);
                 bus.reply(msg, reply);
             }
 
@@ -115,7 +120,7 @@ public class ImageBase implements Image {
         });
     }
 
-    private void syncImageActualSize(String backupStorageUuid, final ReturnValueCompletion<Long> completion) {
+    private void syncImageSize(String backupStorageUuid, final ReturnValueCompletion<ImageSize> completion) {
         if (backupStorageUuid == null) {
             List<String> bsUuids = CollectionUtils.transformToList(self.getBackupStorageRefs(), new Function<String, ImageBackupStorageRefVO>() {
                 @Override
@@ -138,7 +143,7 @@ public class ImageBase implements Image {
             backupStorageUuid = q.findValue();
         }
 
-        SyncImageActualSizeOnBackupStorageMsg smsg = new SyncImageActualSizeOnBackupStorageMsg();
+        SyncImageSizeOnBackupStorageMsg smsg = new SyncImageSizeOnBackupStorageMsg();
         smsg.setBackupStorageUuid(backupStorageUuid);
         smsg.setImage(ImageInventory.valueOf(self));
         bus.makeTargetServiceIdByResourceUuid(smsg, BackupStorageConstant.SERVICE_ID, backupStorageUuid);
@@ -148,10 +153,15 @@ public class ImageBase implements Image {
                 if (!reply.isSuccess()) {
                     completion.fail(reply.getError());
                 } else {
-                    SyncVolumeActualSizeReply sr = reply.castReply();
+                    SyncImageSizeOnBackupStorageReply sr = reply.castReply();
+                    self.setSize(sr.getSize());
                     self.setActualSize(sr.getActualSize());
                     dbf.update(self);
-                    completion.success(sr.getActualSize());
+
+                    ImageSize ret = new ImageSize();
+                    ret.actualSize = sr.getActualSize();
+                    ret.size = sr.getSize();
+                    completion.success(ret);
                 }
             }
         });
@@ -329,18 +339,18 @@ public class ImageBase implements Image {
             handle((APIUpdateImageMsg) msg);
         } else if (msg instanceof APIRecoverImageMsg) {
             handle((APIRecoverImageMsg) msg);
-        } else if (msg instanceof APISyncImageActualSizeMsg) {
-            handle((APISyncImageActualSizeMsg) msg);
+        } else if (msg instanceof APISyncImageSizeMsg) {
+            handle((APISyncImageSizeMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
     }
 
-    private void handle(APISyncImageActualSizeMsg msg) {
-        final APISyncImageActualSizeEvent evt = new APISyncImageActualSizeEvent(msg.getId());
-        syncImageActualSize(null, new ReturnValueCompletion<Long>(msg) {
+    private void handle(APISyncImageSizeMsg msg) {
+        final APISyncImageSizeEvent evt = new APISyncImageSizeEvent(msg.getId());
+        syncImageSize(null, new ReturnValueCompletion<ImageSize>(msg) {
             @Override
-            public void success(Long returnValue) {
+            public void success(ImageSize ret) {
                 self = dbf.reload(self);
                 evt.setInventory(getSelfInventory());
                 bus.publish(evt);

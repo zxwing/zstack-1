@@ -8,7 +8,7 @@ import org.zstack.header.message.APIParam;
  * Created by xing5 on 2016/5/6.
  */
 @Action(category = ImageConstant.ACTION_CATEGORY)
-public class APISyncImageActualSizeMsg extends APIMessage implements ImageMessage {
+public class APISyncImageSizeMsg extends APIMessage implements ImageMessage {
     @APIParam(resourceType = ImageVO.class, checkAccount = true, operationTarget = true)
     private String uuid;
 

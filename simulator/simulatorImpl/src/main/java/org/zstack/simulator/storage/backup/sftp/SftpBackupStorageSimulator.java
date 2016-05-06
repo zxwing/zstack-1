@@ -100,13 +100,15 @@ public class SftpBackupStorageSimulator {
         return null;
     }
 
-    @RequestMapping(value=SftpBackupStorageConstant.GET_IMAGE_ACTUAL_SIZE, method=RequestMethod.POST)
+    @RequestMapping(value=SftpBackupStorageConstant.GET_IMAGE_SIZE, method=RequestMethod.POST)
     public @ResponseBody String getImageActualSize(HttpServletRequest req) throws InterruptedException {
         HttpEntity<String> entity = restf.httpServletRequestToHttpEntity(req);
-        GetImageActualSizeCmd cmd = JSONObjectUtil.toObject(entity.getBody(), GetImageActualSizeCmd.class);
-        GetImageActualSizeRsp rsp = new GetImageActualSizeRsp();
-        Long asize = config.getImageActualSizeCmdSize.get(cmd.imageUuid);
+        GetImageSizeCmd cmd = JSONObjectUtil.toObject(entity.getBody(), GetImageSizeCmd.class);
+        GetImageSizeRsp rsp = new GetImageSizeRsp();
+        Long asize = config.getImageSizeCmdActualSize.get(cmd.imageUuid);
         rsp.actualSize = asize == null ? 0 : asize;
+        Long size = config.getImageSizeCmdSize.get(cmd.imageUuid);
+        rsp.size = size == null ? 0 : size;
         reply(entity, rsp);
         return null;
     }

@@ -57,6 +57,6 @@
     </message>
 
     <message>
-        <name>org.zstack.header.image.APISyncImageActualSizeMsg</name>
+        <name>org.zstack.header.image.APISyncImageSizeMsg</name>
     </message>
 </service>

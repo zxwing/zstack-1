@@ -11,7 +11,7 @@ import org.zstack.header.Component;
 import org.zstack.header.image.ImageConstant;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.image.ImageVO;
-import org.zstack.header.image.SyncImageActualSizeMsg;
+import org.zstack.header.image.SyncImageSizeMsg;
 import org.zstack.header.storage.backup.BackupStorageCanonicalEvents;
 import org.zstack.header.storage.backup.BackupStorageCanonicalEvents.BackupStorageStatusChangedData;
 import org.zstack.header.storage.backup.BackupStorageStatus;
@@ -72,10 +72,10 @@ public class ImageUpgradeExtension implements Component {
                     return;
                 }
 
-                List<SyncImageActualSizeMsg> msgs = CollectionUtils.transformToList(imgs, new Function<SyncImageActualSizeMsg, ImageInventory>() {
+                List<SyncImageSizeMsg> msgs = CollectionUtils.transformToList(imgs, new Function<SyncImageSizeMsg, ImageInventory>() {
                     @Override
-                    public SyncImageActualSizeMsg call(ImageInventory arg) {
-                        SyncImageActualSizeMsg msg = new SyncImageActualSizeMsg();
+                    public SyncImageSizeMsg call(ImageInventory arg) {
+                        SyncImageSizeMsg msg = new SyncImageSizeMsg();
                         msg.setBackupStorageUuid(d.getBackupStorageUuid());
                         msg.setImageUuid(arg.getUuid());
                         bus.makeTargetServiceIdByResourceUuid(msg, ImageConstant.SERVICE_ID, arg.getUuid());

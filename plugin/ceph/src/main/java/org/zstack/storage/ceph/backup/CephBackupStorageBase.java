@@ -406,7 +406,7 @@ public class CephBackupStorageBase extends BackupStorageBase {
     }
 
     @Override
-    protected void handle(SyncImageActualSizeOnBackupStorageMsg msg) {
+    protected void handle(SyncImageSizeOnBackupStorageMsg msg) {
         throw new CloudRuntimeException("not supported yet");
     }
 

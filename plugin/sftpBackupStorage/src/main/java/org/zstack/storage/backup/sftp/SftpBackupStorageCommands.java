@@ -173,12 +173,13 @@ public class SftpBackupStorageCommands {
         }
     }
 
-    public static class GetImageActualSizeCmd extends AgentCommand {
+    public static class GetImageSizeCmd extends AgentCommand {
         public String imageUuid;
         public String installPath;
     }
 
-    public static class GetImageActualSizeRsp extends AgentResponse {
+    public static class GetImageSizeRsp extends AgentResponse {
+        public long size;
         public long actualSize;
     }
 }
