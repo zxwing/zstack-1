@@ -38,10 +38,8 @@ import org.zstack.header.storage.snapshot.VolumeSnapshotConstant;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.vm.VmInstanceSpec.ImageSpec;
 import org.zstack.header.volume.*;
-import org.zstack.kvm.KVMAgentCommands;
-import org.zstack.kvm.KVMConstant;
-import org.zstack.kvm.KVMHostAsyncHttpCallMsg;
-import org.zstack.kvm.KVMHostAsyncHttpCallReply;
+import org.zstack.kvm.*;
+import org.zstack.kvm.KvmSetupSelfFencerExtensionPoint.KvmSetupSelfFencerParam;
 import org.zstack.storage.backup.sftp.GetSftpBackupStorageDownloadCredentialMsg;
 import org.zstack.storage.backup.sftp.GetSftpBackupStorageDownloadCredentialReply;
 import org.zstack.storage.backup.sftp.SftpBackupStorageConstant;
@@ -523,6 +521,16 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
     public static class DeletePoolRsp extends AgentResponse {
     }
 
+    public static class KvmSetupSelfFencerCmd extends AgentCommand {
+        public String heartbeatImagePath;
+        public String hostUuid;
+        public long interval;
+        public int maxAttempts;
+        public int storageCheckerTimeout;
+        public String userKey;
+        public List<String> monUrls;
+    }
+
     public static final String INIT_PATH = "/ceph/primarystorage/init";
     public static final String CREATE_VOLUME_PATH = "/ceph/primarystorage/volume/createempty";
     public static final String DELETE_PATH = "/ceph/primarystorage/delete";
@@ -539,6 +547,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
     public static final String KVM_CREATE_SECRET_PATH = "/vm/createcephsecret";
     public static final String DELETE_POOL_PATH = "/ceph/primarystorage/deletepool";
     public static final String GET_VOLUME_SIZE_PATH = "/ceph/primarystorage/getvolumesize";
+    public static final String KVM_HA_SETUP_SELF_FENCER = "/ha/ceph/setupselffencer";
 
     private final Map<String, BackupStorageMediator> backupStorageMediators = new HashMap<String, BackupStorageMediator>();
 
@@ -1994,9 +2003,50 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
             handle((CreateKvmSecretMsg) msg);
         } else if (msg instanceof UploadBitsToBackupStorageMsg) {
             handle((UploadBitsToBackupStorageMsg) msg);
+        } else if (msg instanceof SetupSelfFencerOnKvmHostMsg) {
+            handle((SetupSelfFencerOnKvmHostMsg) msg);
         } else {
             super.handleLocalMessage(msg);
         }
+    }
+
+    private void handle(final SetupSelfFencerOnKvmHostMsg msg) {
+        KvmSetupSelfFencerParam param = msg.getParam();
+        KvmSetupSelfFencerCmd cmd = new KvmSetupSelfFencerCmd();
+        cmd.uuid = self.getUuid();
+        cmd.fsId = getSelf().getFsid();
+        cmd.hostUuid = param.getHostUuid();
+        cmd.interval = param.getInterval();
+        cmd.maxAttempts = param.getMaxAttempts();
+        cmd.storageCheckerTimeout = param.getStorageCheckerTimeout();
+        cmd.userKey = getSelf().getUserKey();
+        cmd.heartbeatImagePath = String.format("%s/ceph-primary-storage-%s-heartbeat-file", getSelf().getRootVolumePoolName(), self.getUuid());
+        cmd.monUrls = CollectionUtils.transformToList(getSelf().getMons(), new Function<String, CephPrimaryStorageMonVO>() {
+            @Override
+            public String call(CephPrimaryStorageMonVO arg) {
+                return String.format("%s:%s", arg.getHostname(), arg.getMonPort());
+            }
+        });
+
+        final SetupSelfFencerOnKvmHostReply reply = new SetupSelfFencerOnKvmHostReply();
+        new KvmCommandSender(param.getHostUuid()).send(cmd, KVM_HA_SETUP_SELF_FENCER, new KvmCommandFailureChecker() {
+            @Override
+            public ErrorCode getError(KvmResponseWrapper wrapper) {
+                AgentResponse rsp = wrapper.getResponse(AgentResponse.class);
+                return rsp.isSuccess() ? null : errf.stringToOperationError(rsp.getError());
+            }
+        }, new ReturnValueCompletion<KvmResponseWrapper>(msg) {
+            @Override
+            public void success(KvmResponseWrapper wrapper) {
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
 
