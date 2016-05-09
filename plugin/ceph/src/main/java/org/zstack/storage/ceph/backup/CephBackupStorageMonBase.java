@@ -4,10 +4,13 @@ import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 import org.zstack.core.CoreGlobalProperty;
+import org.zstack.core.Platform;
 import org.zstack.core.ansible.AnsibleGlobalProperty;
 import org.zstack.core.ansible.AnsibleRunner;
 import org.zstack.core.ansible.SshFileMd5Checker;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.core.db.SimpleQuery;
+import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.thread.ChainTask;
 import org.zstack.core.thread.SyncTaskChain;
 import org.zstack.core.thread.ThreadFacade;
@@ -59,6 +62,7 @@ public class CephBackupStorageMonBase extends CephMonBase {
     }
 
     public static class PingCmd extends AgentCmd {
+        public String testImagePath;
     }
 
     public static class PingRsp extends AgentRsp {
@@ -270,7 +274,13 @@ public class CephBackupStorageMonBase extends CephMonBase {
     }
 
     public void doPing(final ReturnValueCompletion<PingResult> completion) {
+        SimpleQuery<CephBackupStorageVO> q = dbf.createQuery(CephBackupStorageVO.class);
+        q.select(CephBackupStorageVO_.poolName);
+        q.add(CephBackupStorageVO_.uuid, Op.EQ, getSelf().getUuid());
+        String poolName = q.findValue();
+
         PingCmd cmd = new PingCmd();
+        cmd.testImagePath = String.format("%s/%s-this-is-a-test-image-with-long-name", poolName, Platform.getUuid());
         cmd.monUuid = getSelf().getUuid();
         cmd.backupStorageUuid = getSelf().getBackupStorageUuid();
 
