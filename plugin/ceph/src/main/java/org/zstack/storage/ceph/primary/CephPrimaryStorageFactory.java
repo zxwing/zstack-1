@@ -81,6 +81,11 @@ public class CephPrimaryStorageFactory implements PrimaryStorageFactory, CephCap
 
     private Future imageCacheCleanupThread;
 
+    static {
+        type.setSupportHeartbeatFile(true);
+        type.setSupportPingStorageGateway(true);
+    }
+
     @Override
     public PrimaryStorageType getPrimaryStorageType() {
         return type;

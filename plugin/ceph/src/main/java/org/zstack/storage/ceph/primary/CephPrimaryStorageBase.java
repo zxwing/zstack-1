@@ -58,8 +58,6 @@ import org.zstack.utils.logging.CLogger;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import static org.zstack.utils.CollectionDSL.list;
 
@@ -76,7 +74,19 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
     @Autowired
     private ApiTimeoutManager timeoutMgr;
 
-    private static final Lock reconnectMonLock = new ReentrantLock();
+    class ReconnectMonLock {
+        AtomicBoolean hold = new AtomicBoolean(false);
+
+        boolean lock() {
+            return hold.compareAndSet(false, true);
+        }
+
+        void unlock() {
+            hold.set(false);
+        }
+    }
+
+    ReconnectMonLock reconnectMonLock = new ReconnectMonLock();
 
     public static class AgentCommand {
         String fsId;
@@ -1701,7 +1711,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
                 }
 
                 // there has been a reconnect in process
-                if (!reconnectMonLock.tryLock()) {
+                if (!reconnectMonLock.lock()) {
                     logger.debug(String.format("ignore this call, reconnect ceph primary storage mon[uuid:%s] is in process", self.getUuid()));
                     return;
                 }

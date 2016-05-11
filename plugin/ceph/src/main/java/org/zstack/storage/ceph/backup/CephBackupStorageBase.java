@@ -37,8 +37,6 @@ import javax.persistence.TypedQuery;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import static org.zstack.utils.CollectionDSL.list;
 
@@ -49,7 +47,19 @@ import static org.zstack.utils.CollectionDSL.list;
 public class CephBackupStorageBase extends BackupStorageBase {
     private static final CLogger logger = Utils.getLogger(CephBackupStorageBase.class);
 
-    private static final Lock reconnectMonLock = new ReentrantLock();
+    class ReconnectMonLock {
+        AtomicBoolean hold = new AtomicBoolean(false);
+
+        boolean lock() {
+            return hold.compareAndSet(false, true);
+        }
+
+        void unlock() {
+            hold.set(false);
+        }
+    }
+
+    ReconnectMonLock reconnectMonLock = new ReconnectMonLock();
 
     @Autowired
     protected RESTFacade restf;
@@ -584,7 +594,7 @@ public class CephBackupStorageBase extends BackupStorageBase {
                 }
 
                 // there has been a reconnect in process
-                if (!reconnectMonLock.tryLock()) {
+                if (!reconnectMonLock.lock()) {
                     return;
                 }
 
