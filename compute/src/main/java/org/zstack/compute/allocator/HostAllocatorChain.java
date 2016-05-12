@@ -48,6 +48,8 @@ public class HostAllocatorChain implements HostAllocatorTrigger, HostAllocatorSt
     private PluginRegistry pluginRgty;
     @Autowired
     private HostCapacityOverProvisioningManager ratioMgr;
+    @Autowired
+    private HostCpuOverProvisioningManager cpuMgr;
 
     public HostAllocatorSpec getAllocationSpec() {
         return allocationSpec;
@@ -78,7 +80,7 @@ public class HostAllocatorChain implements HostAllocatorTrigger, HostAllocatorSt
         updater.run(new HostCapacityUpdaterRunnable() {
             @Override
             public HostCapacityVO call(HostCapacityVO cap) {
-                long availCpu = cap.getAvailableCpu() - cpu;
+                long availCpu = cap.getAvailableCpu() - cpuMgr.calculateByRatio(hostUuid, (int) cpu);
                 if (availCpu < 0) {
                     throw new UnableToReserveHostCapacityException(String.format("no enough CPU[%s] on the host[uuid:%s]", cpu, hostUuid));
                 }

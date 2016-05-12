@@ -53,6 +53,8 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
     @Autowired
     private HostCapacityOverProvisioningManager ratioMgr;
     @Autowired
+    private HostCpuOverProvisioningManager cpuRatioMgr;
+    @Autowired
     private ErrorFacade errf;
 
 	@Override
@@ -97,7 +99,7 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
         class Struct {
             String hostUuid;
             Long usedMemory;
-            Long usedCpu;
+            Integer usedCpu;
         }
 
         List<Struct> ss = new Callable<List<Struct>>() {
@@ -120,7 +122,7 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
                     }
 
                     s.usedMemory = ratioMgr.calculateMemoryByRatio(s.hostUuid, t.get(0, Long.class));
-                    s.usedCpu = t.get(2, Long.class);
+                    s.usedCpu = cpuRatioMgr.calculateByRatio(s.hostUuid, t.get(2, Integer.class));
                     ret.add(s);
                 }
                 return ret;
@@ -391,7 +393,7 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
         new HostCapacityUpdater(hostUuid).run(new HostCapacityUpdaterRunnable() {
             @Override
             public HostCapacityVO call(HostCapacityVO cap) {
-                long availCpu = cap.getAvailableCpu() + cpu;
+                long availCpu = cap.getAvailableCpu() + cpuRatioMgr.calculateByRatio(hostUuid, (int) cpu);
                 availCpu = availCpu > cap.getTotalCpu() ? cap.getTotalCpu() : availCpu;
                 /*
                 if (availCpu > cap.getTotalCpu()) {
