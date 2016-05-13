@@ -340,7 +340,7 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
         long availMemory = ret.get(2, Long.class) == null ? 0 : ret.get(2, Long.class);
         long totalMemory = ret.get(3, Long.class) == null ? 0 : ret.get(3, Long.class);
 
-        ReservedHostCapacity rc = null;
+        ReservedHostCapacity rc;
         if (msg.getHostUuids() != null && !msg.getHostUuids().isEmpty()) {
             rc = reserveMgr.getReservedHostCapacityByHosts(msg.getHostUuids());
         } else if (msg.getClusterUuids() != null && !msg.getClusterUuids().isEmpty()) {
@@ -351,9 +351,7 @@ public class HostAllocatorManagerImpl extends AbstractService implements HostAll
             throw new CloudRuntimeException("should not be here");
         }
 
-        availCpu = availCpu - rc.getReservedCpuCapacity();
         availMemory = availMemory - rc.getReservedMemoryCapacity();
-        availCpu = availCpu > 0 ? availCpu : 0;
         availMemory = availMemory > 0 ? availMemory : 0;
 
         reply.setTotalCpu(totalCpu);
