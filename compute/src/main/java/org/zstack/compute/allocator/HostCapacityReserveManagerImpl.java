@@ -296,7 +296,7 @@ public class HostCapacityReserveManagerImpl implements HostCapacityReserveManage
                     }
 
                     if (hvo.getCapacity().getAvailableCpu() - hc.getReservedCpuCapacity() < requiredCpu) {
-                        logger.trace(String.format("remove host[uuid:%s] from candidates;because after subtracting reserved cpu[%s HZ], it cannot provide required cpu[%s HZ]",
+                        logger.trace(String.format("remove host[uuid:%s] from candidates;because after subtracting reserved cpu[%s], it cannot provide required cpu[%s]",
                                 hvo.getUuid(), hc.getReservedCpuCapacity(), requiredCpu));
                     }
                 }

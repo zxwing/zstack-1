@@ -30,7 +30,7 @@ public class HostCapacityAllocatorFlow extends AbstractHostAllocatorFlow {
 	private List<HostVO> allocate(List<HostVO> vos, long cpu, long memory) {
         List<HostVO> ret = new ArrayList<HostVO>();
         for (HostVO hvo : vos) {
-            if (cpuRatioMgr.calculateHostAvailableCpuByRatio(hvo.getUuid(), (int) hvo.getCapacity().getAvailableCpu()) >= cpu
+            if (hvo.getCapacity().getAvailableCpu() >= cpu
                     && ratioMgr.calculateHostAvailableMemoryByRatio(hvo.getUuid(), hvo.getCapacity().getAvailableMemory()) >= memory) {
                 ret.add(hvo);
             }
@@ -50,7 +50,7 @@ public class HostCapacityAllocatorFlow extends AbstractHostAllocatorFlow {
         candidates = reserveMgr.filterOutHostsByReservedCapacity(candidates, spec.getCpuCapacity(), spec.getMemoryCapacity());
 
         if (candidates.isEmpty()) {
-            fail(String.format("no host having cpu[%s HZ], memory[%s bytes] found",
+            fail(String.format("no host having cpu[%s], memory[%s bytes] found",
                     spec.getCpuCapacity(), spec.getMemoryCapacity()));
         } else {
             next(candidates);

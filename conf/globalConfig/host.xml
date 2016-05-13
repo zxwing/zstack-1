@@ -46,7 +46,7 @@
         <category>host</category>
         <name>cpu.overProvisioning.ratio</name>
         <description>The over provisioning ratio for CPU number</description>
-        <defaultValue>60</defaultValue>
+        <defaultValue>10</defaultValue>
         <type>java.lang.Integer</type>
     </config>
 </globalConfig>

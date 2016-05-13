@@ -48,8 +48,6 @@ public class HostAllocatorChain implements HostAllocatorTrigger, HostAllocatorSt
     private PluginRegistry pluginRgty;
     @Autowired
     private HostCapacityOverProvisioningManager ratioMgr;
-    @Autowired
-    private HostCpuOverProvisioningManager cpuMgr;
 
     public HostAllocatorSpec getAllocationSpec() {
         return allocationSpec;
@@ -80,7 +78,7 @@ public class HostAllocatorChain implements HostAllocatorTrigger, HostAllocatorSt
         updater.run(new HostCapacityUpdaterRunnable() {
             @Override
             public HostCapacityVO call(HostCapacityVO cap) {
-                long availCpu = cap.getAvailableCpu() - cpuMgr.calculateByRatio(hostUuid, (int) cpu);
+                long availCpu = cap.getAvailableCpu() - cpu;
                 if (availCpu < 0) {
                     throw new UnableToReserveHostCapacityException(String.format("no enough CPU[%s] on the host[uuid:%s]", cpu, hostUuid));
                 }
@@ -139,7 +137,7 @@ public class HostAllocatorChain implements HostAllocatorTrigger, HostAllocatorSt
             for (HostVO h : result) {
                 try {
                     reserveCapacity(h.getUuid(), allocationSpec.getCpuCapacity(), allocationSpec.getMemoryCapacity());
-                    logger.debug(String.format("[Host Allocation]: successfully reserved cpu[%s HZ], memory[%s bytes] on host[uuid:%s] for vm[uuid:%s]",
+                    logger.debug(String.format("[Host Allocation]: successfully reserved cpu[%s], memory[%s bytes] on host[uuid:%s] for vm[uuid:%s]",
                             allocationSpec.getCpuCapacity(), allocationSpec.getMemoryCapacity(), h.getUuid(), allocationSpec.getVmInstance().getUuid()));
                     completion.success(HostInventory.valueOf(h));
                     return;
@@ -151,7 +149,7 @@ public class HostAllocatorChain implements HostAllocatorTrigger, HostAllocatorSt
 
             if (paginationInfo != null) {
                 logger.debug("[Host Allocation]: unable to reserve cpu/memory on all candidate hosts; because of pagination is enabled, allocation will start over");
-                seriesErrorWhenPagination.add(String.format("{unable to reserve cpu[%s HZ], memory[%s bytes] on all candidate hosts}", allocationSpec.getCpuCapacity(), allocationSpec.getMemoryCapacity()));
+                seriesErrorWhenPagination.add(String.format("{unable to reserve cpu[%s], memory[%s bytes] on all candidate hosts}", allocationSpec.getCpuCapacity(), allocationSpec.getMemoryCapacity()));
                 startOver();
             } else {
                 completion.fail(errf.instantiateErrorCode(HostAllocatorError.NO_AVAILABLE_HOST, "reservation on cpu/memory failed on all candidates host"));

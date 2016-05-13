@@ -52,7 +52,7 @@ public class HostCpuOverProvisioningManagerImpl implements HostCpuOverProvisioni
     }
 
     @Override
-    public int calculateHostAvailableCpuByRatio(String hostUuid, int cpuNum) {
+    public int calculateHostCpuByRatio(String hostUuid, int cpuNum) {
         int r = getRatio(hostUuid);
         return cpuNum * r;
     }

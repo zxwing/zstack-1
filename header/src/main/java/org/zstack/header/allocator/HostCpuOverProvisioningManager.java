@@ -20,5 +20,5 @@ public interface HostCpuOverProvisioningManager {
 
     int calculateByRatio(String hostUuid, int cpuNum);
 
-    int calculateHostAvailableCpuByRatio(String hostUuid, int cpuNum);
+    int calculateHostCpuByRatio(String hostUuid, int cpuNum);
 }
