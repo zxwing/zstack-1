@@ -1,6 +1,7 @@
 package org.zstack.core;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.LocaleUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.context.MessageSource;
@@ -44,6 +45,7 @@ public class Platform {
     private static String codeVersion;
     private static String managementServerIp;
     private static String managementCidr;
+    private static MessageSource messageSource;
 
     public static final String COMPONENT_CLASSPATH_HOME = "componentsHome";
 
@@ -315,8 +317,6 @@ public class Platform {
             linkGlobalProperty();
             prepareDefaultDbProperties();
             writePidFile();
-
-            locale = new Locale(CoreGlobalProperty.LOCALE);
         } catch (Throwable e) {
             logger.warn(String.format("unhandled exception when in Platform's static block, %s", e.getMessage()), e);
             new BootErrorLog().write(e.getMessage());
@@ -327,6 +327,25 @@ public class Platform {
             }
 
         }
+    }
+
+    private static void initMessageSource() {
+        locale = LocaleUtils.toLocale(CoreGlobalProperty.LOCALE);
+
+        if (loader == null) {
+            throw new CloudRuntimeException("ComponentLoader is null. i18n has not been initialized, you call it too early");
+        }
+
+        BeanFactory beanFactory = loader.getSpringIoc();
+        if (beanFactory == null) {
+            throw new CloudRuntimeException("BeanFactory is null. i18n has not been initialized, you call it too early");
+        }
+
+        if (!(beanFactory instanceof MessageSource)) {
+            throw new CloudRuntimeException("BeanFactory is not a spring MessageSource. i18n cannot be used");
+        }
+
+        messageSource = (MessageSource)beanFactory;
     }
 
     private static CloudBus bus;
@@ -416,6 +435,8 @@ public class Platform {
         if (bus != null)  {
             bus.start();
         }
+
+        initMessageSource();
 
         return loader;
     }
@@ -518,25 +539,10 @@ public class Platform {
     }
 
     public static String _(String code, Object...args) {
-        if (loader == null) {
-            throw new CloudRuntimeException("ComponentLoader is null. i18n has not been initialized, you call it too early");
-        }
-
-        BeanFactory beanFactory = loader.getSpringIoc();
-        if (beanFactory == null) {
-            throw new CloudRuntimeException("BeanFactory is null. i18n has not been initialized, you call it too early");
-        }
-
-        if (!(beanFactory instanceof MessageSource)) {
-            throw new CloudRuntimeException("BeanFactory is not a spring MessageSource. i18n cannot be used");
-        }
-
-        MessageSource source = (MessageSource)beanFactory;
-
         if (args.length > 0) {
-            return source.getMessage(code, args, locale);
+            return messageSource.getMessage(code, args, locale);
         } else {
-            return source.getMessage(code, null, locale);
+            return messageSource.getMessage(code, null, locale);
         }
     }
 }

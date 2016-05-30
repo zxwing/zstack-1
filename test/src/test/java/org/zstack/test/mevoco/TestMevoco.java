@@ -3,6 +3,7 @@ package org.zstack.test.mevoco;
 import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.zstack.core.CoreGlobalProperty;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
@@ -47,6 +48,7 @@ import org.zstack.utils.data.SizeUnit;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -110,7 +112,7 @@ public class TestMevoco {
     }
     
 	@Test
-	public void test() throws ApiSenderException {
+	public void test() throws ApiSenderException, IOException {
         L2NetworkInventory l2 = deployer.l2Networks.get("TestL2Network");
         Assert.assertTrue(KVMSystemTags.L2_BRIDGE_NAME.hasTag(l2.getUuid()));
 
@@ -185,7 +187,11 @@ public class TestMevoco {
         VolumeInventory vol = vm.getRootVolume();
         Assert.assertEquals(usedDisk, psRatioMgr.calculateByRatio(vol.getPrimaryStorageUuid(), vol.getSize()));
 
+        CoreGlobalProperty.LOCALE = "zh_CN";
         logger.debug(_("hello.world"));
+        String hello = _("hello.world");
+        String s = "世界你好";
+        Assert.assertEquals(s, hello);
 
         DiskOfferingInventory doinv = deployer.diskOfferings.get("TestRootDiskOffering");
         VolumeInventory datavol = api.createDataVolume("data", doinv.getUuid());
