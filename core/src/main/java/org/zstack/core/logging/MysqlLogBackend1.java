@@ -19,8 +19,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  */
-public class MysqlLogBackend implements LogBackend {
-    private static final CLogger logger = Utils.getLogger(MysqlLogBackend.class);
+public class MysqlLogBackend1 implements LogBackend1 {
+    private static final CLogger logger = Utils.getLogger(MysqlLogBackend1.class);
 
     @Autowired
     private DatabaseFacade dbf;

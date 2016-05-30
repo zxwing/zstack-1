@@ -13,6 +13,7 @@ import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.defer.Deferred;
 import org.zstack.core.errorcode.ErrorFacade;
+import org.zstack.core.logging.Log;
 import org.zstack.core.thread.AsyncThread;
 import org.zstack.core.thread.SyncThread;
 import org.zstack.core.workflow.FlowChainBuilder;
@@ -185,6 +186,8 @@ public class HostManagerImpl extends AbstractService implements HostManager, Man
 
         final HypervisorFactory factory = getHypervisorFactory(HypervisorType.valueOf(cluster.getHypervisorType()));
         final HostVO vo = factory.createHost(hvo, msg);
+
+        new Log(vo.getUuid()).log("host.add.writeDB");
 
         tagMgr.createTagsFromAPICreateMessage(msg, vo.getUuid(), HostVO.class.getSimpleName());
 

@@ -13,8 +13,8 @@ import java.util.Map;
 /**
  */
 public class LogFacadeImpl implements LogFacade, Component {
-    private LogBackend backend;
-    private Map<String, LogBackend> backends = new HashMap<String, LogBackend>();
+    private LogBackend1 backend;
+    private Map<String, LogBackend1> backends = new HashMap<String, LogBackend1>();
     private volatile boolean isEnabled;
 
     @Autowired
@@ -41,25 +41,25 @@ public class LogFacadeImpl implements LogFacade, Component {
 
     @Override
     public void info(String resourceUuid, String info) {
-        write(resourceUuid, LogType.Text, LogLevel.Info, info);
+        write(resourceUuid, LogType.Text, LogLevel.INFO, info);
     }
 
     @Override
     public void warn(String resourceUuid, String info) {
-        write(resourceUuid, LogType.Text, LogLevel.Warn, info);
+        write(resourceUuid, LogType.Text, LogLevel.WARNING, info);
     }
 
     @Override
     public void error(String resourceUuid, String info) {
-        write(resourceUuid, LogType.Text, LogLevel.Error, info);
+        write(resourceUuid, LogType.Text, LogLevel.ERROR, info);
     }
 
     @Override
     public boolean start() {
-        for (LogBackend bkd : pluginRgty.getExtensionList(LogBackend.class)) {
-            LogBackend old = backends.get(bkd.getLogBackendType());
+        for (LogBackend1 bkd : pluginRgty.getExtensionList(LogBackend1.class)) {
+            LogBackend1 old = backends.get(bkd.getLogBackendType());
             if (old != null) {
-                throw new CloudRuntimeException(String.format("duplicate LogBackend[%s, %s] for type[%s]", old.getClass().getName(), bkd.getClass().getName(), bkd.getLogBackendType()));
+                throw new CloudRuntimeException(String.format("duplicate LogBackend1[%s, %s] for type[%s]", old.getClass().getName(), bkd.getClass().getName(), bkd.getLogBackendType()));
             }
 
             backends.put(bkd.getLogBackendType(), bkd);
@@ -67,7 +67,7 @@ public class LogFacadeImpl implements LogFacade, Component {
 
         backend = backends.get(LogGlobalProperty.LOG_FACADE_BACKEND_TYPE);
         if (backend == null) {
-            throw new CloudRuntimeException(String.format("cannot find LogBackend that has type[%s]", LogGlobalProperty.LOG_FACADE_BACKEND_TYPE));
+            throw new CloudRuntimeException(String.format("cannot find LogBackend1 that has type[%s]", LogGlobalProperty.LOG_FACADE_BACKEND_TYPE));
         }
 
         isEnabled = LogGlobalConfig.ENABLED.value(boolean.class);
