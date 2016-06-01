@@ -3,6 +3,10 @@ package org.zstack.core;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.LocaleUtils;
 import org.apache.commons.lang.StringUtils;
+import org.reflections.Reflections;
+import org.reflections.scanners.MethodAnnotationsScanner;
+import org.reflections.util.ClasspathHelper;
+import org.reflections.util.ConfigurationBuilder;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.context.MessageSource;
 import org.springframework.web.context.WebApplicationContext;
@@ -27,6 +31,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -316,6 +322,7 @@ public class Platform {
 
             linkGlobalProperty();
             prepareDefaultDbProperties();
+            callStaticInitMethods();
             writePidFile();
         } catch (Throwable e) {
             logger.warn(String.format("unhandled exception when in Platform's static block, %s", e.getMessage()), e);
@@ -326,6 +333,24 @@ public class Platform {
                 throw new RuntimeException(e);
             }
 
+        }
+    }
+
+    private static void callStaticInitMethods() throws InvocationTargetException, IllegalAccessException {
+        Reflections reflections = new Reflections(new ConfigurationBuilder()
+                .setUrls(ClasspathHelper.forPackage("org.zstack"))
+                .setScanners(new MethodAnnotationsScanner())
+        );
+
+        Set<Method> inits = reflections.getMethodsAnnotatedWith(StaticInit.class);
+        for (Method init : inits)  {
+            if (!Modifier.isStatic(init.getModifiers())) {
+                throw new CloudRuntimeException(String.format("the method[%s:%s] annotated by @StaticInit is not a static method", init.getDeclaringClass(), init.getName()));
+            }
+
+            logger.debug(String.format("calling static init method[%s:%s]", init.getDeclaringClass(), init.getName()));
+            init.setAccessible(true);
+            init.invoke(null);
         }
     }
 

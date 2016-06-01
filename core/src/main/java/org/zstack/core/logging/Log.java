@@ -22,7 +22,7 @@ public class Log {
         public String text;
         public String resourceUuid;
         public String uuid;
-        public long time;
+        public long dateInLong;
         public Date date;
         public Object opaque;
     }
@@ -33,8 +33,8 @@ public class Log {
         content = new Content();
         content.resourceUuid = resourceUuid;
         content.uuid = Generators.timeBasedGenerator().generate().toString().replace("-", "");
-        content.time = System.currentTimeMillis();
-        content.date = new Date(content.time);
+        content.dateInLong = System.currentTimeMillis();
+        content.date = new Date(content.dateInLong);
         content.level = LogLevel.INFO;
     }
 
@@ -47,8 +47,8 @@ public class Log {
         return content.level;
     }
 
-    public long getTime() {
-        return content.time;
+    public long getDateInLong() {
+        return content.dateInLong;
     }
 
     public Date getDate() {
