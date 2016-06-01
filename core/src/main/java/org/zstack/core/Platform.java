@@ -356,6 +356,7 @@ public class Platform {
 
     private static void initMessageSource() {
         locale = LocaleUtils.toLocale(CoreGlobalProperty.LOCALE);
+        logger.debug(String.format("using locale[%s] for i18n logging messages", locale.toString()));
 
         if (loader == null) {
             throw new CloudRuntimeException("ComponentLoader is null. i18n has not been initialized, you call it too early");
