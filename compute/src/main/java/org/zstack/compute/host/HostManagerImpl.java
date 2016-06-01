@@ -187,7 +187,7 @@ public class HostManagerImpl extends AbstractService implements HostManager, Man
         final HypervisorFactory factory = getHypervisorFactory(HypervisorType.valueOf(cluster.getHypervisorType()));
         final HostVO vo = factory.createHost(hvo, msg);
 
-        new Log(vo.getUuid()).log("add.host.writeDb");
+        new Log(vo.getUuid()).log(HostLogLabel.ADD_HOST_WRITE_DB);
 
         tagMgr.createTagsFromAPICreateMessage(msg, vo.getUuid(), HostVO.class.getSimpleName());
 
