@@ -85,8 +85,9 @@ public class Log {
         return content.opaque;
     }
 
-    public void log(String label, Object...args) {
+    public Log log(String label, Object...args) {
         setText(label, args).write();
+        return this;
     }
 
     public void write() {
