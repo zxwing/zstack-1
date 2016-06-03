@@ -41,4 +41,22 @@ public class KVMHostLabel {
             "zh_CN = 配置物理机防火墙信息"
     })
     public static final String PREPARE_FIREWALL = "add.host.kvm.prepareFirewall";
+
+    @LogLabel(messages = {
+            "en_US = prepare L2 networks on the host",
+            "zh_CN = 配置物理机二层网络"
+    })
+    public static final String PREPARE_L2_NETWORK = "add.host.kvm.prepareL2Network";
+
+    @LogLabel(messages = {
+            "en_US = sync host CPU/memory capacity to the database",
+            "zh_CN = 同步物理机CPU、内存容量到数据库"
+    })
+    public static final String SYNC_HOST_CAPACITY = "add.host.kvm.syncCapacity";
+
+    @LogLabel(messages = {
+            "en_US = sync states of VMs running on the host",
+            "zh_CN = 同步物理机上虚拟机状态到数据库"
+    })
+    public static final String SYNC_VM_STATE = "add.host.kvm.vmSync";
 }
