@@ -3,7 +3,6 @@ package org.zstack.test.mevoco;
 import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.zstack.core.CoreGlobalProperty;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
@@ -51,8 +50,6 @@ import org.zstack.utils.logging.CLogger;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-
-import static org.zstack.core.Platform._;
 
 /**
  * 1. create a vm with mevoco setting
@@ -186,12 +183,6 @@ public class TestMevoco {
         long usedDisk = localVO.getCapacity().getTotalCapacity() - localVO.getCapacity().getAvailableCapacity() - isize;
         VolumeInventory vol = vm.getRootVolume();
         Assert.assertEquals(usedDisk, psRatioMgr.calculateByRatio(vol.getPrimaryStorageUuid(), vol.getSize()));
-
-        CoreGlobalProperty.LOCALE = "zh_CN";
-        logger.debug(_("hello.world"));
-        String hello = _("hello.world");
-        String s = "世界你好";
-        Assert.assertEquals(s, hello);
 
         DiskOfferingInventory doinv = deployer.diskOfferings.get("TestRootDiskOffering");
         VolumeInventory datavol = api.createDataVolume("data", doinv.getUuid());
