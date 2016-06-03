@@ -4,6 +4,7 @@ import com.fasterxml.uuid.Generators;
 import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
+import org.zstack.header.message.NeedJsonSchema;
 
 import java.util.Date;
 
@@ -15,8 +16,11 @@ import static org.zstack.core.Platform._;
 @Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
 public class Log {
     @Autowired
-    private LogBackend bkd;
+    protected LogBackend bkd;
 
+    protected LogType type;
+
+    @NeedJsonSchema
     public static class Content {
         public LogLevel level;
         public String text;
@@ -27,7 +31,7 @@ public class Log {
         public Object opaque;
     }
 
-    private Content content;
+    protected Content content;
 
     public Log() {
         this(null);
@@ -40,6 +44,15 @@ public class Log {
         content.dateInLong = System.currentTimeMillis();
         content.date = new Date(content.dateInLong);
         content.level = LogLevel.INFO;
+        type = resourceUuid == null ? LogType.SYSTEM : LogType.RESOURCE;
+    }
+
+    public LogType getType() {
+        return type;
+    }
+
+    public void setType(LogType type) {
+        this.type = type;
     }
 
     public Log setLevel(LogLevel level) {
@@ -95,6 +108,6 @@ public class Log {
     }
 
     public void write() {
-        bkd.write(this);
+        bkd.writeLog(this);
     }
 }

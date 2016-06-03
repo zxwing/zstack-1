@@ -5,16 +5,21 @@ import org.junit.Before;
 import org.junit.Test;
 import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
+import org.zstack.core.cloudbus.EventCallback;
+import org.zstack.core.cloudbus.EventFacade;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.core.logging.Event;
 import org.zstack.core.logging.Log;
+import org.zstack.core.logging.Log.Content;
+import org.zstack.core.logging.LogType;
 import org.zstack.header.allocator.HostCapacityOverProvisioningManager;
+import org.zstack.header.identity.AccountConstant;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.header.storage.primary.PrimaryStorageOverProvisioningManager;
 import org.zstack.logging.APIQueryLogMsg;
 import org.zstack.logging.APIQueryLogReply;
 import org.zstack.logging.LogConstants;
-import org.zstack.logging.LogConstants.LogType;
 import org.zstack.logging.LogInventory;
 import org.zstack.network.service.flat.FlatNetworkServiceSimulatorConfig;
 import org.zstack.simulator.kvm.KVMSimulatorConfig;
@@ -28,6 +33,8 @@ import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  */
@@ -44,6 +51,8 @@ public class TestLogging1 {
     KVMSimulatorConfig kconfig;
     PrimaryStorageOverProvisioningManager psRatioMgr;
     HostCapacityOverProvisioningManager hostRatioMgr;
+    EventFacade evtf;
+    Log.Content logContent;
 
     @Before
     public void setUp() throws Exception {
@@ -63,6 +72,7 @@ public class TestLogging1 {
         kconfig = loader.getComponent(KVMSimulatorConfig.class);
         psRatioMgr = loader.getComponent(PrimaryStorageOverProvisioningManager.class);
         hostRatioMgr = loader.getComponent(HostCapacityOverProvisioningManager.class);
+        evtf = loader.getComponent(EventFacade.class);
 
         deployer.build();
         api = deployer.getApi();
@@ -70,7 +80,7 @@ public class TestLogging1 {
     }
     
 	@Test
-	public void test() throws ApiSenderException, IOException {
+	public void test() throws ApiSenderException, IOException, InterruptedException {
         Log log = new Log(Platform.getUuid()).log(LogLabelTest.TEST1);
 
         APIQueryLogMsg msg = new APIQueryLogMsg();
@@ -98,5 +108,28 @@ public class TestLogging1 {
         Assert.assertEquals("测试1", loginv.getText());
         Assert.assertEquals(LogType.SYSTEM.toString(), loginv.getType());
         Assert.assertEquals(LogType.SYSTEM.toString(), loginv.getResourceUuid());
+
+        evtf.on(Event.EVENT_PATH, new EventCallback() {
+            @Override
+            public void run(Map tokens, Object data) {
+                logContent = (Content) data;
+            }
+        });
+
+        new Event(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID).log(LogLabelTest.TEST1);
+
+        TimeUnit.SECONDS.sleep(2);
+
+        Assert.assertNotNull(logContent);
+
+        msg = new APIQueryLogMsg();
+        msg.setType(LogType.EVENT.toString());
+        msg.setResourceUuid(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID);
+        reply = api.queryCassandra(msg, APIQueryLogReply.class);
+        Assert.assertEquals(1, reply.getInventories().size());
+        loginv = reply.getInventories().get(0);
+        Assert.assertEquals("测试1", loginv.getText());
+        Assert.assertEquals(LogType.EVENT.toString(), loginv.getType());
+        Assert.assertEquals(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, loginv.getResourceUuid());
     }
 }

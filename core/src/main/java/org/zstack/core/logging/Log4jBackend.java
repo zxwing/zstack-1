@@ -12,7 +12,7 @@ public class Log4jBackend implements LogBackend {
     private static final CLogger logger = Utils.getLogger(Log4jBackend.class);
 
     @Override
-    public void write(Log log) {
+    public void writeLog(Log log) {
         if (CoreGlobalProperty.LOG4j_BACKEND_ON) {
             logger.debug(JSONObjectUtil.toJsonString(log.getContent()));
         }
