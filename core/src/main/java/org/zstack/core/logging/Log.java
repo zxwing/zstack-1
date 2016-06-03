@@ -29,6 +29,10 @@ public class Log {
 
     private Content content;
 
+    public Log() {
+        this(null);
+    }
+
     public Log(String resourceUuid) {
         content = new Content();
         content.resourceUuid = resourceUuid;

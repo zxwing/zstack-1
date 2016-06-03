@@ -86,5 +86,17 @@ public class TestLogging1 {
         api.deleteLog(loginv.getUuid(), null);
         reply = api.queryCassandra(msg, APIQueryLogReply.class);
         Assert.assertEquals(0, reply.getInventories().size());
+
+        log = new Log().log(LogLabelTest.TEST1);
+
+        msg = new APIQueryLogMsg();
+        msg.setType(LogType.SYSTEM.toString());
+        msg.setResourceUuid(log.getResourceUuid());
+        reply = api.queryCassandra(msg, APIQueryLogReply.class);
+        Assert.assertEquals(1, reply.getInventories().size());
+        loginv = reply.getInventories().get(0);
+        Assert.assertEquals("测试1", loginv.getText());
+        Assert.assertEquals(LogType.SYSTEM.toString(), loginv.getType());
+        Assert.assertEquals(LogType.SYSTEM.toString(), loginv.getResourceUuid());
     }
 }
