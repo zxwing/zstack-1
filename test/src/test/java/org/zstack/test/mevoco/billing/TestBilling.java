@@ -141,12 +141,7 @@ public class TestBilling {
 
         Assert.assertEquals(cpuPrice + memPrice + volPrice, reply.getTotal(), errorMargin);
 
-        Spending spending = CollectionUtils.find(reply.getSpending(), new Function<Spending, Spending>() {
-            @Override
-            public Spending call(Spending arg) {
-                return BillingConstants.SPENDING_TYPE_VM.equals(arg.getSpendingType()) ? arg : null;
-            }
-        });
+        Spending spending = CollectionUtils.find(reply.getSpending(), arg -> BillingConstants.SPENDING_TYPE_VM.equals(arg.getSpendingType()) ? arg : null);
         Assert.assertNotNull(spending);
 
         SpendingDetails cpudetails = CollectionUtils.find(spending.getDetails(), new Function<SpendingDetails, SpendingDetails>() {
