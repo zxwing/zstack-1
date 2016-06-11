@@ -151,13 +151,13 @@ public class TestBilling {
                 ArrayList.class, VmSpending.class);
         VmSpending vmSpending = vmSpendings.get(0);
 
-        float cpuSpending = (float) vmSpending.inventory.stream().mapToDouble(i -> i.cpuSpending).sum();
+        float cpuSpending = (float) vmSpending.cpuInventory.stream().mapToDouble(i -> i.spending).sum();
         Assert.assertEquals(cpuPrice, cpuSpending, cpuPriceErrorMargin);
 
-        float memSpending = (float) vmSpending.inventory.stream().mapToDouble(i -> i.memorySpending).sum();
+        float memSpending = (float) vmSpending.memoryInventory.stream().mapToDouble(i -> i.spending).sum();
         Assert.assertEquals(memPrice, memSpending, memPriceErrorMargin);
 
-        float rootVolSpending = (float) vmSpending.inventory.stream().mapToDouble(i -> i.rootVolumeSpending).sum();
+        float rootVolSpending = (float) vmSpending.rootVolumeInventory.stream().mapToDouble(i -> i.spending).sum();
         Assert.assertEquals(volPrice, rootVolSpending, volPriceErrorMargin);
     }
 }
