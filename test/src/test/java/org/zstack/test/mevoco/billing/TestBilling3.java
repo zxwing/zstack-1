@@ -193,7 +193,8 @@ public class TestBilling3 {
                 TimeUnit.MILLISECONDS.toSeconds(during3),
                 duringInSeconds));
 
-        APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null);
+        APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null,
+                Long.MAX_VALUE, null);
 
         float cpuPrice = vm.getCpuNum() * cprice * duringInSeconds;
         float memPrice = SizeUnit.BYTE.toMegaByte(vm.getMemorySize()) * mprice * duringInSeconds;

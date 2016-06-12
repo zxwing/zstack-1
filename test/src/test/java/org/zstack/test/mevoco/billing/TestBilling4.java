@@ -134,7 +134,8 @@ public class TestBilling4 {
 
         logger.debug(String.format("phase2: cpu price: %s, memory price: %s, during: %s s", cpuPrice2, memPrice2, during));
 
-        final APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null);
+        final APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null,
+                Long.MAX_VALUE, null);
 
         float cpuPrice = cpuPrice1 + cpuPrice2;
         float memPrice = memPrice1 + memPrice2;

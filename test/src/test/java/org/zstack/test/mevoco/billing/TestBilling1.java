@@ -154,11 +154,11 @@ public class TestBilling1 {
 
         logger.debug(String.format("expected seconds[%s]", duringInSeconds));
 
-        final APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null);
+        final APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null, Long.MAX_VALUE, null);
 
         float cpuPrice = vm.getCpuNum() * cprice * duringInSeconds;
         float memPrice = SizeUnit.BYTE.toMegaByte(vm.getMemorySize()) * mprice * duringInSeconds;
-        Assert.assertEquals(reply.getTotal(), cpuPrice + memPrice, 0.02);
+        Assert.assertEquals(cpuPrice + memPrice, reply.getTotal(), 0.02);
 
         Spending spending = CollectionUtils.find(reply.getSpending(), arg -> BillingConstants.SPENDING_TYPE_VM.equals(arg.getSpendingType()) ? arg : null);
         Assert.assertNotNull(spending);

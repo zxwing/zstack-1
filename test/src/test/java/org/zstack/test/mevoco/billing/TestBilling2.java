@@ -171,11 +171,11 @@ public class TestBilling2 {
         logger.debug(String.format("expected seconds[during1: %s, during2: %s, total: %s]",
                 TimeUnit.MILLISECONDS.toSeconds(during1), TimeUnit.MILLISECONDS.toSeconds(during2), duringInSeconds));
 
-        APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null);
+        APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null, Long.MAX_VALUE, null);
 
         float cpuPrice = vm.getCpuNum() * cprice * duringInSeconds;
         float memPrice = SizeUnit.BYTE.toMegaByte(vm.getMemorySize()) * mprice * duringInSeconds;
-        Assert.assertEquals(reply.getTotal(), cpuPrice + memPrice, 0.02);
+        Assert.assertEquals(cpuPrice + memPrice, reply.getTotal(), 0.02);
         check(reply, cpuPrice, memPrice);
 
         // R[start point] -> S[end point]
