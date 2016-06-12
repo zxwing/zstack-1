@@ -132,11 +132,6 @@ public class TestBilling3 {
         PriceCO cpupco = ops.selectOne(cql.build(), PriceCO.class);
         Assert.assertNotNull(cpupco);
 
-        final PriceUDF pudf = new PriceUDF();
-        pudf.setPrice(cpupco.getPrice());
-        pudf.setTimeUnit(cpupco.getTimeUnit());
-        pudf.setResourceUnit(cpupco.getResourceUnit());
-
         msg = new APICreateResourcePriceMsg();
         msg.setTimeUnit("s");
         msg.setPrice(mprice);
@@ -147,11 +142,6 @@ public class TestBilling3 {
         cql.setTable(PriceCO.class.getSimpleName()).setParameter("name", BillingConstants.SPENDING_MEMORY);
         PriceCO mempco = ops.selectOne(cql.build(), PriceCO.class);
         Assert.assertNotNull(mempco);
-
-        final PriceUDF mudf = new PriceUDF();
-        mudf.setPrice(mempco.getPrice());
-        mudf.setTimeUnit(mempco.getTimeUnit());
-        mudf.setResourceUnit(mempco.getResourceUnit());
 
         cql = new Cql("delete from <table> where accountUuid = :uuid");
         cql.setTable(VmUsageCO.class.getSimpleName()).setParameter("uuid", AccountConstant.INITIAL_SYSTEM_ADMIN_UUID);
@@ -170,8 +160,6 @@ public class TestBilling3 {
                 u.setVmUuid(vmInstance.getUuid());
                 u.setCpuNum(vmInstance.getCpuNum());
                 u.setMemorySize(vmInstance.getMemorySize());
-                u.setCpuPrice(pudf);
-                u.setMemoryPrice(mudf);
                 u.setInventory(JSONObjectUtil.toJsonString(vmInstance));
                 u.setDateInLong(date.getTime());
                 u.setName(vmInstance.getName());
