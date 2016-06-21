@@ -232,6 +232,7 @@ public class FlatUserdataBackend implements UserdataBackend, KVMHostConnectExten
     public static class ReleaseUserdataCmd extends KVMAgentCommands.AgentCommand {
         public String vmIp;
         public String bridgeName;
+        public String namespaceName;
     }
 
     public static class ReleaseUserdataRsp extends KVMAgentCommands.AgentResponse {
@@ -357,6 +358,7 @@ public class FlatUserdataBackend implements UserdataBackend, KVMHostConnectExten
                     public void run(final FlowTrigger trigger, Map data) {
                         ReleaseUserdataCmd cmd = new ReleaseUserdataCmd();
                         cmd.bridgeName = new BridgeNameFinder().findByL3Uuid(struct.getL3NetworkUuid());
+                        cmd.namespaceName = FlatDhcpBackend.makeNamespaceName(cmd.bridgeName, struct.getL3NetworkUuid());
                         cmd.vmIp = CollectionUtils.find(struct.getVmSpec().getDestNics(), new Function<String, VmNicInventory>() {
                             @Override
                             public String call(VmNicInventory arg) {
