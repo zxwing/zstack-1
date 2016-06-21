@@ -857,6 +857,7 @@ public class FlatDhcpBackend extends AbstractService implements NetworkServiceDh
     public static class ApplyDhcpCmd extends KVMAgentCommands.AgentCommand {
         public List<DhcpInfo> dhcp;
         public boolean rebuild;
+        public String l3NetworkUuid;
     }
 
     public static class ApplyDhcpRsp extends KVMAgentCommands.AgentResponse {
@@ -1056,6 +1057,7 @@ public class FlatDhcpBackend extends AbstractService implements NetworkServiceDh
                                 ApplyDhcpCmd cmd = new ApplyDhcpCmd();
                                 cmd.dhcp = info;
                                 cmd.rebuild = rebuild;
+                                cmd.l3NetworkUuid = l3Uuid;
 
                                 KVMHostAsyncHttpCallMsg msg = new KVMHostAsyncHttpCallMsg();
                                 msg.setCommand(cmd);
