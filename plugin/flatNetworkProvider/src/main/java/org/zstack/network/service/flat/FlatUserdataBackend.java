@@ -158,6 +158,7 @@ public class FlatUserdataBackend implements UserdataBackend, KVMHostConnectExten
                     to.dhcpServerIp = l.dhcpServerIp;
                     to.vmIp = l.vmIp;
                     to.bridgeName = bridgeNames.get(l.l3Uuid);
+                    to.namespaceName = FlatDhcpBackend.makeNamespaceName(to.bridgeName, l.l3Uuid);
                     to.userdata = userdata.get(vmuuid);
                     to.port = UserdataGlobalProperty.HOST_PORT;
                     tos.add(to);
@@ -178,6 +179,7 @@ public class FlatUserdataBackend implements UserdataBackend, KVMHostConnectExten
 
                 BatchApplyUserdataCmd cmd = new BatchApplyUserdataCmd();
                 cmd.userdata = tos;
+                cmd.rebuild = true;
 
                 new KvmCommandSender(context.getInventory().getUuid(), true).send(cmd, BATCH_APPLY_USER_DATA, new KvmCommandFailureChecker() {
                     @Override
@@ -206,6 +208,7 @@ public class FlatUserdataBackend implements UserdataBackend, KVMHostConnectExten
         public String vmIp;
         public String dhcpServerIp;
         public String bridgeName;
+        public String namespaceName;
         public int port;
     }
 
@@ -215,6 +218,7 @@ public class FlatUserdataBackend implements UserdataBackend, KVMHostConnectExten
 
     public static class BatchApplyUserdataCmd extends KVMAgentCommands.AgentCommand {
         public List<UserdataTO> userdata;
+        public boolean rebuild;
     }
 
     public static class ApplyUserdataCmd extends KVMAgentCommands.AgentCommand {
@@ -290,6 +294,7 @@ public class FlatUserdataBackend implements UserdataBackend, KVMHostConnectExten
                             }
                         });
                         uto.bridgeName = new BridgeNameFinder().findByL3Uuid(struct.getL3NetworkUuid());
+                        uto.namespaceName = FlatDhcpBackend.makeNamespaceName(uto.bridgeName, struct.getL3NetworkUuid());
                         uto.port = UserdataGlobalProperty.HOST_PORT;
                         cmd.userdata = uto;
 
