@@ -888,11 +888,13 @@ public class FlatDhcpBackend extends AbstractService implements NetworkServiceDh
 
     public static class ResetDefaultGatewayCmd extends KVMAgentCommands.AgentCommand {
         public String bridgeNameOfGatewayToRemove;
+        public String namespaceNameOfGatewayToRemove;
         public String gatewayToRemove;
         public String macOfGatewayToRemove;
         public String gatewayToAdd;
         public String macOfGatewayToAdd;
         public String bridgeNameOfGatewayToAdd;
+        public String namespaceNameOfGatewayToAdd;
     }
 
     public static class ResetDefaultGatewayRsp extends KVMAgentCommands.AgentResponse {
@@ -1188,11 +1190,13 @@ public class FlatDhcpBackend extends AbstractService implements NetworkServiceDh
             cmd.gatewayToRemove = pnic.getGateway();
             cmd.macOfGatewayToRemove = pnic.getMac();
             cmd.bridgeNameOfGatewayToRemove = new BridgeNameFinder().findByL3Uuid(previousL3);
+            cmd.namespaceNameOfGatewayToRemove = makeNamespaceName(cmd.bridgeNameOfGatewayToRemove, previousL3);
         }
         if (nnic != null) {
             cmd.gatewayToAdd = nnic.getGateway();
             cmd.macOfGatewayToAdd = nnic.getMac();
             cmd.bridgeNameOfGatewayToAdd = new BridgeNameFinder().findByL3Uuid(nowL3);
+            cmd.namespaceNameOfGatewayToAdd = makeNamespaceName(cmd.bridgeNameOfGatewayToAdd, nowL3);
         }
 
         KvmCommandSender sender = new KvmCommandSender(vm.getHostUuid());
