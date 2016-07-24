@@ -14,9 +14,12 @@ import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.componentloader.ComponentLoaderImpl;
 import org.zstack.core.config.GlobalConfigFacade;
 import org.zstack.core.db.DatabaseGlobalProperty;
+import org.zstack.core.signal.SignalHandler;
+import org.zstack.core.signal.Signals;
 import org.zstack.core.statemachine.StateMachine;
 import org.zstack.core.statemachine.StateMachineImpl;
 import org.zstack.header.Component;
+import org.zstack.header.core.ExceptionSafe;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.utils.*;
 import org.zstack.utils.data.StringTemplate;
@@ -24,6 +27,7 @@ import org.zstack.utils.logging.CLogger;
 import org.zstack.utils.logging.CLoggerImpl;
 import org.zstack.utils.network.NetworkUtils;
 import org.zstack.utils.path.PathUtil;
+import sun.misc.Signal;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -61,6 +65,8 @@ public class Platform {
     public static volatile boolean IS_RUNNING = true;
 
     private static Reflections reflections;
+
+    private static Map<Signals, List<SignalHandler>> sigHandlers = new HashMap<>();
 
     public static Reflections getReflections() {
         return reflections;
@@ -334,6 +340,7 @@ public class Platform {
             prepareDefaultDbProperties();
             callStaticInitMethods();
             writePidFile();
+            registerSignalHandlers();
         } catch (Throwable e) {
             logger.warn(String.format("unhandled exception when in Platform's static block, %s", e.getMessage()), e);
             new BootErrorLog().write(e.getMessage());
@@ -344,6 +351,45 @@ public class Platform {
             }
 
         }
+    }
+
+    private static void registerSignalHandlers() {
+        Signal HUP = new Signal("HUP");
+        Signal USR1 = new Signal("USR1");
+        Signal USR2 = new Signal("USR2");
+
+        sun.misc.SignalHandler handler = new sun.misc.SignalHandler() {
+            @Override
+            @ExceptionSafe
+            public void handle(Signal signal) {
+                Signals sig = null;
+                if (HUP.equals(signal)) {
+                    sig = Signals.HUP;
+                } else if (USR1.equals(signal)) {
+                    sig = Signals.USR1;
+                } else if (USR2.equals(signal)) {
+                    sig = Signals.USR2;
+                }
+
+                if (sig == null)  {
+                    logger.warn(String.format("received unknown signal[%s]", signal));
+                    return;
+                }
+
+                List<SignalHandler> handlers = sigHandlers.get(sig);
+                if (handlers == null) {
+                    return;
+                }
+
+                for (SignalHandler handler : handlers) {
+                    handler.handlePOSIXSignal();
+                }
+            }
+        };
+
+        Signal.handle(HUP, handler);
+        //Signal.handle(USR1, handler);
+        Signal.handle(USR2, handler);
     }
 
     private static void callStaticInitMethods() throws InvocationTargetException, IllegalAccessException {
@@ -589,5 +635,14 @@ public class Platform {
         } else {
             return messageSource.getMessage(code, null, l);
         }
+    }
+
+    public static void handleSignal(Signals sig, SignalHandler handler) {
+        List<SignalHandler> hs = sigHandlers.get(sig);
+        if (hs == null) {
+            hs = new ArrayList<>();
+            sigHandlers.put(sig, hs);
+        }
+        hs.add(handler);
     }
 }
