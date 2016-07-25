@@ -362,6 +362,7 @@ public class Platform {
             @Override
             @ExceptionSafe
             public void handle(Signal signal) {
+                logger.debug(String.format("Xxxxxxxxxxxxxxxxxxxxxxxx %s", signal));
                 Signals sig = null;
                 if (HUP.equals(signal)) {
                     sig = Signals.HUP;
