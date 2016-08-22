@@ -150,18 +150,18 @@ public class SMPPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     @Override
-    protected void handle(final InstantiateVolumeMsg msg) {
+    protected void handle(final InstantiateVolumeOnPrimaryStorageMsg msg) {
         HypervisorFactory f = getHypervisorFactoryByHostUuid(msg.getDestHost().getUuid());
         HypervisorBackend bkd = f.getHypervisorBackend(self);
-        bkd.handle(msg, new ReturnValueCompletion<InstantiateVolumeReply>(msg) {
+        bkd.handle(msg, new ReturnValueCompletion<InstantiateVolumeOnPrimaryStorageReply>(msg) {
             @Override
-            public void success(InstantiateVolumeReply reply) {
+            public void success(InstantiateVolumeOnPrimaryStorageReply reply) {
                 bus.reply(msg, reply);
             }
 
             @Override
             public void fail(ErrorCode errorCode) {
-                InstantiateVolumeReply reply = new InstantiateVolumeReply();
+                InstantiateVolumeOnPrimaryStorageReply reply = new InstantiateVolumeOnPrimaryStorageReply();
                 reply.setError(errorCode);
                 bus.reply(msg, reply);
             }

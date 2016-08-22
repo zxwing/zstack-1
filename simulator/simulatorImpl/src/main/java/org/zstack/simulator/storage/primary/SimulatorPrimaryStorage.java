@@ -47,8 +47,8 @@ public class SimulatorPrimaryStorage extends PrimaryStorageBase {
         return vol;
     }
 
-    private void handle(InstantiateRootVolumeFromTemplateMsg msg) {
-        InstantiateVolumeReply reply = new InstantiateVolumeReply();
+    private void handle(InstantiateRootVolumeFromTemplateOnPrimaryStorageMsg msg) {
+        InstantiateVolumeOnPrimaryStorageReply reply = new InstantiateVolumeOnPrimaryStorageReply();
         VolumeInventory vol = instantiateVolume(msg.getVolume());
         reply.setVolume(vol);
         logger.debug(String.format("Successfully created root volume[uuid:%s] on primary storage[uuid:%s]", msg.getVolume().getUuid(),
@@ -64,11 +64,11 @@ public class SimulatorPrimaryStorage extends PrimaryStorageBase {
     }
 
     @Override
-    protected void handle(InstantiateVolumeMsg msg) {
-        if (msg.getClass() == InstantiateRootVolumeFromTemplateMsg.class) {
-            handle((InstantiateRootVolumeFromTemplateMsg) msg);
+    protected void handle(InstantiateVolumeOnPrimaryStorageMsg msg) {
+        if (msg.getClass() == InstantiateRootVolumeFromTemplateOnPrimaryStorageMsg.class) {
+            handle((InstantiateRootVolumeFromTemplateOnPrimaryStorageMsg) msg);
         } else {
-            InstantiateVolumeReply reply = new InstantiateVolumeReply();
+            InstantiateVolumeOnPrimaryStorageReply reply = new InstantiateVolumeOnPrimaryStorageReply();
             VolumeInventory vol = instantiateVolume(msg.getVolume());
             reply.setVolume(vol);
             logger.debug(String.format("Successfully created data volume[uuid:%s] on primary storage[uuid:%s]", msg.getVolume().getUuid(),

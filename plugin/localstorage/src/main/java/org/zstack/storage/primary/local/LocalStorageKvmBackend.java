@@ -711,14 +711,14 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
     }
 
     @Override
-    protected void handle(final InstantiateVolumeMsg msg, final ReturnValueCompletion<InstantiateVolumeReply> completion) {
-        if (msg instanceof  InstantiateRootVolumeFromTemplateMsg) {
-            createRootVolume((InstantiateRootVolumeFromTemplateMsg) msg, completion);
+    protected void handle(final InstantiateVolumeOnPrimaryStorageMsg msg, final ReturnValueCompletion<InstantiateVolumeOnPrimaryStorageReply> completion) {
+        if (msg instanceof InstantiateRootVolumeFromTemplateOnPrimaryStorageMsg) {
+            createRootVolume((InstantiateRootVolumeFromTemplateOnPrimaryStorageMsg) msg, completion);
         } else {
             createEmptyVolume(msg.getVolume(), msg.getDestHost().getUuid(), new ReturnValueCompletion<String>(completion) {
                 @Override
                 public void success(String returnValue) {
-                    InstantiateVolumeReply r = new InstantiateVolumeReply();
+                    InstantiateVolumeOnPrimaryStorageReply r = new InstantiateVolumeOnPrimaryStorageReply();
                     VolumeInventory vol = msg.getVolume();
                     vol.setInstallPath(returnValue);
                     r.setVolume(vol);
@@ -1011,7 +1011,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
         }
     }
 
-    private void createRootVolume(final InstantiateRootVolumeFromTemplateMsg msg, final ReturnValueCompletion<InstantiateVolumeReply> completion) {
+    private void createRootVolume(final InstantiateRootVolumeFromTemplateOnPrimaryStorageMsg msg, final ReturnValueCompletion<InstantiateVolumeOnPrimaryStorageReply> completion) {
         final ImageSpec ispec = msg.getTemplateSpec();
         final ImageInventory image = ispec.getInventory();
 
@@ -1019,7 +1019,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
             createEmptyVolume(msg.getVolume(), msg.getDestHost().getUuid(), new ReturnValueCompletion<String>(completion) {
                 @Override
                 public void success(String returnValue) {
-                    InstantiateVolumeReply r = new InstantiateVolumeReply();
+                    InstantiateVolumeOnPrimaryStorageReply r = new InstantiateVolumeOnPrimaryStorageReply();
                     VolumeInventory vol = msg.getVolume();
                     vol.setInstallPath(returnValue);
                     r.setVolume(vol);
@@ -1106,7 +1106,7 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
                 done(new FlowDoneHandler(completion) {
                     @Override
                     public void handle(Map data) {
-                        InstantiateVolumeReply reply = new InstantiateVolumeReply();
+                        InstantiateVolumeOnPrimaryStorageReply reply = new InstantiateVolumeOnPrimaryStorageReply();
                         volume.setInstallPath(installPath);
                         reply.setVolume(volume);
                         completion.success(reply);

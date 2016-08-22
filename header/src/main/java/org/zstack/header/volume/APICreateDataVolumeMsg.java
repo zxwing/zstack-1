@@ -4,6 +4,7 @@ import org.zstack.header.configuration.DiskOfferingVO;
 import org.zstack.header.identity.Action;
 import org.zstack.header.message.APICreateMessage;
 import org.zstack.header.message.APIParam;
+import org.zstack.header.storage.primary.PrimaryStorageVO;
 
 /**
  * @api
@@ -62,7 +63,18 @@ public class APICreateDataVolumeMsg extends APICreateMessage {
      */
 	@APIParam(resourceType = DiskOfferingVO.class, checkAccount = true)
 	private String diskOfferingUuid;
-	
+
+	@APIParam(required = false, resourceType = PrimaryStorageVO.class)
+	private String primaryStorageUuid;
+
+	public String getPrimaryStorageUuid() {
+		return primaryStorageUuid;
+	}
+
+	public void setPrimaryStorageUuid(String primaryStorageUuid) {
+		this.primaryStorageUuid = primaryStorageUuid;
+	}
+
 	public String getName() {
     	return name;
     }

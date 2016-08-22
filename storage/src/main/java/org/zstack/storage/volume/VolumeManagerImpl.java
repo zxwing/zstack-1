@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.*;
+import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.config.GlobalConfig;
 import org.zstack.core.config.GlobalConfigUpdateExtensionPoint;
 import org.zstack.core.db.DatabaseFacade;
@@ -29,6 +30,7 @@ import org.zstack.header.search.SearchOp;
 import org.zstack.header.storage.backup.BackupStorageState;
 import org.zstack.header.storage.backup.BackupStorageStatus;
 import org.zstack.header.storage.primary.*;
+import org.zstack.header.storage.primary.InstantiateVolumeOnPrimaryStorageReply;
 import org.zstack.header.storage.snapshot.*;
 import org.zstack.header.volume.*;
 import org.zstack.header.volume.APIGetVolumeFormatReply.VolumeFormatReplyStruct;
@@ -75,6 +77,8 @@ public class VolumeManagerImpl extends AbstractService implements VolumeManager,
     private VolumeDeletionPolicyManager deletionPolicyMgr;
     @Autowired
     private EventFacade evtf;
+    @Autowired
+    private PluginRegistry pluginRgty;
 
     private Future<Void> volumeExpungeTask;
 
@@ -495,12 +499,36 @@ public class VolumeManagerImpl extends AbstractService implements VolumeManager,
 		
 		vo = dbf.persistAndRefresh(vo);
 
-        new FireVolumeCanonicalEvent().fireVolumeStatusChangedEvent(null, VolumeInventory.valueOf(vo));
+        if (msg.getPrimaryStorageUuid() == null) {
+            new FireVolumeCanonicalEvent().fireVolumeStatusChangedEvent(null, VolumeInventory.valueOf(vo));
 
-		VolumeInventory inv = VolumeInventory.valueOf(vo);
-		evt.setInventory(inv);
-        logger.debug(String.format("Successfully created data volume[name:%s, uuid:%s, size:%s]", inv.getName(), inv.getUuid(), inv.getSize()));
-		bus.publish(evt);
+            VolumeInventory inv = VolumeInventory.valueOf(vo);
+            evt.setInventory(inv);
+            logger.debug(String.format("Successfully created data volume[name:%s, uuid:%s, size:%s]", inv.getName(), inv.getUuid(), inv.getSize()));
+            bus.publish(evt);
+            return;
+        }
+
+        InstantiateVolumeMsg imsg = new InstantiateVolumeMsg();
+        imsg.setVolumeUuid(vo.getUuid());
+        imsg.setPrimaryStorageUuid(msg.getPrimaryStorageUuid());
+        imsg.setSystemTags(msg.getSystemTags());
+        imsg.setUserTags(msg.getUserTags());
+        bus.makeTargetServiceIdByResourceUuid(imsg, VolumeConstant.SERVICE_ID, vo.getUuid());
+        VolumeVO finalVo = vo;
+        bus.send(imsg, new CloudBusCallBack(msg) {
+            @Override
+            public void run(MessageReply reply) {
+                if (!reply.isSuccess()) {
+                    dbf.remove(finalVo);
+                    evt.setErrorCode(reply.getError());
+                } else {
+                    evt.setInventory(((InstantiateVolumeOnPrimaryStorageReply)reply).getVolume());
+                }
+
+                bus.publish(evt);
+            }
+        });
     }
 
 	@Override
@@ -528,6 +556,13 @@ public class VolumeManagerImpl extends AbstractService implements VolumeManager,
             @Override
             public void updateGlobalConfig(GlobalConfig oldConfig, GlobalConfig newConfig) {
                 startExpungeTask();
+            }
+        });
+
+        pluginRgty.saveExtensionAsMap(InstantiateDataVolumeOnCreationExtensionPoint.class, new Function<Object, InstantiateDataVolumeOnCreationExtensionPoint>() {
+            @Override
+            public Object call(InstantiateDataVolumeOnCreationExtensionPoint arg) {
+                return arg.getPrimaryStorageTypeForInstantiateDataVolumeOnCreationExtensionPoint();
             }
         });
 

@@ -1022,7 +1022,7 @@ public class FusionstorPrimaryStorageBase extends PrimaryStorageBase {
         return FusionstorPrimaryStorageInventory.valueOf(getSelf());
     }
 
-    private void createEmptyVolume(final InstantiateVolumeMsg msg) {
+    private void createEmptyVolume(final InstantiateVolumeOnPrimaryStorageMsg msg) {
         final CreateEmptyVolumeCmd cmd = new CreateEmptyVolumeCmd();
         cmd.installPath = VolumeType.Root.toString().equals(msg.getVolume().getType()) ?
                 makeRootVolumeInstallPath(msg.getVolume().getUuid()) : makeDataVolumeInstallPath(msg.getVolume().getUuid());
@@ -1048,9 +1048,9 @@ public class FusionstorPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     @Override
-    protected void handle(final InstantiateVolumeMsg msg) {
-        if (msg instanceof InstantiateRootVolumeFromTemplateMsg) {
-            createVolumeFromTemplate((InstantiateRootVolumeFromTemplateMsg) msg);
+    protected void handle(final InstantiateVolumeOnPrimaryStorageMsg msg) {
+        if (msg instanceof InstantiateRootVolumeFromTemplateOnPrimaryStorageMsg) {
+            createVolumeFromTemplate((InstantiateRootVolumeFromTemplateOnPrimaryStorageMsg) msg);
         } else {
             createEmptyVolume(msg);
         }
@@ -1298,7 +1298,7 @@ public class FusionstorPrimaryStorageBase extends PrimaryStorageBase {
         }
     }
 
-    private void createVolumeFromTemplate(final InstantiateRootVolumeFromTemplateMsg msg) {
+    private void createVolumeFromTemplate(final InstantiateRootVolumeFromTemplateOnPrimaryStorageMsg msg) {
         final ImageInventory img = msg.getTemplateSpec().getInventory();
 
         final InstantiateVolumeReply reply = new InstantiateVolumeReply();

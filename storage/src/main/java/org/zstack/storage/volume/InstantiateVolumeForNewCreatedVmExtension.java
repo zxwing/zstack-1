@@ -10,9 +10,7 @@ import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.header.core.Completion;
 import org.zstack.header.image.ImageConstant.ImageMediaType;
 import org.zstack.header.message.MessageReply;
-import org.zstack.header.storage.primary.InstantiateRootVolumeFromTemplateMsg;
-import org.zstack.header.storage.primary.InstantiateVolumeMsg;
-import org.zstack.header.storage.primary.InstantiateVolumeReply;
+import org.zstack.header.storage.primary.InstantiateVolumeOnPrimaryStorageReply;
 import org.zstack.header.storage.primary.PrimaryStorageConstant;
 import org.zstack.header.vm.PreVmInstantiateResourceExtensionPoint;
 import org.zstack.header.vm.VmInstanceSpec;
@@ -41,32 +39,6 @@ public class InstantiateVolumeForNewCreatedVmExtension implements PreVmInstantia
     public void preBeforeInstantiateVmResource(VmInstanceSpec spec) throws VmInstantiateResourceException{
     }
 
-    private List<InstantiateVolumeMsg> prepareMsg(VmInstanceSpec spec) {
-        List<InstantiateVolumeMsg> msgs = new ArrayList<InstantiateVolumeMsg>();
-        for (VolumeInventory volume : spec.getDestDataVolumes()) {
-            InstantiateVolumeMsg msg = new InstantiateVolumeMsg();
-            msg.setVolume(volume);
-            bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, volume.getPrimaryStorageUuid());
-            msg.setDestHost(spec.getDestHost());
-            msgs.add(msg);
-        }
-
-        ImageSpec image = spec.getImageSpec();
-        InstantiateVolumeMsg rmsg =  null;
-        if (ImageMediaType.RootVolumeTemplate.toString().equals(image.getInventory().getMediaType())) {
-            rmsg = new InstantiateRootVolumeFromTemplateMsg();
-            ((InstantiateRootVolumeFromTemplateMsg)rmsg).setTemplateSpec(image);
-        } else {
-            rmsg = new InstantiateVolumeMsg();
-        }
-        rmsg.setDestHost(spec.getDestHost());
-        rmsg.setVolume(spec.getDestRootVolume());
-        bus.makeTargetServiceIdByResourceUuid(rmsg, PrimaryStorageConstant.SERVICE_ID, spec.getDestRootVolume().getPrimaryStorageUuid());
-        msgs.add(rmsg);
-        return msgs;
-    }
-
-
     private void doInstantiate(final Iterator<InstantiateVolumeMsg> it, final VmInstanceSpec spec, final Completion completion) {
         if (!it.hasNext()) {
             completion.success();
@@ -93,13 +65,8 @@ public class InstantiateVolumeForNewCreatedVmExtension implements PreVmInstantia
             @Override
             public void run(MessageReply reply) {
                 if (reply.isSuccess()) {
-                    InstantiateVolumeReply r = (InstantiateVolumeReply) reply;
+                    InstantiateVolumeOnPrimaryStorageReply r = (InstantiateVolumeOnPrimaryStorageReply) reply;
                     VolumeVO vo = dbf.findByUuid(r.getVolume().getUuid(), VolumeVO.class);
-
-                    VolumeStatus oldStatus = vo.getStatus();
-
-                    vo.setInstallPath(r.getVolume().getInstallPath());
-                    vo.setStatus(VolumeStatus.Ready);
                     if (vo.getType() == VolumeType.Data) {
                         vo.setDeviceId(getNextDeviceId());
                         vo.setActualSize(0L);
@@ -107,8 +74,6 @@ public class InstantiateVolumeForNewCreatedVmExtension implements PreVmInstantia
                         vo.setActualSize(spec.getImageSpec().getInventory().getActualSize());
                     }
                     vo = dbf.updateAndRefresh(vo);
-
-                    new FireVolumeCanonicalEvent().fireVolumeStatusChangedEvent(oldStatus, VolumeInventory.valueOf(vo));
 
                     VolumeInventory vinv = VolumeInventory.valueOf(vo);
                     if (spec.getDestRootVolume().getUuid().equals(vinv.getUuid())) {
@@ -135,7 +100,28 @@ public class InstantiateVolumeForNewCreatedVmExtension implements PreVmInstantia
             return;
         }
 
-        List<InstantiateVolumeMsg> msgs = prepareMsg(spec);
+        List<InstantiateVolumeMsg> msgs = new ArrayList<>();
+        for (VolumeInventory volume : spec.getDestDataVolumes()) {
+            InstantiateVolumeMsg msg = new InstantiateVolumeMsg();
+            msg.setVolumeUuid(volume.getUuid());
+            msg.setHostUuid(spec.getDestHost().getUuid());
+            bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, volume.getUuid());
+            msgs.add(msg);
+        }
+
+        ImageSpec image = spec.getImageSpec();
+        InstantiateVolumeMsg rmsg;
+        if (ImageMediaType.RootVolumeTemplate.toString().equals(image.getInventory().getMediaType())) {
+            rmsg = new InstantiateRootVolumeMsg();
+            ((InstantiateRootVolumeMsg)rmsg).setTemplateSpec(image);
+        } else {
+            rmsg = new InstantiateVolumeMsg();
+        }
+        rmsg.setHostUuid(spec.getDestHost().getUuid());
+        rmsg.setVolumeUuid(spec.getDestRootVolume().getUuid());
+        bus.makeTargetServiceIdByResourceUuid(rmsg, PrimaryStorageConstant.SERVICE_ID, spec.getDestRootVolume().getUuid());
+        msgs.add(rmsg);
+
         if (msgs.isEmpty()) {
             completion.success();
             return;
