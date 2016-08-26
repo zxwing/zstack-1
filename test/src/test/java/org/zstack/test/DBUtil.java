@@ -21,17 +21,21 @@ import static org.zstack.utils.StringDSL.ln;
 
 public class DBUtil {
     private static final CLogger logger = Utils.getLogger(DBUtil.class);
-    
-    public static void reDeployDB() {
-        logger.info("Deploying database ...");
-        String home = System.getProperty("user.dir");
-        String baseDir = Utils.getPathUtil().join(home, "../");
-        Properties prop = new Properties();
-        
-        try {
-            prop.load(DBUtil.class.getClassLoader().getResourceAsStream("zstack.properties"));
 
-            String user = System.getProperty("DB.user");
+    static class DBCredential {
+        String user;
+        String password;
+
+        public DBCredential() {
+            Properties prop = new Properties();
+
+            try {
+                prop.load(DBUtil.class.getClassLoader().getResourceAsStream("zstack.properties"));
+            } catch (IOException e) {
+                throw new CloudRuntimeException(e);
+            }
+
+            user = System.getProperty("DB.user");
             if (user == null) {
                 user = prop.getProperty("DB.user");
                 if (user == null) {
@@ -42,7 +46,7 @@ public class DBUtil {
                 }
             }
 
-            String password = System.getProperty("DB.password");
+            password = System.getProperty("DB.password");
             if (password == null) {
                 password = prop.getProperty("DB.password");
                 if (password == null) {
@@ -52,8 +56,39 @@ public class DBUtil {
                     throw new CloudRuntimeException("cannot find DB user in zstack.properties, please set either DB.password or DbFacadeDataSource.password");
                 }
             }
+        }
+    }
 
-            String shellcmd = String.format("build/deploydb.sh %s %s",  user, password);
+    public static void applyDb(String DBDumpPath) {
+        logger.info(String.format("Applying database[%s] ...", DBDumpPath));
+        DBCredential cred = new DBCredential();
+        if (cred.password != null && !cred.password.isEmpty()) {
+            //ShellUtils.run(String.format("mysql -u %s -p%s -e 'drop database if exists zstack; create database zstack'", cred.user, cred.password));
+            ShellUtils.run(String.format("mysql -u %s -p%s -t zstack < %s", cred.user, cred.password, DBDumpPath));
+        } else {
+            //ShellUtils.run(String.format("mysql -u %s -e 'drop database if exists zstack; create database zstack'", cred.user));
+            ShellUtils.run(String.format("mysql -u %s -t zstack < %s", cred.user, DBDumpPath));
+        }
+    }
+
+    public static void dumpDb(String DBDumpPath) {
+        logger.info(String.format("Dumping database[%s] ...", DBDumpPath));
+        DBCredential cred = new DBCredential();
+        if (cred.password != null && !cred.password.isEmpty()) {
+            ShellUtils.run(String.format("mysqldump -u %s -p%s --database zstack > %s", cred.user, cred.password, DBDumpPath));
+        } else {
+            ShellUtils.run(String.format("mysqldump -u %s --database zstack > %s", cred.user, DBDumpPath));
+        }
+    }
+    
+    public static void reDeployDB() {
+        logger.info("Deploying database ...");
+        String home = System.getProperty("user.dir");
+        String baseDir = Utils.getPathUtil().join(home, "../");
+
+        try {
+            DBCredential cred = new DBCredential();
+            String shellcmd = String.format("build/deploydb.sh %s %s",  cred.user, cred.password);
             ShellUtils.run(shellcmd, baseDir, false);
             logger.info("Deploying database successfully");
         } catch (Exception e) {

@@ -32,13 +32,16 @@ import org.zstack.network.service.portforwarding.PortForwardingRuleInventory;
 import org.zstack.test.Api;
 import org.zstack.test.ApiSenderException;
 import org.zstack.test.BeanConstructor;
+import org.zstack.test.DBUtil;
 import org.zstack.test.deployer.schema.*;
 import org.zstack.utils.Utils;
 import org.zstack.utils.data.SizeUnit;
 import org.zstack.utils.logging.CLogger;
+import org.zstack.utils.path.PathUtil;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -53,6 +56,17 @@ public class Deployer {
     private DeployerConfig config;
 
     private static Map<Class<?>, AbstractDeployer> deployers = new HashMap<Class<?>, AbstractDeployer>();
+    private static String databaseCacheDir;
+
+    static {
+        databaseCacheDir = PathUtil.join(System.getProperty("java.io.tmpdir"), "zstack", "unittest_db_cache");
+        File cf = new File(databaseCacheDir);
+        if (!cf.exists()) {
+            cf.mkdirs();
+        }
+    }
+
+    private boolean cacheUsed;
 
     public Map<String, ZoneInventory> zones = new HashMap<String, ZoneInventory>();
     public Map<String, ClusterInventory> clusters = new HashMap<String, ClusterInventory>();
@@ -79,7 +93,6 @@ public class Deployer {
     private Map<String, List<ClusterInventory>> l2NetworksToAttach = new HashMap<String, List<ClusterInventory>>();
     private Map<String, List<ZoneInventory>> backupStoragesToAttach = new HashMap<String, List<ZoneInventory>>();
     private Map<String, List<L3NetworkInventory>> dnsToAttach = new HashMap<String, List<L3NetworkInventory>>();
-
 
     private BeanConstructor beanConstructor;
     private Set<String> springConfigs = new HashSet<String>();
@@ -129,6 +142,11 @@ public class Deployer {
     public Deployer(String xmlName, BeanConstructor constructor) {
         this.xmlName = xmlName;
         this.beanConstructor = constructor;
+
+        cacheUsed = applyFromDbCache();
+        if (!cacheUsed) {
+            DBUtil.reDeployDB();
+        }
     }
 
     public Deployer(String xmlName) {
@@ -582,6 +600,23 @@ public class Deployer {
         return this;
     }
 
+    private String xmlToDbCacheName() {
+        return xmlName.replaceAll("/", "_");
+    }
+
+    private boolean applyFromDbCache() {
+        String cacheFileName = xmlToDbCacheName();
+        String cacheFilePath = PathUtil.join(databaseCacheDir, cacheFileName);
+        File f = new File(cacheFilePath);
+        if (!f.exists()) {
+            return false;
+        }
+
+        DBUtil.applyDb(f.getAbsolutePath());
+        logger.info(String.format("applied DB cache %s", f.getAbsolutePath()));
+        return true;
+    }
+
     public void deploy() {
         scanDeployer();
 
@@ -600,15 +635,26 @@ public class Deployer {
             deployPortForwarding();
             deployEip();
             deployLb();
+
+            saveToDbCache();
         } catch (Exception e) {
             throw new CloudRuntimeException(e);
         }
     }
 
+    private void saveToDbCache() {
+        String cacheFileName = xmlToDbCacheName();
+        String cacheFilePath = PathUtil.join(databaseCacheDir, cacheFileName);
+        DBUtil.dumpDb(cacheFilePath);
+    }
+
     public void build() {
         load();
         start();
-        deploy();
+
+        if (!cacheUsed) {
+            deploy();
+        }
     }
 
     public Api getApi() {

@@ -8,7 +8,6 @@ import org.zstack.core.db.DatabaseFacade;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.simulator.storage.backup.sftp.SftpBackupStorageSimulatorConfig;
 import org.zstack.test.Api;
-import org.zstack.test.DBUtil;
 import org.zstack.test.WebBeanConstructor;
 import org.zstack.test.deployer.Deployer;
 import org.zstack.test.storage.backup.sftp.TestSftpBackupStorageDeleteImage2;
@@ -27,7 +26,7 @@ public class TestCreateVmOnKvm {
 
     @Before
     public void setUp() throws Exception {
-        DBUtil.reDeployDB();
+        //DBUtil.reDeployDB();
         WebBeanConstructor con = new WebBeanConstructor();
         deployer = new Deployer("deployerXml/kvm/TestCreateVmOnKvm.xml", con);
         deployer.addSpringConfig("KVMRelated.xml");
