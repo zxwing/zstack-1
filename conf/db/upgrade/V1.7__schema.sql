@@ -16,7 +16,9 @@ ALTER TABLE `zstack`.`UserGroupVO` modify column description varchar(2048) DEFAU
 ALTER TABLE `zstack`.`SchedulerVO` add column schedulerJob varchar(2048) DEFAULT NULL;
 ALTER TABLE `zstack`.`SchedulerVO` change column status state varchar(128) DEFAULT NULL;
 
- CREATE TABLE  `zstack`.`AlarmVO` (
+ALTER TABLE `zstack`.`AccountResourceRefVO` modify column resourceUuid varchar(255) NOT NULL;
+
+CREATE TABLE  `zstack`.`AlarmVO` (
      `uuid` varchar(32) NOT NULL UNIQUE,
      `name` varchar(255) NOT NULL,
      `description` varchar(2048) DEFAULT NULL,
@@ -27,55 +29,55 @@ ALTER TABLE `zstack`.`SchedulerVO` change column status state varchar(128) DEFAU
      `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
      `createDate` timestamp,
      PRIMARY KEY  (`uuid`)
- ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
- 
- CREATE TABLE  `zstack`.`AlarmLabelVO` (
-     `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
-     `alarmUuid` varchar(32) NOT NULL,
-     `label` text NOT NULL,
-     `value` text DEFAULT NULL,
-     `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
-     `createDate` timestamp,
-     PRIMARY KEY  (`id`)
- ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
- 
- CREATE TABLE  `zstack`.`AlertVO` (
-     `uuid` varchar(32) NOT NULL UNIQUE,
-     `name` text DEFAULT NULL,
-     `description` text DEFAULT NULL,
-     `status` varchar(128) NOT NULL,
-     `count` int unsigned NOT NULL,
-     `opaque` text DEFAULT NULL,
-     `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
-     `createDate` timestamp,
-     PRIMARY KEY  (`uuid`)
- ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
- 
- CREATE TABLE  `zstack`.`AlertLabelVO` (
-     `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
-     `alertUuid` varchar(32) NOT NULL,
-     `label` text NOT NULL,
-     `value` text DEFAULT NULL,
-     `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
-     `createDate` timestamp,
-     PRIMARY KEY  (`id`)
- ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
- 
- CREATE TABLE  `zstack`.`AlertTimestampVO` (
-     `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
-     `alertUuid` varchar(32) NOT NULL,
-     `time` timestamp,
-     PRIMARY KEY  (`id`)
- ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
- 
- # Foreign keys for table AlarmLabelVO
- 
- ALTER TABLE AlarmLabelVO ADD CONSTRAINT fkAlarmLabelVOAlarmVO FOREIGN KEY (alarmUuid) REFERENCES AlarmVO (uuid) ON DELETE CASCADE;
- 
- # Foreign keys for table AlertLabelVO
- 
- ALTER TABLE AlertLabelVO ADD CONSTRAINT fkAlertLabelVOAlertVO FOREIGN KEY (alertUuid) REFERENCES AlertVO (uuid) ON DELETE CASCADE;
- 
- # Foreign keys for table AlertTimestampVO
- 
- ALTER TABLE AlertTimestampVO ADD CONSTRAINT fkAlertTimestampVOAlertVO FOREIGN KEY (alertUuid) REFERENCES AlertVO (uuid) ON DELETE CASCADE;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE  `zstack`.`AlarmLabelVO` (
+    `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
+    `alarmUuid` varchar(32) NOT NULL,
+    `label` text NOT NULL,
+    `value` text DEFAULT NULL,
+    `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+    `createDate` timestamp,
+    PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE  `zstack`.`AlertVO` (
+    `uuid` varchar(255) NOT NULL UNIQUE,
+    `name` text DEFAULT NULL,
+    `description` text DEFAULT NULL,
+    `status` varchar(128) NOT NULL,
+    `count` int unsigned NOT NULL,
+    `opaque` text DEFAULT NULL,
+    `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+    `createDate` timestamp,
+    PRIMARY KEY  (`uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE  `zstack`.`AlertLabelVO` (
+    `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
+    `alertUuid` varchar(255) NOT NULL,
+    `label` text NOT NULL,
+    `value` text DEFAULT NULL,
+    `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+    `createDate` timestamp,
+    PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE  `zstack`.`AlertTimestampVO` (
+    `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
+    `alertUuid` varchar(255) NOT NULL,
+    `time` timestamp,
+    PRIMARY KEY  (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+# Foreign keys for table AlarmLabelVO
+
+ALTER TABLE AlarmLabelVO ADD CONSTRAINT fkAlarmLabelVOAlarmVO FOREIGN KEY (alarmUuid) REFERENCES AlarmVO (uuid) ON DELETE CASCADE;
+
+# Foreign keys for table AlertLabelVO
+
+ALTER TABLE AlertLabelVO ADD CONSTRAINT fkAlertLabelVOAlertVO FOREIGN KEY (alertUuid) REFERENCES AlertVO (uuid) ON DELETE CASCADE;
+
+# Foreign keys for table AlertTimestampVO
+
+ALTER TABLE AlertTimestampVO ADD CONSTRAINT fkAlertTimestampVOAlertVO FOREIGN KEY (alertUuid) REFERENCES AlertVO (uuid) ON DELETE CASCADE;

@@ -8,11 +8,15 @@ import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.header.vm.VmInstanceInventory;
-import org.zstack.alert.VmAlarmFactory;
 import org.zstack.test.Api;
 import org.zstack.test.ApiSenderException;
 import org.zstack.test.DBUtil;
 import org.zstack.test.deployer.Deployer;
+
+import java.util.Map;
+
+import static org.zstack.utils.CollectionDSL.e;
+import static org.zstack.utils.CollectionDSL.map;
 
 public class TestSimulatorVmAlarm {
     Deployer deployer;
@@ -21,6 +25,7 @@ public class TestSimulatorVmAlarm {
     CloudBus bus;
     DatabaseFacade dbf;
     SimulatorAlarmFactory factory;
+    AlertManager mgr;
 
     @Before
     public void setUp() throws Exception {
@@ -34,6 +39,7 @@ public class TestSimulatorVmAlarm {
         bus = loader.getComponent(CloudBus.class);
         dbf = loader.getComponent(DatabaseFacade.class);
         factory = loader.getComponent(SimulatorAlarmFactory.class);
+        mgr = loader.getComponent(AlertManager.class);
     }
     
     @Test
@@ -56,5 +62,24 @@ public class TestSimulatorVmAlarm {
         Assert.assertEquals(msg.getConditionOperator().toString(), inv.getConditionOperator());
         Assert.assertEquals(msg.getConditionDuration(), inv.getConditionDuration().longValue());
         Assert.assertEquals(msg.getConditionValue(), inv.getConditionValue());
+
+        // test alert
+        Map ids = map(e(VmAlarmFactory.LABEL_VM_UUID, vm.getUuid()));
+        AlertSender sender = new AlertSender();
+        sender.setName("test");
+        sender.setDescription("test");
+        sender.setIds(ids);
+        sender.setLabels(map(e("test", "test")));
+        sender.send();
+
+        String id = AlertSender.labelsToAlertId(ids);
+        AlertVO avo = dbf.findByUuid(id, AlertVO.class);
+        AlertInventory ainv = AlertInventory.valueOf(avo);
+        Assert.assertEquals(2, ainv.getLabels().size());
+        Assert.assertEquals(vm.getUuid(), ainv.getLabels().get(VmAlarmFactory.LABEL_VM_UUID));
+        Assert.assertEquals("test", ainv.getLabels().get("test"));
+        Assert.assertEquals(AlertStatus.Active, avo.getStatus());
+        Assert.assertEquals(1, ainv.getCount());
+        Assert.assertEquals(1, ainv.getTimestamps().size());
     }
 }
