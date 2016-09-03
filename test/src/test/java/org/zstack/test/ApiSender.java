@@ -29,7 +29,7 @@ public class ApiSender {
     @Autowired
     private ErrorFacade errf;
 
-    public <T extends MessageReply> T call(APIMessage msg, Class<T> clazz) throws ApiSenderException {
+    public <T extends MessageReply> T call(APIMessage msg, Class clazz) throws ApiSenderException {
         msg.setServiceId(ApiMediatorConstant.SERVICE_ID);
         MessageReply r = bus.call(msg);
         if (!r.isSuccess()) {

@@ -41,6 +41,7 @@
 	<Import resource="unitTestSuiteXml/hostCpuCapacity.xml"/>
 	<Import resource="unitTestSuiteXml/flatNetwork.xml"/>
 	<Import resource="unitTestSuiteXml/scheduler.xml"/>
+	<Import resource="unitTestSuiteXml/alert.xml"/>
 
 	<!--
 	<Import resource="unitTestSuiteXml/console.xml"/>

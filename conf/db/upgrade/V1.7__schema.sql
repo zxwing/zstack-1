@@ -32,7 +32,7 @@ ALTER TABLE `zstack`.`SchedulerVO` change column status state varchar(128) DEFAU
  CREATE TABLE  `zstack`.`AlarmLabelVO` (
      `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
      `alarmUuid` varchar(32) NOT NULL,
-     `key` text NOT NULL,
+     `label` text NOT NULL,
      `value` text DEFAULT NULL,
      `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
      `createDate` timestamp,
@@ -54,7 +54,7 @@ ALTER TABLE `zstack`.`SchedulerVO` change column status state varchar(128) DEFAU
  CREATE TABLE  `zstack`.`AlertLabelVO` (
      `id` bigint unsigned NOT NULL UNIQUE AUTO_INCREMENT,
      `alertUuid` varchar(32) NOT NULL,
-     `key` text NOT NULL,
+     `label` text NOT NULL,
      `value` text DEFAULT NULL,
      `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
      `createDate` timestamp,
@@ -70,7 +70,7 @@ ALTER TABLE `zstack`.`SchedulerVO` change column status state varchar(128) DEFAU
  
  # Foreign keys for table AlarmLabelVO
  
- ALTER TABLE AlarmLabelVO ADD CONSTRAINT fkAlarmLabelVOAlertVO FOREIGN KEY (alarmUuid) REFERENCES AlertVO (uuid) ON DELETE CASCADE;
+ ALTER TABLE AlarmLabelVO ADD CONSTRAINT fkAlarmLabelVOAlarmVO FOREIGN KEY (alarmUuid) REFERENCES AlarmVO (uuid) ON DELETE CASCADE;
  
  # Foreign keys for table AlertLabelVO
  
