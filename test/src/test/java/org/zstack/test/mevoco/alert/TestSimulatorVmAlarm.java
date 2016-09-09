@@ -5,6 +5,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.zstack.alert.*;
 import org.zstack.core.cloudbus.CloudBus;
+import org.zstack.core.cloudbus.EventCallback;
+import org.zstack.core.cloudbus.EventFacade;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.header.vm.VmInstanceInventory;
@@ -14,6 +16,7 @@ import org.zstack.test.DBUtil;
 import org.zstack.test.deployer.Deployer;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.zstack.utils.CollectionDSL.e;
 import static org.zstack.utils.CollectionDSL.map;
@@ -26,6 +29,8 @@ public class TestSimulatorVmAlarm {
     DatabaseFacade dbf;
     SimulatorAlarmFactory factory;
     AlertManager mgr;
+    EventFacade evtf;
+    volatile int count;
 
     @Before
     public void setUp() throws Exception {
@@ -40,10 +45,18 @@ public class TestSimulatorVmAlarm {
         dbf = loader.getComponent(DatabaseFacade.class);
         factory = loader.getComponent(SimulatorAlarmFactory.class);
         mgr = loader.getComponent(AlertManager.class);
+        evtf = loader.getComponent(EventFacade.class);
     }
     
     @Test
-    public void test() throws ApiSenderException {
+    public void test() throws ApiSenderException, InterruptedException {
+        evtf.on(AlertCanonicalEvents.FIRE_ALERT_PATH, new EventCallback() {
+            @Override
+            protected void run(Map tokens, Object data) {
+                count ++;
+            }
+        });
+
         VmInstanceInventory vm = deployer.vms.get("TestVm");
 
         APICreateVmCpuAlarmMsg msg = new APICreateVmCpuAlarmMsg();
@@ -71,6 +84,7 @@ public class TestSimulatorVmAlarm {
         sender.setIds(ids);
         sender.setLabels(map(e("test", "test")));
         sender.send();
+        TimeUnit.SECONDS.sleep(2);
 
         String id = AlertSender.labelsToAlertId(ids);
         AlertVO avo = dbf.findByUuid(id, AlertVO.class);
@@ -81,5 +95,31 @@ public class TestSimulatorVmAlarm {
         Assert.assertEquals(AlertStatus.Active, avo.getStatus());
         Assert.assertEquals(1, ainv.getCount());
         Assert.assertEquals(1, ainv.getTimestamps().size());
+        Assert.assertEquals(1, count);
+
+        // alert is muted
+        AlertUpdater updater = new AlertUpdater(api);
+        updater.status = AlertStatus.Muted;
+        updater.update(avo.getUuid());
+        avo = dbf.reload(avo);
+        Assert.assertEquals(AlertStatus.Muted, avo.getStatus());
+
+        sender.send();
+        TimeUnit.SECONDS.sleep(2);
+        avo = dbf.reload(avo);
+        Assert.assertEquals(2, avo.getCount());
+        Assert.assertEquals(1, count);
+
+        // alert is enabled again
+        updater.status = AlertStatus.Active;
+        updater.update(avo.getUuid());
+        avo = dbf.reload(avo);
+        Assert.assertEquals(AlertStatus.Active, avo.getStatus());
+
+        sender.send();
+        TimeUnit.SECONDS.sleep(2);
+        avo = dbf.reload(avo);
+        Assert.assertEquals(3, avo.getCount());
+        Assert.assertEquals(2, count);
     }
 }
