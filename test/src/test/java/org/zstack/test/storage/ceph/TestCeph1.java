@@ -104,27 +104,27 @@ public class TestCeph1 {
         CephBackupStorageVO cephb = dbf.findByUuid(bs.getUuid(), CephBackupStorageVO.class);
         Iterator<CephBackupStorageMonVO> bsit = cephb.getMons().iterator();
         CephBackupStorageMonVO bsm1 = bsit.next();
-        bconfig.dataNetworkIps.put(bsm1.getUuid(), dataNetworkIp1);
+        bconfig.monAddr.put(bsm1.getUuid(), dataNetworkIp1);
         CephBackupStorageMonVO bsm2 = bsit.next();
-        bconfig.dataNetworkIps.put(bsm2.getUuid(), dataNetworkIp2);
+        bconfig.monAddr.put(bsm2.getUuid(), dataNetworkIp2);
         api.reconnectBackupStorage(bs.getUuid());
         bsm1 = dbf.reload(bsm1);
-        Assert.assertEquals(dataNetworkIp1, bsm1.getDataNetworkIp());
+        Assert.assertEquals(dataNetworkIp1, bsm1.getMonAddr());
         bsm2 = dbf.reload(bsm2);
-        Assert.assertEquals(dataNetworkIp2, bsm2.getDataNetworkIp());
+        Assert.assertEquals(dataNetworkIp2, bsm2.getMonAddr());
 
         // test ceph primary storage data network IP
         CephPrimaryStorageVO cephp = dbf.findByUuid(ps.getUuid(), CephPrimaryStorageVO.class);
         Iterator<CephPrimaryStorageMonVO> it = cephp.getMons().iterator();
         CephPrimaryStorageMonVO m1 = it.next();
-        config.dataNetworkIps.put(m1.getUuid(), dataNetworkIp1);
+        config.monAddr.put(m1.getUuid(), dataNetworkIp1);
         CephPrimaryStorageMonVO m2 = it.next();
-        config.dataNetworkIps.put(m2.getUuid(), dataNetworkIp2);
+        config.monAddr.put(m2.getUuid(), dataNetworkIp2);
         api.reconnectPrimaryStorage(ps.getUuid());
         m1 = dbf.reload(m1);
-        Assert.assertEquals(dataNetworkIp1, m1.getDataNetworkIp());
+        Assert.assertEquals(dataNetworkIp1, m1.getMonAddr());
         m2 = dbf.reload(m2);
-        Assert.assertEquals(dataNetworkIp2, m2.getDataNetworkIp());
+        Assert.assertEquals(dataNetworkIp2, m2.getMonAddr());
 
         restf.installBeforeAsyncJsonPostInterceptor(new BeforeAsyncJsonPostInterceptor() {
             @Override

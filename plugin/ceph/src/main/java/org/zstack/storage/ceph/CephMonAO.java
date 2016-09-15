@@ -22,7 +22,7 @@ public class CephMonAO {
     private String hostname;
 
     @Column
-    private String dataNetworkIp;
+    private String monAddr;
 
     @Column
     private int sshPort = 22;
@@ -45,12 +45,12 @@ public class CephMonAO {
         lastOpDate = null;
     }
 
-    public String getDataNetworkIp() {
-        return dataNetworkIp;
+    public String getMonAddr() {
+        return monAddr;
     }
 
-    public void setDataNetworkIp(String dataNetworkIp) {
-        this.dataNetworkIp = dataNetworkIp;
+    public void setMonAddr(String monAddr) {
+        this.monAddr = monAddr;
     }
 
     public int getSshPort() {

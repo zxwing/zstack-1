@@ -602,7 +602,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
 
     public static class GetFactsRsp extends AgentResponse {
         public String fsid;
-        public String dataNetworkIp;
+        public String monAddr;
     }
 
     public static class DeleteImageCacheCmd extends AgentCommand {
@@ -1771,7 +1771,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
 
                                     CephPrimaryStorageMonVO monVO = mon.getSelf();
                                     fsids.put(monVO.getUuid(), rsp.fsid);
-                                    monVO.setDataNetworkIp(rsp.dataNetworkIp == null ? monVO.getHostname() : rsp.dataNetworkIp);
+                                    monVO.setMonAddr(rsp.monAddr == null ? monVO.getHostname() : rsp.monAddr);
                                     dbf.update(monVO);
 
                                     latch.ack();
