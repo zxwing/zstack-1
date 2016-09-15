@@ -243,6 +243,7 @@ public class CephBackupStorageBase extends BackupStorageBase {
 
     public static class GetFactsRsp extends AgentResponse {
         public String fsid;
+        public String dataNetworkIp;
     }
 
     public static final String INIT_PATH = "/ceph/backupstorage/init";
@@ -624,7 +625,10 @@ public class CephBackupStorageBase extends BackupStorageBase {
                                         return;
                                     }
 
-                                    fsids.put(mon.getSelf().getUuid(), rsp.fsid);
+                                    CephBackupStorageMonVO monVO = mon.getSelf();
+                                    fsids.put(monVO.getUuid(), rsp.fsid);
+                                    monVO.setDataNetworkIp(rsp.dataNetworkIp == null ? monVO.getHostname() : rsp.dataNetworkIp);
+                                    dbf.update(monVO);
                                     latch.ack();
                                 }
 
