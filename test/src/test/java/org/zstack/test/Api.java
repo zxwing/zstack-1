@@ -4084,8 +4084,6 @@ public class Api implements CloudBusEventListener {
 
     public void deletePrice(String resourceName, long dateInLong) throws ApiSenderException {
         APIDeleteResourcePriceMsg msg = new APIDeleteResourcePriceMsg();
-        msg.setResourceName(resourceName);
-        msg.setDateInLong(dateInLong);
         msg.setSession(adminSession);
         ApiSender sender = new ApiSender();
         sender.setTimeout(timeout);
