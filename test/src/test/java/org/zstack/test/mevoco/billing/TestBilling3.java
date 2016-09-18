@@ -90,7 +90,7 @@ public class TestBilling3 {
         session = api.loginAsAdmin();
     }
 
-    private void check(APICalculateAccountSpendingReply reply, float cpuPrice, float memPrice) {
+    private void check(APICalculateAccountSpendingReply reply, double cpuPrice, double memPrice) {
         Spending spending = CollectionUtils.find(reply.getSpending(), new Function<Spending, Spending>() {
             @Override
             public Spending call(Spending arg) {
@@ -100,10 +100,10 @@ public class TestBilling3 {
         Assert.assertNotNull(spending);
 
         VmSpending vmSpending = (VmSpending) spending.getDetails().get(0);
-        float cpuSpending = (float) vmSpending.cpuInventory.stream().mapToDouble(i -> i.spending).sum();
+        double cpuSpending = (double) vmSpending.cpuInventory.stream().mapToDouble(i -> i.spending).sum();
         Assert.assertEquals(cpuPrice, cpuSpending, 0.02);
 
-        float memSpending = (float) vmSpending.memoryInventory.stream().mapToDouble(i -> i.spending).sum();
+        double memSpending = (double) vmSpending.memoryInventory.stream().mapToDouble(i -> i.spending).sum();
         Assert.assertEquals(memPrice, memSpending, 0.02);
 
         Assert.assertEquals(cpuPrice, cpuSpending, 0.02);
@@ -117,8 +117,8 @@ public class TestBilling3 {
         final VmInstanceInventory vm1 = deployer.vms.get("TestVm1");
         api.stopVmInstance(vm1.getUuid());
 
-        float cprice = 100.01f;
-        float mprice = 10.03f;
+        double cprice = 100.01d;
+        double mprice = 10.03d;
 
         APICreateResourcePriceMsg msg = new APICreateResourcePriceMsg();
         msg.setTimeUnit("s");
@@ -189,8 +189,11 @@ public class TestBilling3 {
         APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null,
                 Long.MAX_VALUE, null);
 
-        float cpuPrice = vm.getCpuNum() * cprice * duringInSeconds;
-        float memPrice = SizeUnit.BYTE.toMegaByte(vm.getMemorySize()) * mprice * duringInSeconds;
+        double cpuPrice = vm.getCpuNum() * cprice * duringInSeconds;
+        double memPrice = (double) SizeUnit.BYTE.toMegaByte(vm.getMemorySize()) * mprice * (double) duringInSeconds;
+        logger.debug(String.format("yyyyyy MEM: %d * %f * %d = %f", SizeUnit.BYTE.toMegaByte(vm.getMemorySize()),
+                mprice, duringInSeconds, memPrice));
+        logger.debug(String.format("yyyyyyyyyyyyyyyyyyyy cpu: %f, mem: %f, total: %f", cpuPrice, memPrice, cpuPrice+memPrice));
         Assert.assertEquals(reply.getTotal(), cpuPrice + memPrice, 0.02);
         check(reply, cpuPrice, memPrice);
 
@@ -212,8 +215,8 @@ public class TestBilling3 {
         long during11 = date66.getTime() - date33.getTime();
         duringInSeconds = TimeUnit.MILLISECONDS.toSeconds(during11);
 
-        float cpuPrice11 = vm1.getCpuNum() * cprice * duringInSeconds;
-        float memPrice11 = SizeUnit.BYTE.toMegaByte(vm1.getMemorySize()) * mprice * duringInSeconds;
+        double cpuPrice11 = vm1.getCpuNum() * cprice * duringInSeconds;
+        double memPrice11 = SizeUnit.BYTE.toMegaByte(vm1.getMemorySize()) * mprice * duringInSeconds;
 
         reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, date33.getTime(), date66.getTime(), null);
         Assert.assertEquals(cpuPrice11 + memPrice11, reply.getTotal(), 0.02);

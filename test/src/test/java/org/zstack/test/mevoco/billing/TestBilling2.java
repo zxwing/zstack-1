@@ -91,15 +91,15 @@ public class TestBilling2 {
         session = api.loginAsAdmin();
     }
 
-    private void check(APICalculateAccountSpendingReply reply, float cpuPrice, float memPrice) {
+    private void check(APICalculateAccountSpendingReply reply, double cpuPrice, double memPrice) {
         Spending spending = CollectionUtils.find(reply.getSpending(), arg -> BillingConstants.SPENDING_TYPE_VM.equals(arg.getSpendingType()) ? arg : null);
         Assert.assertNotNull(spending);
 
         VmSpending vmSpending = (VmSpending) spending.getDetails().get(0);
-        float cpuSpending = (float) vmSpending.cpuInventory.stream().mapToDouble(i -> i.spending).sum();
+        double cpuSpending = (double) vmSpending.cpuInventory.stream().mapToDouble(i -> i.spending).sum();
         Assert.assertEquals(cpuPrice, cpuSpending, 0.02);
 
-        float memSpending = (float) vmSpending.memoryInventory.stream().mapToDouble(i -> i.spending).sum();
+        double memSpending = (double) vmSpending.memoryInventory.stream().mapToDouble(i -> i.spending).sum();
         Assert.assertEquals(memPrice, memSpending, 0.02);
     }
     
@@ -108,8 +108,8 @@ public class TestBilling2 {
         final VmInstanceInventory vm = deployer.vms.get("TestVm");
         api.stopVmInstance(vm.getUuid());
 
-        float cprice = 100.01f;
-        float mprice = 10.03f;
+        double cprice = 100.01d;
+        double mprice = 10.03d;
 
         APICreateResourcePriceMsg msg = new APICreateResourcePriceMsg();
         msg.setTimeUnit("s");
@@ -166,8 +166,8 @@ public class TestBilling2 {
 
         APICalculateAccountSpendingReply reply = api.calculateSpending(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID, null, Long.MAX_VALUE, null);
 
-        float cpuPrice = vm.getCpuNum() * cprice * duringInSeconds;
-        float memPrice = SizeUnit.BYTE.toMegaByte(vm.getMemorySize()) * mprice * duringInSeconds;
+        double cpuPrice = vm.getCpuNum() * cprice * duringInSeconds;
+        double memPrice = SizeUnit.BYTE.toMegaByte(vm.getMemorySize()) * mprice * duringInSeconds;
         Assert.assertEquals(cpuPrice + memPrice, reply.getTotal(), 0.02);
         check(reply, cpuPrice, memPrice);
 

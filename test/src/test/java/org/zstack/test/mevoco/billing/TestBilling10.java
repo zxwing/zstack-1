@@ -38,6 +38,7 @@ import java.util.Date;
  *
  * confirm the billing is zero
  */
+@Deprecated
 public class TestBilling10 {
     CLogger logger = Utils.getLogger(TestBilling10.class);
     Deployer deployer;
