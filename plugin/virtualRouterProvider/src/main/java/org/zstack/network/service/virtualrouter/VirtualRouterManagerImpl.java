@@ -236,6 +236,8 @@ public class VirtualRouterManagerImpl extends AbstractService implements Virtual
                 aspec.setAccountUuid(accountUuid);
                 aspec.setName(String.format("virtualRouter.l3.%s", l3Network.getUuid()));
                 aspec.setInherentSystemTags(msg.getInherentSystemTags());
+                aspec.setSshUsername(VirtualRouterGlobalConfig.SSH_USERNAME.value());
+                aspec.setSshPort(VirtualRouterGlobalConfig.SSH_PORT.value(Integer.class));
 
                 L3NetworkInventory mgmtNw = L3NetworkInventory.valueOf(dbf.findByUuid(offering.getManagementNetworkUuid(), L3NetworkVO.class));
                 ApplianceVmNicSpec mgmtNicSpec = new ApplianceVmNicSpec();

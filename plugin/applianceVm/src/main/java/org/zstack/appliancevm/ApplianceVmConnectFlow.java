@@ -53,9 +53,9 @@ public class ApplianceVmConnectFlow extends NoRollbackFlow {
         }
 
         final VmInstanceSpec spec = (VmInstanceSpec) data.get(VmInstanceConstant.Params.VmInstanceSpec.toString());
+        final ApplianceVmSpec aspec = spec.getExtensionData(ApplianceVmConstant.Params.applianceVmSpec.toString(), ApplianceVmSpec.class);
         VmNicInventory mgmtNic;
         if (spec.getCurrentVmOperation() == VmInstanceConstant.VmOperation.NewCreate) {
-            final ApplianceVmSpec aspec = spec.getExtensionData(ApplianceVmConstant.Params.applianceVmSpec.toString(), ApplianceVmSpec.class);
             mgmtNic = CollectionUtils.find(spec.getDestNics(), new Function<VmNicInventory, VmNicInventory>() {
                 @Override
                 public VmNicInventory call(VmNicInventory arg) {
@@ -69,9 +69,9 @@ public class ApplianceVmConnectFlow extends NoRollbackFlow {
         }
 
         final int connectTimeout = ApplianceVmGlobalConfig.CONNECT_TIMEOUT.value(Integer.class);
-        final String username = "root";
+        final String username = aspec.getSshUsername();
+        final int sshPort = aspec.getSshPort();
         final String privKey = asf.getPrivateKey();
-        final int sshPort = 22;
         final boolean connectVerbose = ApplianceVmGlobalProperty.CONNECT_VERBOSE;
 
         final String mgmtIp = mgmtNic.getIp();
@@ -105,7 +105,7 @@ public class ApplianceVmConnectFlow extends NoRollbackFlow {
 
             private void sshLogIn() throws InterruptedException {
                 long expired = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(ApplianceVmGlobalConfig.SSH_LOGIN_TIMEOUT.value(Long.class));
-                SshException se = null;
+                SshException se;
                 while (true) {
                    try {
                        new Ssh().setHostname(mgmtIp).setUsername(username).setPrivateKey(privKey).setPort(sshPort).setSuppressException(!connectVerbose)
