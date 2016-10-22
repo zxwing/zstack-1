@@ -33,6 +33,15 @@ public class ApplianceVmSpec implements Serializable {
     private List<String> nonInherentSystemTags;
     private String sshUsername = "root";
     private int sshPort = 22;
+    private int agentPort = 7759;
+
+    public int getAgentPort() {
+        return agentPort;
+    }
+
+    public void setAgentPort(int agentPort) {
+        this.agentPort = agentPort;
+    }
 
     public int getSshPort() {
         return sshPort;

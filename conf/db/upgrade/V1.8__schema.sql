@@ -39,3 +39,5 @@ CREATE TABLE  `zstack`.`VCenterPrimaryStorageVO` (
     `vCenterUuid` varchar(32) NOT NULL COMMENT 'vcenter uuid',
     PRIMARY KEY  (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ALTER TABLE ApplianceVmVO ADD agentPort int unsigned DEFAULT 7759;

@@ -81,7 +81,7 @@ public abstract class ApplianceVmBase extends VmInstanceBase implements Applianc
         flows.add(apvmf.createBootstrapFlow(hvType));
         if (!unitTestOn) {
             flows.add(new ApplianceVmConnectFlow());
-            flows.add(new ApplianceVmDeployAgentFlow());
+            //flows.add(new ApplianceVmDeployAgentFlow());
         }
         flows.add(new ApplianceVmSetFirewallFlow());
 
@@ -192,7 +192,7 @@ public abstract class ApplianceVmBase extends VmInstanceBase implements Applianc
         }
     }
 
-    public static String buildAgentUrl(String hostname, String subPath) {
+    public static String buildAgentUrl(String hostname, String subPath, int port) {
         UriComponentsBuilder ub = UriComponentsBuilder.newInstance();
         ub.scheme(ApplianceVmGlobalProperty.AGENT_URL_SCHEME);
         if (CoreGlobalProperty.UNIT_TEST_ON) {
@@ -200,7 +200,7 @@ public abstract class ApplianceVmBase extends VmInstanceBase implements Applianc
         } else {
             ub.host(hostname);
         }
-        ub.port(ApplianceVmGlobalProperty.AGENT_PORT);
+        ub.port(port);
         if (!"".equals(ApplianceVmGlobalProperty.AGENT_URL_ROOT_PATH)) {
             ub.path(ApplianceVmGlobalProperty.AGENT_URL_ROOT_PATH);
         }
@@ -219,7 +219,7 @@ public abstract class ApplianceVmBase extends VmInstanceBase implements Applianc
             }
         });
 
-        return buildAgentUrl(mgmtNicIp, path);
+        return buildAgentUrl(mgmtNicIp, path, getSelf().getAgentPort());
     }
 
     private void refreshFirewall(final ApplianceVmRefreshFirewallMsg msg, final NoErrorCompletion completion) {
