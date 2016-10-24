@@ -7,15 +7,18 @@ import org.zstack.core.Platform;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
-import org.zstack.header.storage.primary.GetVolumeBackingFileRelationshipOnPrimaryStorageReply.Qcow2FileInfo;
+import org.zstack.core.errorcode.ErrorFacade;
+import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.storage.snapshot.*;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.kvm.APIKvmFixVolumeSnapshotChainEvent.FixResult;
+import org.zstack.kvm.APIKvmFixVolumeSnapshotChainMsgHandler.Qcow2FileInfo;
 import org.zstack.utils.DebugUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by xing5 on 2016/10/24.
@@ -26,14 +29,17 @@ public class SnapshotChainFixer {
 
     @Autowired
     private DatabaseFacade dbf;
+    @Autowired
+    private ErrorFacade errf;
 
-    private List<VolumeVO> volumes;
+    private VolumeVO volume;
     private List<Qcow2FileInfo> qcow2FileInfo;
 
     private class Node {
         String path;
         Node parent;
         long size;
+        long lastModification;
         LinkedHashMap<String, Node> children = new LinkedHashMap<>();
 
         public Node(String path) {
@@ -47,14 +53,18 @@ public class SnapshotChainFixer {
     }
 
     private Map<String, Node> nodes = new HashMap<>();
-    private Map<String, FixResult> results = new HashMap<>();
+    private FixResult result;
 
-    public SnapshotChainFixer(List<VolumeVO> volumes, List<Qcow2FileInfo> qcow2FileInfo) {
-        this.volumes = volumes;
+    public SnapshotChainFixer(VolumeVO volume, List<Qcow2FileInfo> qcow2FileInfo) {
+        this.volume = volume;
         this.qcow2FileInfo = qcow2FileInfo;
     }
 
     private void walkAndFixMissingSnapshot(VolumeVO vol, Node node) {
+        if (node.children.isEmpty()) {
+            return;
+        }
+
         SimpleQuery<VolumeSnapshotVO> q = dbf.createQuery(VolumeSnapshotVO.class);
         q.add(VolumeSnapshotVO_.primaryStorageInstallPath, Op.EQ, node.path);
         VolumeSnapshotVO sp = q.find();
@@ -101,11 +111,10 @@ public class SnapshotChainFixer {
 
             dbf.persist(spvo);
 
-            FixResult res = new FixResult();
-            res.setVolumeName(vol.getName());
-            res.setVolumeUuid(vol.getUuid());
-            res.setSuccess(true);
-            results.put(vol.getUuid(), res);
+            result = new FixResult();
+            result.setVolumeName(vol.getName());
+            result.setVolumeUuid(vol.getUuid());
+            result.setSuccess(true);
         }
 
         if (node.children != null && !node.children.isEmpty()) {
@@ -167,42 +176,92 @@ public class SnapshotChainFixer {
         }
     }
 
-    public Collection<FixResult> fix() {
+    private void findTheLatestOne(Node node, List<Node> latest) {
+        if (node.children.isEmpty()) {
+            latest.add(node);
+            return;
+        }
+
+        for (Node c : node.children.values()) {
+            findTheLatestOne(c, latest);
+        }
+    }
+
+    private List<Node> treeToList(Node node, List<Node> lst) {
+        if (node.children.size() > 1) {
+            throw new OperationFailureException(errf.stringToOperationError(
+                    String.format("the qcow2[%s] has more than one children %s", node.path,
+                            node.children.values().stream().map(n -> n.parent).collect(Collectors.toList()))
+            ));
+        } else if (node.children.isEmpty()) {
+            return lst;
+        }
+
+        Node n = node.children.values().iterator().next();
+        lst.add(n);
+        treeToList(n, lst);
+        return lst;
+    }
+
+    public FixResult fix() {
         for (Qcow2FileInfo info : qcow2FileInfo) {
             Node me = nodes.get(info.getPath());
             if (me == null) {
                 me = new Node(info.getPath());
                 nodes.put(info.getPath(), me);
-            } else {
-                me.size = info.getSize();
             }
 
+            me.size = info.getSize();
+            me.lastModification = info.getLastModificationTime();
+
             if (info.getBackingFile() != null) {
-                Node p = new Node(info.getBackingFile());
+                Node p = nodes.get(info.getBackingFile());
+                if (p == null) {
+                    p = new Node(info.getBackingFile());
+                    nodes.put(info.getBackingFile(), p);
+                }
+
                 p.addNode(me);
                 me.parent = p;
             }
         }
 
-        for (VolumeVO vol : volumes) {
-            Node node = nodes.get(vol.getInstallPath());
-            DebugUtils.Assert(node != null, String.format("cannot find the volume[uuid:%s, name:%s, path:%s] on" +
-                    " the primary storage", vol.getUuid(), vol.getName(), vol.getInstallPath()));
+        Node node = nodes.get(volume.getInstallPath());
+        DebugUtils.Assert(node != null, String.format("cannot find the volume[uuid:%s, name:%s, path:%s] on" +
+                " the primary storage", volume.getUuid(), volume.getName(), volume.getInstallPath()));
 
-            Node p = node.parent;
-            while (p.parent != null) {
-                p = p.parent;
-            }
-
-            if (p == node) {
-                // no snapshot
-                continue;
-            }
-
-            walkAndFixMissingSnapshot(vol, p);
-            walkAndFixParentAndDistance(vol, p);
+        if (node.children.isEmpty()) {
+            // no snapshot
+            return null;
         }
 
-        return results.values();
+        List<Node> lst = treeToList(node, new ArrayList<>());
+
+
+
+        walkAndFixMissingSnapshot(volume , node);
+
+        walkAndFixParentAndDistance(volume, node);
+
+        List<Node> latest = new ArrayList<>();
+        findTheLatestOne(node, latest);
+        DebugUtils.Assert(!latest.isEmpty(), "where is the latest node");
+        Node l;
+        if (latest.size() == 1) {
+            l = latest.get(0);
+        } else {
+            l = latest.get(0);
+            for (Node n : latest) {
+                if (n.lastModification > l.lastModification) {
+                    l = n;
+                }
+            }
+        }
+
+        volume.setInstallPath(l.path);
+        volume.setActualSize(l.size);
+        dbf.update(volume);
+
+        return result;
     }
 }

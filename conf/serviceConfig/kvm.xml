@@ -17,4 +17,8 @@
         <serviceId>kvm</serviceId>
     </message>
 
+    <message>
+        <name>org.zstack.kvm.APIKvmFixVolumeSnapshotChainMsg</name>
+        <serviceId>kvm</serviceId>
+    </message>
 </service>

@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.asyncbatch.AsyncBatchRunner;
 import org.zstack.core.asyncbatch.LoopAsyncBatch;
 import org.zstack.core.cloudbus.CloudBus;
-import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
@@ -16,11 +15,9 @@ import org.zstack.header.core.NoErrorCompletion;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.errorcode.SysErrors;
-import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.message.MessageReply;
 import org.zstack.header.rest.RESTFacade;
 import org.zstack.header.storage.primary.PrimaryStorageConstant;
-import org.zstack.header.storage.primary.PrimaryStorageStatus;
 import org.zstack.header.storage.primary.PrimaryStorageVO;
 import org.zstack.header.volume.VolumeStatus;
 import org.zstack.header.volume.VolumeVO;
@@ -52,6 +49,15 @@ public class APIKvmFixVolumeSnapshotChainMsgHandler {
         private String path;
         private String backingFile;
         private long size;
+        private long lastModificationTime;
+
+        public long getLastModificationTime() {
+            return lastModificationTime;
+        }
+
+        public void setLastModificationTime(long lastModificationTime) {
+            this.lastModificationTime = lastModificationTime;
+        }
 
         public String getPath() {
             return path;
@@ -78,13 +84,21 @@ public class APIKvmFixVolumeSnapshotChainMsgHandler {
         }
     }
 
-    private Map<String, List<Qcow2FileInfo>> qcow2InfosByPsUuid = new HashMap<>();
+    private Map<String, Object> qcow2InfosByPsUuid = new HashMap<>();
 
     public void handle(APIKvmFixVolumeSnapshotChainMsg msg) {
         APIKvmFixVolumeSnapshotChainEvent evt = new APIKvmFixVolumeSnapshotChainEvent(msg.getId());
         List<VolumeVO> volumes = new ArrayList<>();
 
         if (msg.getPrimaryStorageUuid() != null) {
+            PrimaryStorageVO ps = dbf.findByUuid(msg.getPrimaryStorageUuid(), PrimaryStorageVO.class);
+            if (!ps.getType().equals("NFS") && !ps.getType().equals("LocalStorage")) {
+                throw new OperationFailureException(errf.stringToInvalidArgumentError(
+                        String.format("the primary storage[uuid:%s, name:%s] is of type %s that doesn't support the API",
+                                ps.getUuid(), ps.getName(), ps.getType())
+                ));
+            }
+
             if (!new Callable<Boolean>() {
                 @Override
                 @Transactional(readOnly = true)
@@ -117,7 +131,7 @@ public class APIKvmFixVolumeSnapshotChainMsgHandler {
                     String sql = "select v from PrimaryStorageClusterRefVO ref, ClusterVO c, VolumeVO v," +
                             " PrimaryStorageVO ps where" +
                             " c.uuid = ref.clusterUuid and ref.primaryStorageUuid = ps.uuid and" +
-                            " cluster.hypervisorType = :hvType and v.primaryStorageUuid = ps.uuid" +
+                            " c.hypervisorType = :hvType and v.primaryStorageUuid = ps.uuid" +
                             " and v.status = :status and ps.type in (:psType)";
                     TypedQuery<VolumeVO> q = dbf.getEntityManager().createQuery(sql, VolumeVO.class);
                     q.setParameter("hvType", KVMConstant.KVM_HYPERVISOR_TYPE);
@@ -148,14 +162,14 @@ public class APIKvmFixVolumeSnapshotChainMsgHandler {
             if (reply.isSuccess()) {
                 KvmGetQcow2FileInfoPrimaryStorageReply kr = reply.castReply();
                 qcow2InfosByPsUuid.put(psUuid, kr.getInfos());
+            } else {
+                qcow2InfosByPsUuid.put(psUuid, reply.getError());
             }
         }
 
         List<FixResult> results = new ArrayList<>();
 
         new LoopAsyncBatch<VolumeVO>() {
-            Map<String, List<Qcow2FileInfo>> nfsQcow2Info = new HashMap<>();
-            Map<String, List<Qcow2FileInfo>> localStorageQcow2Info = new HashMap<>();
 
             @Override
             protected Collection<VolumeVO> collect() {
@@ -167,111 +181,27 @@ public class APIKvmFixVolumeSnapshotChainMsgHandler {
                 return new AsyncBatchRunner() {
                     @Override
                     public void run(NoErrorCompletion completion) {
-                        PrimaryStorageVO ps = dbf.findByUuid(volume.getPrimaryStorageUuid(), PrimaryStorageVO.class);
-                        List<Qcow2FileInfo> qcow2FileInfos;
-                        if (ps.getType().equals("NFS")) {
-                            qcow2FileInfos = nfsQcow2Info.get(ps.getUuid());
-                            if (qcow2FileInfos == null) {
-                                KvmGetQcow2FileInfoPrimaryStorageMsg gmsg = new KvmGetQcow2FileInfoPrimaryStorageMsg();
-                                gmsg.setPrimaryStorageUuid(ps.getUuid());
-                                bus.makeTargetServiceIdByResourceUuid(gmsg, PrimaryStorageConstant.SERVICE_ID, ps.getUuid());
-                                MessageReply reply = bus.call(gmsg);
-                                if (!reply.isSuccess()) {
-                                    FixResult res = new FixResult();
-                                    res.setVolumeUuid(volume.getUuid());
-                                    res.setVolumeName(volume.getName());
-                                    res.setSuccess(false);
-                                    res.setError(reply.getError());
-                                    results.add(res);
-                                } else {
-                                    KvmGetQcow2FileInfoPrimaryStorageReply gr = reply.castReply();
-                                    qcow2FileInfos = gr.getInfos();
-                                    nfsQcow2Info.put(ps.getUuid(), qcow2FileInfos);
-                                }
-                            }
-                        } else if (ps.getType().equals("LocalStorage")) {
-                            qcow2FileInfos = nfsQcow2Info.get(ps.getUuid());
-                        } else {
-                            throw new CloudRuntimeException(String.format("unsupported primary storage type[%s]", ps.getType()));
-                        }
-                    }
-                };
-            }
-
-            @Override
-            protected void done() {
-
-            }
-        }.start();
-
-
-        new LoopAsyncBatch<String>() {
-            @Override
-            protected Collection<String> collect() {
-                return primaryStorageUuids;
-            }
-
-            @Override
-            protected AsyncBatchRunner forEach(String psUuid) {
-                return new AsyncBatchRunner() {
-                    @Override
-                    public void run(NoErrorCompletion completion) {
-                        PrimaryStorageVO ps = dbf.findByUuid(psUuid, PrimaryStorageVO.class);
-                        // only NFS and LocalStorage need to support this API
-                        if (!ps.getType().equals("NFS") && !ps.getType().equals("LocalStorage")) {
-                            completion.done();
-                            return;
-                        }
-
-                        if (ps.getStatus() != PrimaryStorageStatus.Connected) {
-                            fail(psUuid, errf.stringToOperationError(String.format("the primary storage[uuid:%s, name:%s] is not" +
-                                    " connected, current status is %s", ps.getUuid(), ps.getName(), ps.getStatus())));
-                            completion.done();
-                            return;
-                        }
-
-                        GetVolumeBackingFileRelationshipOnPrimaryStorageMsg gmsg = new GetVolumeBackingFileRelationshipOnPrimaryStorageMsg();
-                        gmsg.setPrimaryStorageUuid(psUuid);
-                        bus.makeTargetServiceIdByResourceUuid(gmsg, PrimaryStorageConstant.SERVICE_ID, psUuid);
-                        bus.send(gmsg, new CloudBusCallBack(completion) {
-                            @Override
-                            public void run(MessageReply reply) {
-                                if (!reply.isSuccess()) {
-                                    fail(psUuid, errf.instantiateErrorCode(SysErrors.OPERATION_ERROR, String.format("unable to get" +
-                                                    " volume backing file relationship on the primary storage[uuid:%s, name:%s]",
-                                            ps.getUuid(), ps.getName()), reply.getError()));
-                                } else {
-                                    fix(psUuid, ((GetVolumeBackingFileRelationshipOnPrimaryStorageReply) reply).getQcow2FileInfo());
-                                }
-
-                                completion.done();
-                            }
-                        });
-                    }
-
-                    private void fail(String psUuid, ErrorCode errorCode) {
-                        List<VolumeVO> vols = volumes.stream().filter(vol -> vol.getPrimaryStorageUuid().equals(psUuid))
-                                .collect(Collectors.toList());
-
-                        synchronized (results) {
-                            results.addAll(vols.stream().map(vol -> {
+                        Object o = qcow2InfosByPsUuid.get(volume.getPrimaryStorageUuid());
+                        if (o instanceof ErrorCode) {
+                            synchronized (results) {
                                 FixResult res = new FixResult();
-                                res.setVolumeUuid(vol.getUuid());
-                                res.setVolumeName(vol.getName());
+                                res.setVolumeUuid(volume.getUuid());
+                                res.setVolumeName(volume.getName());
                                 res.setSuccess(false);
-                                res.setError(errorCode);
-                                return res;
-                            }).collect(Collectors.toList()));
+                                res.setError((ErrorCode) o);
+                                results.add(res);
+                            }
+                        } else {
+                            List<Qcow2FileInfo> info = (List<Qcow2FileInfo>) o;
+                            SnapshotChainFixer fixer = new SnapshotChainFixer(volume, info);
+                            synchronized (results) {
+                                results.add(fixer.fix());
+                            }
                         }
+
+                        completion.done();
                     }
                 };
-            }
-
-            private void fix(String psUuid, List<Qcow2FileInfo> qcow2FileInfo) {
-                List<VolumeVO> vols = volumes.stream().filter(vol -> vol.getPrimaryStorageUuid().equals(psUuid))
-                        .collect(Collectors.toList());
-                SnapshotChainFixer fixer = new SnapshotChainFixer(vols, qcow2FileInfo);
-                results.addAll(fixer.fix());
             }
 
             @Override

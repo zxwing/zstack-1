@@ -69,9 +69,8 @@ import org.zstack.header.vm.*;
 import org.zstack.header.volume.*;
 import org.zstack.header.volume.APIGetVolumeFormatReply.VolumeFormatReplyStruct;
 import org.zstack.header.zone.*;
-import org.zstack.kvm.APIAddKVMHostMsg;
-import org.zstack.kvm.APIUpdateKVMHostMsg;
-import org.zstack.kvm.KVMHostInventory;
+import org.zstack.kvm.*;
+import org.zstack.kvm.APIKvmFixVolumeSnapshotChainEvent.FixResult;
 import org.zstack.license.*;
 import org.zstack.logging.APIDeleteLogEvent;
 import org.zstack.logging.APIDeleteLogMsg;
@@ -4449,5 +4448,15 @@ public class Api implements CloudBusEventListener {
         sender.setTimeout(timeout);
         APIGetCandidateIsoForAttachingVmReply reply = sender.call(msg, APIGetCandidateIsoForAttachingVmReply.class);
         return reply.getInventories();
+    }
+
+    public List<FixResult> kvmFixVolumeSnapshotChain(String psUuid) throws ApiSenderException {
+        APIKvmFixVolumeSnapshotChainMsg msg = new APIKvmFixVolumeSnapshotChainMsg();
+        msg.setPrimaryStorageUuid(psUuid);
+        msg.setSession(adminSession);
+        ApiSender sender = new ApiSender();
+        sender.setTimeout(timeout);
+        APIKvmFixVolumeSnapshotChainEvent evt = sender.send(msg, APIKvmFixVolumeSnapshotChainEvent.class);
+        return evt.getResults();
     }
 }

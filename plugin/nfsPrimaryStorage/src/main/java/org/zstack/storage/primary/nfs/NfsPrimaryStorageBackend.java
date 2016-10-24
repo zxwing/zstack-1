@@ -5,43 +5,16 @@ import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.host.HostInventory;
 import org.zstack.header.host.HypervisorType;
 import org.zstack.header.image.ImageInventory;
+import org.zstack.header.message.Message;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.storage.primary.PrimaryStorageBase.PhysicalCapacityUsage;
 
 public interface NfsPrimaryStorageBackend {
-    public static class CreateBitsFromSnapshotResult {
-        private String installPath;
-        private long size;
-        private long actualSize;
-
-        public long getActualSize() {
-            return actualSize;
-        }
-
-        public void setActualSize(long actualSize) {
-            this.actualSize = actualSize;
-        }
-
-        public String getInstallPath() {
-            return installPath;
-        }
-
-        public void setInstallPath(String installPath) {
-            this.installPath = installPath;
-        }
-
-        public long getSize() {
-            return size;
-        }
-
-        public void setSize(long size) {
-            this.size = size;
-        }
-    }
-
     HypervisorType getHypervisorType();
+
+    void handleBackendSpecificMessage(PrimaryStorageInventory inv, Message msg);
 
     void ping(PrimaryStorageInventory inv, Completion completion);
 

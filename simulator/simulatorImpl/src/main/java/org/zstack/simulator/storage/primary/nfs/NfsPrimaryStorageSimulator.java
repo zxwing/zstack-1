@@ -61,6 +61,15 @@ public class NfsPrimaryStorageSimulator {
         reply(entity, rsp);
     }
 
+    @RequestMapping(value=NfsPrimaryStorageKVMBackend.GET_QCOW2_FILE_INFO, method=RequestMethod.POST)
+    private @ResponseBody String getQcow2FileInfo(HttpServletRequest req) throws InterruptedException {
+        HttpEntity<String> entity = restf.httpServletRequestToHttpEntity(req);
+        GetQcow2FileInfoRsp rsp = new GetQcow2FileInfoRsp();
+        rsp.infos = config.qcow2FileInfos;
+        reply(entity, rsp);
+        return null;
+    }
+
     @RequestMapping(value=NfsPrimaryStorageKVMBackend.GET_VOLUME_BASE_IMAGE_PATH, method=RequestMethod.POST)
     private @ResponseBody String getVolumeBaseImagePath(HttpServletRequest req) throws InterruptedException {
         HttpEntity<String> entity = restf.httpServletRequestToHttpEntity(req);

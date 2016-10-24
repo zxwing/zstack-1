@@ -8,6 +8,7 @@ import org.zstack.header.image.APICreateRootVolumeTemplateFromVolumeSnapshotMsg;
 import org.zstack.header.storage.snapshot.APIDeleteVolumeSnapshotMsg;
 import org.zstack.header.vm.APICreateVmInstanceMsg;
 import org.zstack.header.volume.APICreateDataVolumeFromVolumeSnapshotMsg;
+import org.zstack.kvm.APIKvmFixVolumeSnapshotChainMsgHandler.Qcow2FileInfo;
 import org.zstack.kvm.KVMAgentCommands.AgentCommand;
 import org.zstack.kvm.KVMAgentCommands.AgentResponse;
 
@@ -627,5 +628,12 @@ public class NfsPrimaryStorageKVMBackendCommands {
     }
 
     public static class UpdateMountPointRsp extends NfsPrimaryStorageAgentResponse {
+    }
+
+    public static class GetQcow2FileInfoCmd extends NfsPrimaryStorageAgentCommand {
+    }
+
+    public static class GetQcow2FileInfoRsp extends NfsPrimaryStorageAgentResponse {
+        public List<Qcow2FileInfo> infos;
     }
 }

@@ -8,6 +8,7 @@ import org.zstack.core.asyncbatch.LoopAsyncBatch;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.CloudBusListCallBack;
+import org.zstack.core.cloudbus.MessageSafe;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
@@ -25,6 +26,7 @@ import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.errorcode.SysErrors;
 import org.zstack.header.host.*;
 import org.zstack.header.image.ImageInventory;
+import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
 import org.zstack.header.storage.backup.BackupStorageInventory;
 import org.zstack.header.storage.backup.BackupStorageType;
@@ -96,6 +98,7 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
     public static final String PING_PATH = "/nfsprimarystorage/ping";
     public static final String GET_VOLUME_BASE_IMAGE_PATH = "/nfsprimarystorage/getvolumebaseimage";
     public static final String UPDATE_MOUNT_POINT_PATH = "/nfsprimarystorage/updatemountpoint";
+    public static final String GET_QCOW2_FILE_INFO = "/nfsprimarystorage/getqcow2fileinfo";
 
     //////////////// For unit test //////////////////////////
     private boolean syncGetCapacity = false;
@@ -254,6 +257,44 @@ public class NfsPrimaryStorageKVMBackend implements NfsPrimaryStorageBackend,
     @Override
     public HypervisorType getHypervisorType() {
         return HypervisorType.valueOf(KVMConstant.KVM_HYPERVISOR_TYPE);
+    }
+
+    @Override
+    @MessageSafe
+    public void handleBackendSpecificMessage(PrimaryStorageInventory inv, Message msg) {
+        if (msg instanceof KvmGetQcow2FileInfoPrimaryStorageMsg) {
+            handle(inv, (KvmGetQcow2FileInfoPrimaryStorageMsg) msg);
+        } else {
+            bus.dealWithUnknownMessage(msg);
+        }
+    }
+
+    private void handle(PrimaryStorageInventory inv, KvmGetQcow2FileInfoPrimaryStorageMsg msg) {
+        HostInventory host = nfsFactory.getConnectedHostForOperation(inv);
+        GetQcow2FileInfoCmd cmd = new GetQcow2FileInfoCmd();
+        cmd.setUuid(inv.getUuid());
+
+        KvmGetQcow2FileInfoPrimaryStorageReply reply = new KvmGetQcow2FileInfoPrimaryStorageReply();
+        new KvmCommandSender(host.getUuid()).send(cmd, GET_QCOW2_FILE_INFO, new KvmCommandFailureChecker() {
+            @Override
+            public ErrorCode getError(KvmResponseWrapper wrapper) {
+                GetQcow2FileInfoRsp rsp = wrapper.getResponse(GetQcow2FileInfoRsp.class);
+                return rsp.isSuccess() ? null : errf.stringToOperationError(rsp.getError());
+            }
+        }, new ReturnValueCompletion<KvmResponseWrapper>(msg) {
+            @Override
+            public void success(KvmResponseWrapper w) {
+                GetQcow2FileInfoRsp rsp = w.getResponse(GetQcow2FileInfoRsp.class);
+                reply.setInfos(rsp.infos);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     @Override
