@@ -330,15 +330,22 @@ done
                 SimpleQuery<VolumeSnapshotVO> q = dbf.createQuery(VolumeSnapshotVO.class);
                 q.add(VolumeSnapshotVO_.primaryStorageInstallPath, Op.EQ, scnode.parent.path);
                 VolumeSnapshotVO parent = q.find();
-                DebugUtils.Assert(parent != null, String.format("the orphan snapshot[%s]'s parent[%s] has no record in our database",
-                        scnode.path, scnode.parent.path));
-                spvo.setParentUuid(parent.getUuid());
+                if (parent == null) {
+                    logger.debug(String.format("[HOTFIX 1169]the orphan snapshot[%s]'s parent[%s] has no record in our database, treat it as the" +
+                                    " first  snapshot", scnode.path, scnode.parent.path));
+                } else {
+                    spvo.setParentUuid(parent.getUuid());
+                }
             }
 
             dbf.getEntityManager().persist(spvo);
 
             hasMissingSnapshots = true;
             result.addDetail(String.format("fixed a missing snapshot[uuid:%s, path:%s]", spvo.getUuid(), spvo.getPrimaryStorageInstallPath()));
+
+            for (Node c : scnode.children.values()) {
+                insertMissingSnapshotInDatabase(c);
+            }
         }
 
         private void compareNodes(Node left, Node right, Stack<String> path) throws NodeException {

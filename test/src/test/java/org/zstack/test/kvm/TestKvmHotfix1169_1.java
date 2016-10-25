@@ -45,8 +45,8 @@ import java.util.List;
 /*
 * take snapshot from vm's root volume
 */
-public class TestKvmFixSnapshotChainOnNfs {
-    CLogger logger = Utils.getLogger(TestKvmFixSnapshotChainOnNfs.class);
+public class TestKvmHotfix1169_1 {
+    CLogger logger = Utils.getLogger(TestKvmHotfix1169_1.class);
     Deployer deployer;
     Api api;
     ComponentLoader loader;
@@ -101,7 +101,7 @@ public class TestKvmFixSnapshotChainOnNfs {
             @Override
             public void intercept(Message msg) {
                 if (msg instanceof KvmRunShellMsg) {
-                    bus.makeLocalServiceId(msg, TestKvmFixSnapshotChainOnNfs.class.getName());
+                    bus.makeLocalServiceId(msg, TestKvmHotfix1169_1.class.getName());
                 }
             }
         }, KvmRunShellMsg.class);
@@ -121,7 +121,7 @@ public class TestKvmFixSnapshotChainOnNfs {
 
             @Override
             public String getId() {
-                return bus.makeLocalServiceId(TestKvmFixSnapshotChainOnNfs.class.getName());
+                return bus.makeLocalServiceId(TestKvmHotfix1169_1.class.getName());
             }
 
             @Override
