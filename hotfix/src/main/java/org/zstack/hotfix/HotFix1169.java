@@ -33,6 +33,9 @@ import org.zstack.kvm.KVMConstant;
 import org.zstack.kvm.KvmRunShellMsg;
 import org.zstack.kvm.KvmRunShellReply;
 import org.zstack.storage.primary.local.LocalStorageConstants;
+import org.zstack.storage.primary.local.LocalStorageKvmBackend.CacheInstallPath;
+import org.zstack.storage.primary.local.LocalStorageResourceRefVO;
+import org.zstack.storage.primary.local.LocalStorageResourceRefVO_;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageConstant;
 import org.zstack.utils.DebugUtils;
 import org.zstack.utils.Utils;
@@ -42,6 +45,7 @@ import org.zstack.utils.logging.CLogger;
 import javax.persistence.TypedQuery;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 /**
  * Created by xing5 on 2016/10/25.
@@ -98,7 +102,7 @@ done
      */
     private String READ_QCOW2_SCRIPT = "#!/bin/bash\n" +
             "\n" +
-            "all=`find $1 -type f -exec file {} \\; | awk -F: '$2~/QEMU QCOW/{print $1}'`\n" +
+            "all=`find %s -type f -exec file {} \\; | awk -F: '$2~/QEMU QCOW/{print $1}'`\n" +
             "for f in $all\n" +
             "do\n" +
             "    bk=`qemu-img info $f | grep -w 'backing file:' | awk '{print $3}'`\n" +
@@ -157,6 +161,7 @@ done
         VolumeVO volume;
         String treeUuid;
         HotFix1169Result result = new HotFix1169Result();
+        ImageCachePath imageCachePath;
 
         boolean hasMissingSnapshots;
 
@@ -223,14 +228,7 @@ done
         @Transactional
         private void verify() throws NodeException {
             Map<String, Node> newNodesInDb = new HashMap<>();
-            buildNodesInDb(volume, newNodesInDb, vol1 -> {
-                SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
-                iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol1.getRootImageUuid());
-                ImageCacheVO cache = iq.find();
-                DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
-                        vol1.getUuid(), vol1.getName()));
-                return cache.getInstallUrl();
-            });
+            buildNodesInDb(volume, newNodesInDb, imageCachePath);
 
             class FullTreeVerify {
                 void verify(Node inDb, Node onStorage, Stack<String> path) throws NodeException {
@@ -553,7 +551,119 @@ done
 
     class LocalStorageHotFix {
         void fix() {
+            List<HotFix1169Result> results = new ArrayList<>();
 
+            List<String> volumeUuids = volumesReady.stream().map(VolumeVO::getUuid).collect(Collectors.toList());
+            SimpleQuery<LocalStorageResourceRefVO>  lq = dbf.createQuery(LocalStorageResourceRefVO.class);
+            lq.add(LocalStorageResourceRefVO_.resourceUuid, Op.IN, volumeUuids);
+            lq.add(LocalStorageResourceRefVO_.resourceType, Op.IN, VolumeVO.class.getSimpleName());
+            List<LocalStorageResourceRefVO> refs = lq.list();
+
+            Map<String, Object> nodesOnStorage = new HashMap<>();
+            for (LocalStorageResourceRefVO ref : refs) {
+                if (nodesOnStorage.containsKey(ref.getHostUuid())) {
+                    continue;
+                }
+
+                KvmRunShellMsg msg = new KvmRunShellMsg();
+                msg.setHostUuid(ref.getHostUuid());
+                msg.setScript(String.format(READ_QCOW2_SCRIPT, primaryStorageVO.getUrl()));
+                bus.makeTargetServiceIdByResourceUuid(msg, HostConstant.SERVICE_ID, ref.getHostUuid());
+                MessageReply reply = bus.call(msg);
+                if (!reply.isSuccess()) {
+                    nodesOnStorage.put(ref.getHostUuid(), errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
+                            String.format("unable to get qcow2 file information on the host[uuid:%s]", ref.getHostUuid()),
+                            reply.getError()));
+                } else {
+                    KvmRunShellReply r = reply.castReply();
+                    if (r.getReturnCode() != 0) {
+                        nodesOnStorage.put(ref.getHostUuid(), errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
+                                String.format("unable to get qcow2 file information on the host[uuid:%s]. %s %s",
+                                        ref.getHostUuid(), r.getStderr(), r.getStdout())));
+                    } else {
+                        nodesOnStorage.put(ref.getHostUuid(), buildNodesOnStorage(r.getStdout()));
+                    }
+                }
+            }
+
+            for (VolumeVO vol : volumesReady) {
+                LocalStorageResourceRefVO ref = refs.stream().filter(r->r.getResourceUuid().equals(vol.getUuid())).findAny().get();
+
+                Object o = nodesOnStorage.get(ref.getHostUuid());
+                if (o instanceof ErrorCode) {
+                    HotFix1169Result res = new HotFix1169Result();
+                    res.volumeName = vol.getName();
+                    res.volumeUuid = vol.getUuid();
+                    res.setError(((ErrorCode)o).getDetails());
+                    results.add(res);
+                    continue;
+                }
+
+                ImageCachePath imageCachePath = vol1 -> {
+                    SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
+                    iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol1.getRootImageUuid());
+                    iq.add(ImageCacheVO_.installUrl, Op.LIKE, String.format("%%hostUuid://%s%%", ref.getHostUuid()));
+                    ImageCacheVO cache = iq.find();
+                    DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
+                            vol1.getUuid(), vol1.getName()));
+                    CacheInstallPath path = new CacheInstallPath();
+                    path.fullPath = cache.getInstallUrl();
+                    path.disassemble();
+                    return path.installPath;
+                };
+
+                Fixer fixer = new Fixer();
+                fixer.nodesOnStorage = (Map<String, Node>) o;
+                fixer.nodesInDb = new HashMap<>();
+                fixer.treeUuid = buildNodesInDb(vol, fixer.nodesInDb, imageCachePath);
+                fixer.volume = vol;
+                fixer.imageCachePath = imageCachePath;
+
+                if (vol.getType() == VolumeType.Root) {
+                    SimpleQuery<VolumeSnapshotTreeVO> tq = dbf.createQuery(VolumeSnapshotTreeVO.class);
+                    tq.add(VolumeSnapshotTreeVO_.volumeUuid, Op.EQ, vol.getUuid());
+                    List<VolumeSnapshotTreeVO> trees = tq.list();
+
+                    if (trees.isEmpty() || trees.size() == 1) {
+                        // the volume has no snapshot or only one snapshot tree
+                        // then the start is the image cache
+                        fixer.start = imageCachePath.getImageCachePath(vol);
+                        fixer.end = vol.getInstallPath();
+                    } else {
+                        // the volume has more than one snapshot tree, then the start should be
+                        // the first snapshot of the current tree
+                        VolumeSnapshotTreeVO current = trees.stream().filter(VolumeSnapshotTreeAO::isCurrent).findAny().get();
+                        SimpleQuery<VolumeSnapshotVO> q = dbf.createQuery(VolumeSnapshotVO.class);
+                        q.add(VolumeSnapshotVO_.treeUuid, Op.EQ, current.getUuid());
+                        q.add(VolumeSnapshotVO_.parentUuid, Op.NULL);
+                        VolumeSnapshotVO sp = q.find();
+
+                        fixer.start = sp.getPrimaryStorageInstallPath();
+                        fixer.end = vol.getInstallPath();
+                    }
+                } else {
+                    Node node = fixer.nodesOnStorage.get(vol.getInstallPath());
+                    Node ancient = node.findAncient();
+                    fixer.start = ancient.path;
+                    fixer.end = vol.getInstallPath();
+                }
+
+                try {
+                    HotFix1169Result res = fixer.fix();
+                    if (res.error != null || !res.details.isEmpty()) {
+                        // a hotfix applied
+                        results.add(res);
+                    }
+                } catch (NodeException e) {
+                    HotFix1169Result res = new HotFix1169Result();
+                    res.volumeName = vol.getName();
+                    res.volumeUuid = vol.getUuid();
+                    res.setError(e.error.getDetails());
+                    results.add(res);
+                }
+            }
+
+            evt.setResults(results);
         }
     }
 
@@ -567,7 +677,7 @@ done
             for (String huuid : connectedKvmHosts) {
                 KvmRunShellMsg msg = new KvmRunShellMsg();
                 msg.setHostUuid(huuid);
-                msg.setScript(READ_QCOW2_SCRIPT);
+                msg.setScript(String.format(READ_QCOW2_SCRIPT, primaryStorageVO.getMountPath()));
                 bus.makeTargetServiceIdByResourceUuid(msg, HostConstant.SERVICE_ID, huuid);
                 MessageReply reply = bus.call(msg);
                 if (reply.isSuccess()) {
@@ -591,20 +701,22 @@ done
             }
 
             Map<String, Node> nodes = buildNodesOnStorage(r.getStdout());
+            ImageCachePath imageCachePath = vol1 -> {
+                SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
+                iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol1.getRootImageUuid());
+                ImageCacheVO cache = iq.find();
+                DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
+                        vol1.getUuid(), vol1.getName()));
+                return cache.getInstallUrl();
+            };
 
             for (VolumeVO vol : volumesReady) {
                 Fixer fixer = new Fixer();
                 fixer.nodesOnStorage = nodes;
                 fixer.nodesInDb = new HashMap<>();
-                fixer.treeUuid = buildNodesInDb(vol, fixer.nodesInDb, vol1 -> {
-                    SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
-                    iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol1.getRootImageUuid());
-                    ImageCacheVO cache = iq.find();
-                    DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
-                            vol1.getUuid(), vol1.getName()));
-                    return cache.getInstallUrl();
-                });
+                fixer.treeUuid = buildNodesInDb(vol, fixer.nodesInDb, imageCachePath);
                 fixer.volume = vol;
+                fixer.imageCachePath = imageCachePath;
 
                 if (vol.getType() == VolumeType.Root) {
                     SimpleQuery<VolumeSnapshotTreeVO> tq = dbf.createQuery(VolumeSnapshotTreeVO.class);
@@ -614,13 +726,7 @@ done
                     if (trees.isEmpty() || trees.size() == 1) {
                         // the volume has no snapshot or only one snapshot tree
                         // then the start is the image cache
-                        SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
-                        iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol.getRootImageUuid());
-                        ImageCacheVO cache = iq.find();
-                        DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
-                                vol.getUuid(), vol.getName()));
-
-                        fixer.start = cache.getInstallUrl();
+                        fixer.start = imageCachePath.getImageCachePath(vol);
                         fixer.end = vol.getInstallPath();
                     } else {
                         // the volume has more than one snapshot tree, then the start should be
