@@ -33,7 +33,6 @@ import org.zstack.test.DBUtil;
 import org.zstack.test.WebBeanConstructor;
 import org.zstack.test.deployer.Deployer;
 import org.zstack.utils.Utils;
-import org.zstack.utils.data.SizeUnit;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 import org.zstack.utils.path.PathUtil;
@@ -45,8 +44,8 @@ import java.util.List;
 /*
 * take snapshot from vm's root volume
 */
-public class TestKvmHotfix1169_1 {
-    CLogger logger = Utils.getLogger(TestKvmHotfix1169_1.class);
+public class TestKvmHotfix1169_2 {
+    CLogger logger = Utils.getLogger(TestKvmHotfix1169_2.class);
     Deployer deployer;
     Api api;
     ComponentLoader loader;
@@ -73,10 +72,9 @@ public class TestKvmHotfix1169_1 {
     
 	@Test
 	public void test() throws ApiSenderException {
+	    api.setTimeout(100000);
         VmInstanceInventory vm = deployer.vms.get("TestVm");
         String volUuid = vm.getRootVolumeUuid();
-        VolumeSnapshotInventory inv1 = api.createSnapshot(volUuid);
-        VolumeSnapshotInventory inv2 = api.createSnapshot(volUuid);
         VolumeVO root = dbf.findByUuid(volUuid, VolumeVO.class);
         ImageInventory image = deployer.images.get("TestImage");
         SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
@@ -84,23 +82,24 @@ public class TestKvmHotfix1169_1 {
         ImageCacheVO imageCache = iq.find();
 
         List<String> treeOnStorage = new ArrayList<>();
-        treeOnStorage.add(String.format("%s %s %s %s", inv1.getPrimaryStorageInstallPath(), imageCache.getInstallUrl(),
-                inv1.getSize(), 0));
-        treeOnStorage.add(String.format("%s %s %s %s", inv2.getPrimaryStorageInstallPath(), inv1.getPrimaryStorageInstallPath(),
-                inv2.getSize(), 0));
-        // the missing one
-        treeOnStorage.add(String.format("%s %s %s %s", root.getInstallPath(), inv2.getPrimaryStorageInstallPath(),
+        treeOnStorage.add(String.format("%s %s %s %s", root.getInstallPath(), imageCache.getInstallUrl(),
                 root.getSize(), 0));
+        String newPath1 = PathUtil.join(new File(root.getInstallPath()).getParent(), "1", "abcd.qcow2");
+        treeOnStorage.add(String.format("%s %s %s %s", newPath1, root.getInstallPath(),
+                100, 0));
+        String newPath2 = PathUtil.join(new File(root.getInstallPath()).getParent(), "2", "abcd.qcow2");
+        treeOnStorage.add(String.format("%s %s %s %s", newPath2, newPath1,
+                200, 0));
         // the new volume
-        String newPath = PathUtil.join(new File(root.getInstallPath()).getParent(), "abcd.qcow2");
-        treeOnStorage.add(String.format("%s %s %s %s", newPath, root.getInstallPath(),
-                SizeUnit.BYTE.toByte(100), 0));
+        String newPath3 = PathUtil.join(new File(root.getInstallPath()).getParent(), "3", "abcd.qcow2");
+        treeOnStorage.add(String.format("%s %s %s %s", newPath3, newPath2,
+                300, 0));
 
         bus.installBeforeSendMessageInterceptor(new AbstractBeforeSendMessageInterceptor() {
             @Override
             public void intercept(Message msg) {
                 if (msg instanceof KvmRunShellMsg) {
-                    bus.makeLocalServiceId(msg, TestKvmHotfix1169_1.class.getName());
+                    bus.makeLocalServiceId(msg, TestKvmHotfix1169_2.class.getName());
                 }
             }
         }, KvmRunShellMsg.class);
@@ -120,7 +119,7 @@ public class TestKvmHotfix1169_1 {
 
             @Override
             public String getId() {
-                return bus.makeLocalServiceId(TestKvmHotfix1169_1.class.getName());
+                return bus.makeLocalServiceId(TestKvmHotfix1169_2.class.getName());
             }
 
             @Override
@@ -151,11 +150,11 @@ public class TestKvmHotfix1169_1 {
         SnapshotLeaf sp1 = tree.findSnapshot(new Function<Boolean, VolumeSnapshotInventory>() {
             @Override
             public Boolean call(VolumeSnapshotInventory arg) {
-                return arg.getPrimaryStorageInstallPath().equals(inv1.getPrimaryStorageInstallPath());
+                return arg.getPrimaryStorageInstallPath().equals(root.getInstallPath());
             }
         });
         Assert.assertNotNull(sp1);
-        Assert.assertEquals(inv1.getSize(), sp1.getInventory().getSize());
+        Assert.assertEquals(root.getSize(), sp1.getInventory().getSize());
         Assert.assertNull(sp1.getParent());
         VolumeSnapshotVO sp = dbf.findByUuid(sp1.getUuid(), VolumeSnapshotVO.class);
         Assert.assertEquals(0, sp.getDistance());
@@ -163,31 +162,31 @@ public class TestKvmHotfix1169_1 {
         SnapshotLeaf sp2 = tree.findSnapshot(new Function<Boolean, VolumeSnapshotInventory>() {
             @Override
             public Boolean call(VolumeSnapshotInventory arg) {
-                return arg.getPrimaryStorageInstallPath().equals(inv2.getPrimaryStorageInstallPath());
+                return arg.getPrimaryStorageInstallPath().equals(newPath1);
             }
         });
         Assert.assertNotNull(sp2);
-        Assert.assertEquals(inv2.getSize(), sp2.getInventory().getSize());
+        Assert.assertEquals(100, sp2.getInventory().getSize());
         Assert.assertNotNull(sp2.getParent());
-        Assert.assertEquals(inv1.getPrimaryStorageInstallPath(), sp2.getParent().getInventory().getPrimaryStorageInstallPath());
+        Assert.assertEquals(root.getInstallPath(), sp2.getParent().getInventory().getPrimaryStorageInstallPath());
         sp = dbf.findByUuid(sp2.getUuid(), VolumeSnapshotVO.class);
         Assert.assertEquals(1, sp.getDistance());
 
         SnapshotLeaf sp3 = tree.findSnapshot(new Function<Boolean, VolumeSnapshotInventory>() {
             @Override
             public Boolean call(VolumeSnapshotInventory arg) {
-                return arg.getPrimaryStorageInstallPath().equals(root.getInstallPath());
+                return arg.getPrimaryStorageInstallPath().equals(newPath2);
             }
         });
         Assert.assertNotNull(sp3);
-        Assert.assertEquals(root.getSize(), sp3.getInventory().getSize());
+        Assert.assertEquals(200, sp3.getInventory().getSize());
         Assert.assertNotNull(sp3.getParent());
-        Assert.assertEquals(inv2.getPrimaryStorageInstallPath(), sp3.getParent().getInventory().getPrimaryStorageInstallPath());
+        Assert.assertEquals(newPath1, sp3.getParent().getInventory().getPrimaryStorageInstallPath());
         sp = dbf.findByUuid(sp3.getUuid(), VolumeSnapshotVO.class);
         Assert.assertEquals(2, sp.getDistance());
 
         VolumeVO nr = dbf.reload(root);
-        Assert.assertEquals(newPath, nr.getInstallPath());
-        Assert.assertEquals(100, nr.getActualSize().longValue());
+        Assert.assertEquals(newPath3, nr.getInstallPath());
+        Assert.assertEquals(300, nr.getActualSize().longValue());
     }
 }

@@ -219,9 +219,36 @@ done
 
             if (hasMissingSnapshots) {
                 recalculateVolumePathAndSize();
+                recalculateSnapshotDistance();
             }
 
             return result;
+        }
+
+        @Transactional
+        private void recalculateSnapshotDistance() {
+            String sql = "select sp from VolumeSnapshotVO sp where sp.treeUuid = :treeUuid";
+            TypedQuery<VolumeSnapshotVO> q = dbf.getEntityManager().createQuery(sql, VolumeSnapshotVO.class);
+            q.setParameter("treeUuid", treeUuid);
+            final List<VolumeSnapshotVO> vos = q.getResultList();
+
+            VolumeSnapshotTree tree = VolumeSnapshotTree.fromVOs(vos);
+
+            class D {
+                int distance;
+            }
+
+            D d = new D();
+            tree.getRoot().walk(new Function<Void, SnapshotLeaf>() {
+                public Void call(SnapshotLeaf arg) {
+                    VolumeSnapshotVO vo = vos.stream().filter(v -> v.getUuid().equals(arg.getUuid())).findAny().get();
+                    vo.setDistance(d.distance);
+                    dbf.getEntityManager().merge(vo);
+                    dbf.getEntityManager().flush();
+                    d.distance ++;
+                    return null;
+                }
+            });
         }
 
         @Transactional
@@ -257,10 +284,16 @@ done
             volume.setActualSize(l.size);
             volume.setInstallPath(l.path);
             dbf.getEntityManager().merge(volume);
+            dbf.getEntityManager().flush();
+
+            // delete the one selected as the new volume
+            VolumeSnapshotVO vs = findSnapshotByPath(l.path);
+            dbf.getEntityManager().remove(vs);
+            dbf.getEntityManager().flush();
         }
 
         @Transactional
-        private void walkAndFix(Node snode, Node dbnode) {
+        private void walkAndFix(Node snode, Node dbnode) throws NodeException {
             walkAndFixMissingSnapshot(snode, dbnode);
         }
 
@@ -271,7 +304,8 @@ done
             t.setCurrent(true);
             t.setVolumeUuid(volume.getUuid());
             t.setUuid(Platform.getUuid());
-            dbf.persist(t);
+            dbf.getEntityManager().persist(t);
+            dbf.getEntityManager().flush();
 
             logger.debug(String.format("[HOTFIX 1169] created a new snapshot tree[uuid:%s] for the volume[uuid:%s, name:%s]",
                     t.getUuid(), volume.getUuid(), volume.getName()));
@@ -279,14 +313,25 @@ done
 
         }
 
-        private void walkAndFixMissingSnapshot(Node snode, Node dbnode) {
+        private void walkAndFixMissingSnapshot(Node snode, Node dbnode) throws NodeException {
+            if (!snode.path.equals(dbnode.path) && snode.children.size() == dbnode.children.size()) {
+                throw new NodeException(errf.stringToOperationError(
+                        String.format("DB node[%s] and storage node[%s] has the same parent[%s] and the" +
+                                " same number of children", dbnode.path, snode.path, snode.parent == null ?
+                        null : snode.parent.path)
+                ));
+            }
+
             for (Node scnode : snode.children.values()) {
                 Node dbcnode = dbnode.children.get(scnode.path);
-                if (dbcnode != null) {
+                if (dbcnode != null && scnode.children.size() == dbcnode.children.size()) {
                     walkAndFixMissingSnapshot(scnode, dbcnode);
                 } else {
+                    // two cases to be here
+                    // 1. the snapshot doesn't exist in the database
+                    // 2. the snapshot exists in the database, but it has children not recorded by the database
                     logger.debug(String.format("[HOTFIX 1169] found %s missing in the DB snapshot tree of the volume[uuid:%s, name:%s]",
-                            scnode.parent, volume.getUuid(), volume.getName()));
+                            scnode.path, volume.getUuid(), volume.getName()));
 
                     if (treeUuid == null) {
                         treeUuid = createNewTree();
@@ -298,50 +343,65 @@ done
         }
 
         @Transactional
+        private VolumeSnapshotVO findSnapshotByPath(String path) {
+            String sql = "select sp from VolumeSnapshotVO sp where sp.primaryStorageInstallPath = :path";
+            TypedQuery<VolumeSnapshotVO> q = dbf.getEntityManager().createQuery(sql, VolumeSnapshotVO.class);
+            q.setParameter("path", path);
+            List<VolumeSnapshotVO> vos = q.getResultList();
+            return vos.isEmpty() ? null : vos.get(0);
+        }
+
+        @Transactional
         private void insertMissingSnapshotInDatabase(final Node scnode) {
-            VolumeSnapshotVO spvo = new VolumeSnapshotVO();
-            spvo.setUuid(Platform.getUuid());
-            spvo.setName(String.format("sp-for-volume-%s", volume.getName()));
-            spvo.setPrimaryStorageUuid(volume.getPrimaryStorageUuid());
-            spvo.setFormat(volume.getFormat());
-            spvo.setDistance(new Callable<Integer>() {
-                public Integer call() {
-                    int d = 0;
-                    Node p = scnode;
-                    while (p.parent != null) {
-                        p = p.parent;
-                        d ++;
+            VolumeSnapshotVO spvo = findSnapshotByPath(scnode.path);
+
+            if (spvo == null) {
+                // the case 1: the snapshot doesn't exist in the database
+                spvo = new VolumeSnapshotVO();
+                spvo.setUuid(Platform.getUuid());
+                spvo.setName(String.format("sp-for-volume-%s", volume.getName()));
+                spvo.setPrimaryStorageUuid(volume.getPrimaryStorageUuid());
+                spvo.setFormat(volume.getFormat());
+                spvo.setDistance(new Callable<Integer>() {
+                    public Integer call() {
+                        int d = 0;
+                        Node p = scnode;
+                        while (p.parent != null) {
+                            p = p.parent;
+                            d++;
+                        }
+                        return d;
                     }
-                    return d;
-                }
-            }.call());
-            spvo.setFullSnapshot(false);
-            spvo.setLatest(scnode.isLeaf());
-            spvo.setSize(scnode.size);
-            spvo.setStatus(VolumeSnapshotStatus.Ready);
-            spvo.setState(VolumeSnapshotState.Enabled);
-            spvo.setPrimaryStorageInstallPath(scnode.path);
-            spvo.setType(VolumeSnapshotConstant.HYPERVISOR_SNAPSHOT_TYPE.toString());
-            spvo.setVolumeUuid(volume.getUuid());
-            spvo.setVolumeType(volume.getType().toString());
-            spvo.setTreeUuid(treeUuid);
+                }.call());
+                spvo.setFullSnapshot(false);
+                spvo.setLatest(scnode.isLeaf());
+                spvo.setSize(scnode.size);
+                spvo.setStatus(VolumeSnapshotStatus.Ready);
+                spvo.setState(VolumeSnapshotState.Enabled);
+                spvo.setPrimaryStorageInstallPath(scnode.path);
+                spvo.setType(VolumeSnapshotConstant.HYPERVISOR_SNAPSHOT_TYPE.toString());
+                spvo.setVolumeUuid(volume.getUuid());
+                spvo.setVolumeType(volume.getType().toString());
+                spvo.setTreeUuid(treeUuid);
 
-            if (scnode.parent != null) {
-                SimpleQuery<VolumeSnapshotVO> q = dbf.createQuery(VolumeSnapshotVO.class);
-                q.add(VolumeSnapshotVO_.primaryStorageInstallPath, Op.EQ, scnode.parent.path);
-                VolumeSnapshotVO parent = q.find();
-                if (parent == null) {
-                    logger.debug(String.format("[HOTFIX 1169]the orphan snapshot[%s]'s parent[%s] has no record in our database, treat it as the" +
-                                    " first  snapshot", scnode.path, scnode.parent.path));
-                } else {
-                    spvo.setParentUuid(parent.getUuid());
+                if (scnode.parent != null) {
+                    VolumeSnapshotVO parent = findSnapshotByPath(scnode.parent.path);
+                    if (parent == null) {
+                        logger.debug(String.format("[HOTFIX 1169]the orphan snapshot[%s]'s parent[%s] has no record in our database, treat it as the" +
+                                " first  snapshot", scnode.path, scnode.parent.path));
+                    } else {
+                        spvo.setParentUuid(parent.getUuid());
+                    }
                 }
+
+                dbf.getEntityManager().persist(spvo);
+                dbf.getEntityManager().flush();
+
+                hasMissingSnapshots = true;
+                String info = String.format("fixed a missing snapshot[uuid:%s, path:%s]", spvo.getUuid(), spvo.getPrimaryStorageInstallPath());
+                logger.debug(String.format("[HOTFIX 1169 %s", info));
+                result.addDetail(info);
             }
-
-            dbf.getEntityManager().persist(spvo);
-
-            hasMissingSnapshots = true;
-            result.addDetail(String.format("fixed a missing snapshot[uuid:%s, path:%s]", spvo.getUuid(), spvo.getPrimaryStorageInstallPath()));
 
             for (Node c : scnode.children.values()) {
                 insertMissingSnapshotInDatabase(c);
