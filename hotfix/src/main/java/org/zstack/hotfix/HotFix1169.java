@@ -181,9 +181,9 @@ done
                 // the volume is a root volume or
                 // it's a data volume with snapshots
                 Node startNodeInDb = nodesInDb.get(start);
-                DebugUtils.Assert(startNodeInDb != null, "startNodeInDb is null");
+                DebugUtils.Assert(startNodeInDb != null, String.format("startNodeInDb is null for %s", start));
                 Node startNodeOnStorage = nodesOnStorage.get(start);
-                DebugUtils.Assert(startNodeOnStorage != null, "startNodeOnStorage is null");
+                DebugUtils.Assert(startNodeOnStorage != null, String.format("startNodeOnStorage is null for %s", start));
 
                 Stack<String> path = new Stack<String>();
                 try {
@@ -509,14 +509,33 @@ done
                 fixer.volume = vol;
 
                 if (vol.getType() == VolumeType.Root) {
-                    SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
-                    iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol.getRootImageUuid());
-                    ImageCacheVO cache = iq.find();
-                    DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
-                            vol.getUuid(), vol.getName()));
+                    SimpleQuery<VolumeSnapshotTreeVO> tq = dbf.createQuery(VolumeSnapshotTreeVO.class);
+                    tq.add(VolumeSnapshotTreeVO_.volumeUuid, Op.EQ, vol.getUuid());
+                    List<VolumeSnapshotTreeVO> trees = tq.list();
 
-                    fixer.start = cache.getInstallUrl();
-                    fixer.end = vol.getInstallPath();
+                    if (trees.isEmpty() || trees.size() == 1) {
+                        // the volume has no snapshot or only one snapshot tree
+                        // then the start is the image cache
+                        SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
+                        iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol.getRootImageUuid());
+                        ImageCacheVO cache = iq.find();
+                        DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
+                                vol.getUuid(), vol.getName()));
+
+                        fixer.start = cache.getInstallUrl();
+                        fixer.end = vol.getInstallPath();
+                    } else {
+                        // the volume has more than one snapshot tree, then the start should be
+                        // the first snapshot of the current tree
+                        VolumeSnapshotTreeVO current = trees.stream().filter(VolumeSnapshotTreeAO::isCurrent).findAny().get();
+                        SimpleQuery<VolumeSnapshotVO> q = dbf.createQuery(VolumeSnapshotVO.class);
+                        q.add(VolumeSnapshotVO_.treeUuid, Op.EQ, current.getUuid());
+                        q.add(VolumeSnapshotVO_.parentUuid, Op.NULL);
+                        VolumeSnapshotVO sp = q.find();
+
+                        fixer.start = sp.getPrimaryStorageInstallPath();
+                        fixer.end = vol.getInstallPath();
+                    }
                 } else {
                     Node node = nodes.get(vol.getInstallPath());
                     Node ancient = node.findAncient();
@@ -686,6 +705,7 @@ done
 
             String path = parts[0];
             String backingFile = parts[1];
+
             long size = Long.valueOf(parts[2]);
             long lastModified = Long.valueOf(parts[3]);
 
@@ -699,15 +719,18 @@ done
             node.size = size;
             node.lastModificationTime = lastModified;
 
-            Node parent = nodes.get(backingFile);
-            if (parent == null) {
-                parent = new Node();
-                parent.path = backingFile;
-                nodes.put(backingFile, parent);
+            if (!"NONE".equals(backingFile)) {
+                Node parent = nodes.get(backingFile);
+                if (parent == null) {
+                    parent = new Node();
+                    parent.path = backingFile;
+                    nodes.put(backingFile, parent);
+                }
+
+                parent.children.put(node.path, node);
+                node.parent = parent;
             }
 
-            parent.children.put(node.path, node);
-            node.parent = parent;
         }
 
         return nodes;
