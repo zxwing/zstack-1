@@ -2,11 +2,13 @@ package org.zstack.hotfix;
 
 import org.zstack.header.message.APIEvent;
 
+import java.util.List;
+
 /**
  * Created by xing5 on 2016/10/25.
  */
 public class APIHotFix1169KvmSnapshotChainEvent extends APIEvent {
-    private HotFix1169Result result;
+    private List<HotFix1169Result> results;
 
     public APIHotFix1169KvmSnapshotChainEvent() {
     }
@@ -15,11 +17,11 @@ public class APIHotFix1169KvmSnapshotChainEvent extends APIEvent {
         super(apiId);
     }
 
-    public HotFix1169Result getResult() {
-        return result;
+    public List<HotFix1169Result> getResults() {
+        return results;
     }
 
-    public void setResult(HotFix1169Result result) {
-        this.result = result;
+    public void setResults(List<HotFix1169Result> results) {
+        this.results = results;
     }
 }

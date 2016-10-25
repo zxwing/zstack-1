@@ -69,8 +69,12 @@ import org.zstack.header.vm.*;
 import org.zstack.header.volume.*;
 import org.zstack.header.volume.APIGetVolumeFormatReply.VolumeFormatReplyStruct;
 import org.zstack.header.zone.*;
-import org.zstack.kvm.*;
-import org.zstack.kvm.APIKvmFixVolumeSnapshotChainEvent.FixResult;
+import org.zstack.hotfix.APIHotFix1169KvmSnapshotChainEvent;
+import org.zstack.hotfix.APIHotFix1169KvmSnapshotChainMsg;
+import org.zstack.hotfix.HotFix1169Result;
+import org.zstack.kvm.APIAddKVMHostMsg;
+import org.zstack.kvm.APIUpdateKVMHostMsg;
+import org.zstack.kvm.KVMHostInventory;
 import org.zstack.license.*;
 import org.zstack.logging.APIDeleteLogEvent;
 import org.zstack.logging.APIDeleteLogMsg;
@@ -4450,13 +4454,13 @@ public class Api implements CloudBusEventListener {
         return reply.getInventories();
     }
 
-    public List<FixResult> kvmFixVolumeSnapshotChain(String psUuid) throws ApiSenderException {
-        APIKvmFixVolumeSnapshotChainMsg msg = new APIKvmFixVolumeSnapshotChainMsg();
+    public List<HotFix1169Result> hotfix1169(String psUuid) throws ApiSenderException {
+        APIHotFix1169KvmSnapshotChainMsg msg = new APIHotFix1169KvmSnapshotChainMsg();
         msg.setPrimaryStorageUuid(psUuid);
         msg.setSession(adminSession);
         ApiSender sender = new ApiSender();
         sender.setTimeout(timeout);
-        APIKvmFixVolumeSnapshotChainEvent evt = sender.send(msg, APIKvmFixVolumeSnapshotChainEvent.class);
+        APIHotFix1169KvmSnapshotChainEvent evt = sender.send(msg, APIHotFix1169KvmSnapshotChainEvent.class);
         return evt.getResults();
     }
 }
