@@ -161,7 +161,7 @@ done
         boolean hasMissingSnapshots;
 
         @Transactional
-        HotFix1169Result fix() {
+        HotFix1169Result fix() throws NodeException {
             result.volumeName = volume.getName();
             result.volumeUuid = volume.getUuid();
 
@@ -186,17 +186,10 @@ done
                 DebugUtils.Assert(startNodeOnStorage != null, String.format("startNodeOnStorage is null for %s", start));
 
                 Stack<String> path = new Stack<String>();
-                try {
-                    compareNodes(startNodeInDb, startNodeOnStorage, path);
-
-                    logger.debug(String.format("[HOTFIX 1169] Snapshot tree check passed for the volume[name:%s, uuid:%s]",
-                            volume.getName(), volume.getUuid()));
-
-                    walkAndFix(startNodeOnStorage, startNodeInDb);
-                } catch (NodeException e) {
-                    result.setError(e.error.getDetails());
-                }
-
+                compareNodes(startNodeInDb, startNodeOnStorage, path);
+                logger.debug(String.format("[HOTFIX 1169] Snapshot tree check passed for the volume[name:%s, uuid:%s]",
+                        volume.getName(), volume.getUuid()));
+                walkAndFix(startNodeOnStorage, startNodeInDb);
             } else {
                 // data volume with no snapshots
                 Node startNodeInDb = nodesInDb.get(start);
@@ -222,7 +215,82 @@ done
                 recalculateSnapshotDistance();
             }
 
+            verify();
+
             return result;
+        }
+
+        @Transactional
+        private void verify() throws NodeException {
+            Map<String, Node> newNodesInDb = new HashMap<>();
+            buildNodesInDb(volume, newNodesInDb, vol1 -> {
+                SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
+                iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol1.getRootImageUuid());
+                ImageCacheVO cache = iq.find();
+                DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
+                        vol1.getUuid(), vol1.getName()));
+                return cache.getInstallUrl();
+            });
+
+            class FullTreeVerify {
+                void verify(Node inDb, Node onStorage, Stack<String> path) throws NodeException {
+                    if (!inDb.path.equals(onStorage.path)) {
+                        List<String> pathIndb = new ArrayList<>();
+                        pathIndb.addAll(path);
+                        pathIndb.add(inDb.path);
+
+                        List<String> pathOnStorage = new ArrayList<>();
+                        pathOnStorage.addAll(path);
+                        pathOnStorage.add(onStorage.path);
+
+                        String err = String.format(
+                                "diverged snapshot tree(AFTER FIXING!!!):\n" +
+                                        "volume[name:%s, uuid:%s]'s snapshot tree is diverged between database and storage\n" +
+                                        "path in database:\n%s\n" +
+                                        "path on storage:\n%s\n", volume.getName(), volume.getUuid(), StringUtils.join(pathIndb, " --> "),
+                                StringUtils.join(pathOnStorage, " --> "));
+                        logger.warn(err);
+
+                        throw new NodeException(errf.stringToOperationError(err));
+                    }
+
+                    if (inDb.children.size() != onStorage.children.size()) {
+                        List<String> pathIndb = new ArrayList<>();
+                        pathIndb.addAll(path);
+                        pathIndb.add(inDb.path);
+
+                        String err = String.format(
+                                "diverged snapshot tree(AFTER FIXING!!!):\n" +
+                                        "volume[name:%s, uuid:%s]'s snapshot tree is diverged between database and storage\n" +
+                                        "path: %s\n" +
+                                        "in database: has %s children\n" +
+                                        "on storage: has %s children\n", volume.getName(), volume.getUuid(), StringUtils.join(pathIndb, " --> "),
+                                        inDb.children.size(), onStorage.children.size());
+                        logger.warn(err);
+                        throw new NodeException(errf.stringToOperationError(err));
+                    }
+
+                    path.push(inDb.path);
+                    for (Node db : inDb.children.values()) {
+                        Node stor = onStorage.children.get(db.path);
+                        if (stor == null) {
+                            String err = String.format("diverged snapshot tree(AFTER FIXING!!!):\n" +
+                                            "volume[name:%s, uuid:%s]'s snapshot tree has a path not found on the storage:\n" +
+                                            "path: %s\n" +
+                                            "the missing on storage: %s\n", volume.getName(), volume.getUuid(), StringUtils.join(path, " --> "), db.path);
+                            logger.warn(err);
+                            throw new NodeException(errf.stringToOperationError(err));
+                        }
+
+                        verify(db, stor, path);
+                    }
+                    path.pop();
+                }
+            }
+
+            Node startNodeInDb = newNodesInDb.get(volume.getInstallPath()).findAncient();
+            Node startNodeOnStorage = nodesOnStorage.get(volume.getInstallPath()).findAncient();
+            new FullTreeVerify().verify(startNodeInDb, startNodeOnStorage, new Stack<>());
         }
 
         @Transactional
@@ -280,6 +348,29 @@ done
             result.addDetail(String.format("fixed installPath from %s to %s, size from %s to %s for the volume" +
                     "[uuid:%s, name:%s]", volume.getInstallPath(), l.path, volume.getSize(), l.size, volume.getUuid(),
                     volume.getName()));
+
+            VolumeSnapshotVO latestSnapshot = findSnapshotByPath(l.parent.path);
+            DebugUtils.Assert(latestSnapshot != null, String.format("cannot find the latest snapshot[%s]", l.parent.path));
+
+            // reset the latest flag
+            // DON'T USE query to update, it won't work with JPA transaction
+            // so the later query won't see the changes
+            String sql = "select sp from VolumeSnapshotVO sp where sp.treeUuid = :uuid";
+            TypedQuery<VolumeSnapshotVO> q = dbf.getEntityManager().createQuery(sql, VolumeSnapshotVO.class);
+            q.setParameter("uuid", latestSnapshot.getTreeUuid());
+            List<VolumeSnapshotVO> sps = q.getResultList();
+            for (VolumeSnapshotVO sp : sps) {
+                if (sp.getUuid().equals(latestSnapshot.getUuid())) {
+                    sp.setLatest(true);
+                } else {
+                    sp.setLatest(false);
+                }
+                dbf.getEntityManager().merge(latestSnapshot);
+                dbf.getEntityManager().flush();
+            }
+
+            logger.debug(String.format("[HOTFIX 1169] reset the latest flag to the snapshot[uuid:%s, path:%s] on the tree[uuid:%s]",
+                    latestSnapshot.getUuid(), latestSnapshot.getPrimaryStorageInstallPath(), latestSnapshot.getTreeUuid()));
 
             volume.setActualSize(l.size);
             volume.setInstallPath(l.path);
@@ -499,13 +590,20 @@ done
                 ));
             }
 
-            Map<String, Node> nodes = buildNodes(r.getStdout());
+            Map<String, Node> nodes = buildNodesOnStorage(r.getStdout());
 
             for (VolumeVO vol : volumesReady) {
                 Fixer fixer = new Fixer();
                 fixer.nodesOnStorage = nodes;
-                fixer.nodesInDb = new HashMap<String, Node>();
-                fixer.treeUuid = buildNodesInDb(vol, fixer.nodesInDb);
+                fixer.nodesInDb = new HashMap<>();
+                fixer.treeUuid = buildNodesInDb(vol, fixer.nodesInDb, vol1 -> {
+                    SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
+                    iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol1.getRootImageUuid());
+                    ImageCacheVO cache = iq.find();
+                    DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
+                            vol1.getUuid(), vol1.getName()));
+                    return cache.getInstallUrl();
+                });
                 fixer.volume = vol;
 
                 if (vol.getType() == VolumeType.Root) {
@@ -543,141 +641,22 @@ done
                     fixer.end = vol.getInstallPath();
                 }
 
-                HotFix1169Result res = fixer.fix();
-                if (res.error != null || !res.details.isEmpty()) {
-                    // a hotfix applied
+                try {
+                    HotFix1169Result res = fixer.fix();
+                    if (res.error != null || !res.details.isEmpty()) {
+                        // a hotfix applied
+                        results.add(res);
+                    }
+                } catch (NodeException e) {
+                    HotFix1169Result res = new HotFix1169Result();
+                    res.volumeName = vol.getName();
+                    res.volumeUuid = vol.getUuid();
+                    res.setError(e.error.getDetails());
                     results.add(res);
                 }
             }
 
             evt.setResults(results);
-        }
-
-        private Map<String, Node> buildNodesFromTreeUuid(final String startPath, String treeUuid) {
-            final Map<String, Node> nodes = new HashMap<String, Node>();
-
-            SimpleQuery<VolumeSnapshotVO> q = dbf.createQuery(VolumeSnapshotVO.class);
-            q.add(VolumeSnapshotVO_.treeUuid, Op.EQ, treeUuid);
-            List<VolumeSnapshotVO> sps = q.list();
-            final VolumeSnapshotTree tree = VolumeSnapshotTree.fromVOs(sps);
-
-            if (startPath != null) {
-                // the tree is linked to a image cache
-                // image cache(parent) --> root snapshot(child)
-                Node root = new Node();
-                root.path = tree.getRoot().getInventory().getPrimaryStorageInstallPath();
-
-                Node p = new Node();
-                p.path = startPath;
-                p.children.put(root.path, root);
-                root.parent = p;
-
-                nodes.put(root.path, root);
-                nodes.put(p.path, p);
-            }
-
-            tree.getRoot().walk(new Function<Void, SnapshotLeaf>() {
-                public Void call(SnapshotLeaf arg) {
-                    if (startPath != null && arg.getUuid().equals(tree.getRoot().getUuid())) {
-                        // the tree is linked to a image cache, skip the root as
-                        // we have manually add the relationship
-                        // image cache(parent) --> root snapshot(child)
-                        return null;
-                    }
-
-                    Node n = nodes.get(arg.getInventory().getPrimaryStorageInstallPath());
-                    if (n == null) {
-                        n = new Node();
-                        n.path = arg.getInventory().getPrimaryStorageInstallPath();
-                        nodes.put(n.path, n);
-                    }
-
-                    if (arg.getParent() != null) {
-                        Node p = nodes.get(arg.getParent().getInventory().getPrimaryStorageInstallPath());
-                        if (p == null) {
-                            p = new Node();
-                            p.path = arg.getParent().getInventory().getPrimaryStorageInstallPath();
-                            nodes.put(p.path, p);
-                        }
-
-                        p.children.put(n.path, n);
-                        n.parent = p;
-                    }
-
-                    return null;
-                }
-            });
-
-            return nodes;
-        }
-
-        private String buildNodesInDb(VolumeVO vol, Map<String, Node> nodes) {
-            String treeUuid = null;
-
-            if (vol.getType() == VolumeType.Root) {
-                SimpleQuery<ImageCacheVO> iq = dbf.createQuery(ImageCacheVO.class);
-                iq.add(ImageCacheVO_.imageUuid, Op.EQ, vol.getRootImageUuid());
-                ImageCacheVO cache = iq.find();
-                DebugUtils.Assert(cache != null, String.format("cannot find image cache for the volume[uuid:%s, name:%s]",
-                        vol.getUuid(), vol.getName()));
-
-                SimpleQuery<VolumeSnapshotTreeVO> tq = dbf.createQuery(VolumeSnapshotTreeVO.class);
-                tq.add(VolumeSnapshotTreeVO_.volumeUuid, Op.EQ, vol.getUuid());
-                long count = tq.count();
-
-                if (count == 0) {
-                    // no snapshot
-                    Node n = new Node();
-                    n.path = vol.getInstallPath();
-
-                    Node p = new Node();
-                    p.path = cache.getInstallUrl();
-                    p.children.put(n.path, n);
-                    n.parent = p;
-
-                    nodes.put(n.path, n);
-                    nodes.put(p.path, p);
-                } else if (count == 1) {
-                    // one snapshot tree
-                    tq = dbf.createQuery(VolumeSnapshotTreeVO.class);
-                    tq.select(VolumeSnapshotTreeVO_.uuid);
-                    tq.add(VolumeSnapshotTreeVO_.volumeUuid, Op.EQ, vol.getUuid());
-                    treeUuid = tq.findValue();
-
-                    nodes.putAll(buildNodesFromTreeUuid(cache.getInstallUrl(), treeUuid));
-                } else {
-                    // multiple snapshot trees
-                    tq = dbf.createQuery(VolumeSnapshotTreeVO.class);
-                    tq.select(VolumeSnapshotTreeVO_.uuid);
-                    tq.add(VolumeSnapshotTreeVO_.volumeUuid, Op.EQ, vol.getUuid());
-                    tq.add(VolumeSnapshotTreeVO_.current, Op.EQ, true);
-                    treeUuid = tq.findValue();
-
-                    nodes.putAll(buildNodesFromTreeUuid(null, treeUuid));
-                }
-            } else {
-                SimpleQuery<VolumeSnapshotTreeVO> tq = dbf.createQuery(VolumeSnapshotTreeVO.class);
-                tq.add(VolumeSnapshotTreeVO_.volumeUuid, Op.EQ, vol.getUuid());
-                long count = tq.count();
-
-                if (count == 0) {
-                    nodes = new HashMap<String, Node>();
-                    // no snapshot
-                    Node n = new Node();
-                    n.path = vol.getInstallPath();
-                    nodes.put(n.path, n);
-                } else {
-                    // has snapshot trees
-                    tq = dbf.createQuery(VolumeSnapshotTreeVO.class);
-                    tq.select(VolumeSnapshotTreeVO_.uuid);
-                    tq.add(VolumeSnapshotTreeVO_.volumeUuid, Op.EQ, vol.getUuid());
-                    tq.add(VolumeSnapshotTreeVO_.current, Op.EQ, true);
-                    treeUuid = tq.findValue();
-                    nodes.putAll(buildNodesFromTreeUuid(null, treeUuid));
-                }
-            }
-
-            return treeUuid;
         }
 
         private List<String> findConnectedKvmHosts() {
@@ -689,7 +668,147 @@ done
         }
     }
 
-    private Map<String, Node> buildNodes(String qcow2InfoRawOutput) {
+    @Transactional
+    private Map<String, Node> buildNodesFromTreeUuid(final String startPath, String endPath, String treeUuid) {
+        final Map<String, Node> nodes = new HashMap<String, Node>();
+
+        String sql = "select sp from VolumeSnapshotVO sp where sp.treeUuid = :uuid";
+        TypedQuery<VolumeSnapshotVO> q = dbf.getEntityManager().createQuery(sql, VolumeSnapshotVO.class);
+        q.setParameter("uuid", treeUuid);
+        List<VolumeSnapshotVO> sps = q.getResultList();
+        final VolumeSnapshotTree tree = VolumeSnapshotTree.fromVOs(sps);
+
+        if (startPath != null) {
+            // the tree is linked to a image cache
+            // image cache(parent) --> root snapshot(child)
+            Node root = new Node();
+            root.path = tree.getRoot().getInventory().getPrimaryStorageInstallPath();
+
+            Node p = new Node();
+            p.path = startPath;
+            p.children.put(root.path, root);
+            root.parent = p;
+
+            nodes.put(root.path, root);
+            nodes.put(p.path, p);
+        }
+
+        tree.getRoot().walk(new Function<Void, SnapshotLeaf>() {
+            public Void call(SnapshotLeaf arg) {
+                if (startPath != null && arg.getUuid().equals(tree.getRoot().getUuid())) {
+                    // the tree is linked to a image cache, skip the root as
+                    // we have manually add the relationship
+                    // image cache(parent) --> root snapshot(child)
+                    return null;
+                }
+
+                Node n = nodes.get(arg.getInventory().getPrimaryStorageInstallPath());
+                if (n == null) {
+                    n = new Node();
+                    n.path = arg.getInventory().getPrimaryStorageInstallPath();
+                    nodes.put(n.path, n);
+                }
+
+                if (arg.getParent() != null) {
+                    Node p = nodes.get(arg.getParent().getInventory().getPrimaryStorageInstallPath());
+                    if (p == null) {
+                        p = new Node();
+                        p.path = arg.getParent().getInventory().getPrimaryStorageInstallPath();
+                        nodes.put(p.path, p);
+                    }
+
+                    p.children.put(n.path, n);
+                    n.parent = p;
+                }
+
+                return null;
+            }
+        });
+
+        VolumeSnapshotInventory latest = tree.getRoot().getDescendants().stream()
+                .filter(VolumeSnapshotInventory::isLatest).findAny().get();
+
+        Node lnode = nodes.get(latest.getPrimaryStorageInstallPath());
+        DebugUtils.Assert(lnode.isLeaf(), String.format("node[%s] is not leaf node", lnode.path));
+
+        Node volNode = new Node();
+        volNode.path = endPath;
+        volNode.parent = lnode;
+        nodes.put(endPath, volNode);
+
+        lnode.children.put(endPath, volNode);
+
+        return nodes;
+    }
+
+    interface ImageCachePath {
+        String getImageCachePath(VolumeVO vol);
+    }
+
+    @Transactional
+    private String buildNodesInDb(VolumeVO vol, Map<String, Node> nodes, ImageCachePath cachePath) {
+        String treeUuid = null;
+
+        String sql = "select count(*) from VolumeSnapshotTreeVO t where t.volumeUuid = :uuid";
+        TypedQuery<Long> tq = dbf.getEntityManager().createQuery(sql, Long.class);
+        tq.setParameter("uuid", vol.getUuid());
+        long count = tq.getSingleResult();
+
+        if (vol.getType() == VolumeType.Root) {
+            String imageCachePath = cachePath.getImageCachePath(vol);
+
+            if (count == 0) {
+                // no snapshot
+                Node n = new Node();
+                n.path = vol.getInstallPath();
+
+                Node p = new Node();
+                p.path = imageCachePath;
+                p.children.put(n.path, n);
+                n.parent = p;
+
+                nodes.put(n.path, n);
+                nodes.put(p.path, p);
+            } else if (count == 1) {
+                // one snapshot tree
+                sql = "select t.uuid from VolumeSnapshotTreeVO t where t.volumeUuid = :uuid";
+                TypedQuery<String> tsq = dbf.getEntityManager().createQuery(sql, String.class);
+                tsq.setParameter("uuid", vol.getUuid());
+                treeUuid = tsq.getSingleResult();
+
+                nodes.putAll(buildNodesFromTreeUuid(imageCachePath, vol.getInstallPath(), treeUuid));
+            } else {
+                // multiple snapshot trees
+                sql = "select t.uuid from VolumeSnapshotTreeVO t where t.volumeUuid = :uuid and t.current = :current";
+                TypedQuery<String> tsq = dbf.getEntityManager().createQuery(sql, String.class);
+                tsq.setParameter("uuid", vol.getUuid());
+                tsq.setParameter("current", true);
+                treeUuid = tsq.getSingleResult();
+
+                nodes.putAll(buildNodesFromTreeUuid(null, vol.getInstallPath(), treeUuid));
+            }
+        } else {
+            if (count == 0) {
+                nodes = new HashMap<>();
+                // no snapshot
+                Node n = new Node();
+                n.path = vol.getInstallPath();
+                nodes.put(n.path, n);
+            } else {
+                // has snapshot trees
+                sql = "select t.uuid from VolumeSnapshotTreeVO t where t.volumeUuid = :uuid and t.current = :current";
+                TypedQuery<String> tsq = dbf.getEntityManager().createQuery(sql, String.class);
+                tsq.setParameter("uuid", vol.getUuid());
+                tsq.setParameter("current", true);
+                treeUuid = tsq.getSingleResult();
+                nodes.putAll(buildNodesFromTreeUuid(null, vol.getInstallPath(), treeUuid));
+            }
+        }
+
+        return treeUuid;
+    }
+
+    private Map<String, Node> buildNodesOnStorage(String qcow2InfoRawOutput) {
         Map<String, Node> nodes = new HashMap<String, Node>();
 
         for (String s : qcow2InfoRawOutput.split("\n")) {

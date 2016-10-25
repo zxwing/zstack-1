@@ -4,6 +4,7 @@ import junit.framework.Assert;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
 import org.junit.Test;
+import org.zstack.compute.vm.VmGlobalConfig;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
@@ -18,7 +19,10 @@ import org.zstack.header.storage.snapshot.VolumeSnapshotTree;
 import org.zstack.header.storage.snapshot.VolumeSnapshotTree.SnapshotLeaf;
 import org.zstack.header.storage.snapshot.VolumeSnapshotVO;
 import org.zstack.header.storage.snapshot.VolumeSnapshotVO_;
+import org.zstack.header.vm.VmInstanceDeletionPolicyManager.VmInstanceDeletionPolicy;
 import org.zstack.header.vm.VmInstanceInventory;
+import org.zstack.header.volume.VolumeInventory;
+import org.zstack.header.volume.VolumeType;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.hotfix.HotFix1169Result;
 import org.zstack.kvm.KvmRunShellMsg;
@@ -43,8 +47,8 @@ import java.util.List;
 /*
 * take snapshot from vm's root volume
 */
-public class TestKvmHotfix1169_3 {
-    CLogger logger = Utils.getLogger(TestKvmHotfix1169_3.class);
+public class TestKvmHotfix1169_6 {
+    CLogger logger = Utils.getLogger(TestKvmHotfix1169_6.class);
     Deployer deployer;
     Api api;
     ComponentLoader loader;
@@ -57,7 +61,7 @@ public class TestKvmHotfix1169_3 {
     public void setUp() throws Exception {
         DBUtil.reDeployDB();
         WebBeanConstructor con = new WebBeanConstructor();
-        deployer = new Deployer("deployerXml/kvm/TestCreateVmOnKvm.xml", con);
+        deployer = new Deployer("deployerXml/kvm/TestKvmHostFix1169_4.xml", con);
         deployer.addSpringConfig("KVMRelated.xml");
         deployer.addSpringConfig("hotfix.xml");
         deployer.build();
@@ -74,7 +78,9 @@ public class TestKvmHotfix1169_3 {
         VolumeSnapshotGlobalConfig.MAX_INCREMENTAL_SNAPSHOT_NUM.updateValue(5);
 
         VmInstanceInventory vm = deployer.vms.get("TestVm");
-        String volUuid = vm.getRootVolumeUuid();
+        VolumeInventory data = vm.getAllVolumes().stream().filter(d->d.getType().equals(VolumeType.Data.toString())).findAny().get();
+
+        String volUuid = data.getUuid();
 
         // create 6 snapshots to make a new tree
         api.createSnapshot(volUuid);
@@ -85,9 +91,12 @@ public class TestKvmHotfix1169_3 {
         api.createSnapshot(volUuid);
 
         VolumeSnapshotInventory inv1 = api.createSnapshot(volUuid);
-        Assert.assertNull(inv1.getParentUuid());
         VolumeSnapshotInventory inv2 = api.createSnapshot(volUuid);
-        VolumeVO root = dbf.findByUuid(volUuid, VolumeVO.class);
+
+        VolumeVO dataVolume = dbf.findByUuid(volUuid, VolumeVO.class);
+
+        VmGlobalConfig.VM_DELETION_POLICY.updateValue(VmInstanceDeletionPolicy.Direct.toString());
+        api.destroyVmInstance(vm.getUuid());
 
         List<String> treeOnStorage = new ArrayList<>();
         treeOnStorage.add(String.format("%s %s %s %s", inv1.getPrimaryStorageInstallPath(), "NONE",
@@ -95,18 +104,18 @@ public class TestKvmHotfix1169_3 {
         treeOnStorage.add(String.format("%s %s %s %s", inv2.getPrimaryStorageInstallPath(), inv1.getPrimaryStorageInstallPath(),
                 inv2.getSize(), 0));
         // the missing one
-        treeOnStorage.add(String.format("%s %s %s %s", root.getInstallPath(), inv2.getPrimaryStorageInstallPath(),
-                root.getSize(), 0));
+        treeOnStorage.add(String.format("%s %s %s %s", dataVolume.getInstallPath(), inv2.getPrimaryStorageInstallPath(),
+                dataVolume.getSize(), 0));
         // the new volume
-        String newPath = PathUtil.join(new File(root.getInstallPath()).getParent(), "abcd.qcow2");
-        treeOnStorage.add(String.format("%s %s %s %s", newPath, root.getInstallPath(),
+        String newPath = PathUtil.join(new File(dataVolume.getInstallPath()).getParent(), "abcd.qcow2");
+        treeOnStorage.add(String.format("%s %s %s %s", newPath, dataVolume.getInstallPath(),
                 SizeUnit.BYTE.toByte(100), 0));
 
         bus.installBeforeSendMessageInterceptor(new AbstractBeforeSendMessageInterceptor() {
             @Override
             public void intercept(Message msg) {
                 if (msg instanceof KvmRunShellMsg) {
-                    bus.makeLocalServiceId(msg, TestKvmHotfix1169_3.class.getName());
+                    bus.makeLocalServiceId(msg, TestKvmHotfix1169_6.class.getName());
                 }
             }
         }, KvmRunShellMsg.class);
@@ -126,7 +135,7 @@ public class TestKvmHotfix1169_3 {
 
             @Override
             public String getId() {
-                return bus.makeLocalServiceId(TestKvmHotfix1169_3.class.getName());
+                return bus.makeLocalServiceId(TestKvmHotfix1169_6.class.getName());
             }
 
             @Override
@@ -140,13 +149,13 @@ public class TestKvmHotfix1169_3 {
             }
         });
 
-        List<HotFix1169Result> results = api.hotfix1169(root.getPrimaryStorageUuid());
+        List<HotFix1169Result> results = api.hotfix1169(dataVolume.getPrimaryStorageUuid());
         Assert.assertEquals(1, results.size());
 
         HotFix1169Result res = results.get(0);
         Assert.assertTrue(res.success);
-        Assert.assertEquals(root.getUuid(), res.volumeUuid);
-        Assert.assertEquals(root.getName(), res.volumeName);
+        Assert.assertEquals(dataVolume.getUuid(), res.volumeUuid);
+        Assert.assertEquals(dataVolume.getName(), res.volumeName);
 
         SimpleQuery<VolumeSnapshotVO> q = dbf.createQuery(VolumeSnapshotVO.class);
         q.add(VolumeSnapshotVO_.treeUuid, Op.EQ, inv1.getTreeUuid());
@@ -182,17 +191,17 @@ public class TestKvmHotfix1169_3 {
         SnapshotLeaf sp3 = tree.findSnapshot(new Function<Boolean, VolumeSnapshotInventory>() {
             @Override
             public Boolean call(VolumeSnapshotInventory arg) {
-                return arg.getPrimaryStorageInstallPath().equals(root.getInstallPath());
+                return arg.getPrimaryStorageInstallPath().equals(dataVolume.getInstallPath());
             }
         });
         Assert.assertNotNull(sp3);
-        Assert.assertEquals(root.getSize(), sp3.getInventory().getSize());
+        Assert.assertEquals(dataVolume.getSize(), sp3.getInventory().getSize());
         Assert.assertNotNull(sp3.getParent());
         Assert.assertEquals(inv2.getPrimaryStorageInstallPath(), sp3.getParent().getInventory().getPrimaryStorageInstallPath());
         sp = dbf.findByUuid(sp3.getUuid(), VolumeSnapshotVO.class);
         Assert.assertEquals(2, sp.getDistance());
 
-        VolumeVO nr = dbf.reload(root);
+        VolumeVO nr = dbf.reload(dataVolume);
         Assert.assertEquals(newPath, nr.getInstallPath());
         Assert.assertEquals(100, nr.getActualSize().longValue());
     }
