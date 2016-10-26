@@ -1,6 +1,5 @@
 package org.zstack.simulator.storage.primary.nfs;
 
-import org.zstack.kvm.APIKvmFixVolumeSnapshotChainMsgHandler.Qcow2FileInfo;
 import org.zstack.storage.primary.nfs.NfsPrimaryStorageKVMBackendCommands.*;
 import org.zstack.utils.data.SizeUnit;
 
@@ -56,5 +55,4 @@ public class NfsPrimaryStorageSimulatorConfig {
 
     public Map<String, String> getVolumeBaseImagePaths = new HashMap<String, String>();
     public List<UpdateMountPointCmd> updateMountPointCmds = new ArrayList<>();
-    public List<Qcow2FileInfo> qcow2FileInfos = new ArrayList<>();
 }

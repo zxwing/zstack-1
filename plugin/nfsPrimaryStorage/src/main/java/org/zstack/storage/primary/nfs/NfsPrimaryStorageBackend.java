@@ -5,7 +5,6 @@ import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.host.HostInventory;
 import org.zstack.header.host.HypervisorType;
 import org.zstack.header.image.ImageInventory;
-import org.zstack.header.message.Message;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.volume.VolumeInventory;
@@ -13,8 +12,6 @@ import org.zstack.storage.primary.PrimaryStorageBase.PhysicalCapacityUsage;
 
 public interface NfsPrimaryStorageBackend {
     HypervisorType getHypervisorType();
-
-    void handleBackendSpecificMessage(PrimaryStorageInventory inv, Message msg);
 
     void ping(PrimaryStorageInventory inv, Completion completion);
 

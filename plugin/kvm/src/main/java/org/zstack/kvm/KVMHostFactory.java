@@ -291,8 +291,6 @@ public class KVMHostFactory extends AbstractService implements HypervisorFactory
     public void handleMessage(Message msg) {
         if (msg instanceof APIKvmRunShellMsg) {
             handle((APIKvmRunShellMsg) msg);
-        } else if (msg instanceof APIKvmFixVolumeSnapshotChainMsg) {
-            new APIKvmFixVolumeSnapshotChainMsgHandler().handle((APIKvmFixVolumeSnapshotChainMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }

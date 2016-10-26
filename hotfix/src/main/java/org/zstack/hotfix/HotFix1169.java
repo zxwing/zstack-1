@@ -115,7 +115,7 @@ done
             "        size=\"NONE\"\n" +
             "    fi\n" +
             "\n" +
-            "    date=`stat -c %Y $f`\n" +
+            "    date=`stat -c %%Y $f`\n" +
             "    if [ x\"$date\" == \"x\" ]; then\n" +
             "        date=\"NONE\"\n" +
             "    fi\n" +

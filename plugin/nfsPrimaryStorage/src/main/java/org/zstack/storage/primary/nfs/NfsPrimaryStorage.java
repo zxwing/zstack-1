@@ -45,7 +45,6 @@ import org.zstack.header.volume.VolumeFormat;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.kvm.KVMConstant;
-import org.zstack.kvm.KvmGetQcow2FileInfoPrimaryStorageMsg;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.storage.primary.PrimaryStoragePathMaker;
 import org.zstack.utils.CollectionUtils;
@@ -108,16 +107,9 @@ public class NfsPrimaryStorage extends PrimaryStorageBase {
             handle((GetVolumeRootImageUuidFromPrimaryStorageMsg) msg);
         } else if (msg instanceof DeleteImageCacheOnPrimaryStorageMsg) {
             handle((DeleteImageCacheOnPrimaryStorageMsg) msg);
-        } else if (msg instanceof KvmGetQcow2FileInfoPrimaryStorageMsg) {
-            handle((KvmGetQcow2FileInfoPrimaryStorageMsg) msg);
         } else {
             super.handleLocalMessage(msg);
         }
-    }
-
-    private void handle(KvmGetQcow2FileInfoPrimaryStorageMsg msg) {
-        NfsPrimaryStorageBackend bkd = getBackend(HypervisorType.valueOf(KVMConstant.KVM_HYPERVISOR_TYPE));
-        bkd.handleBackendSpecificMessage(getSelfInventory(), msg);
     }
 
     protected void updateMountPoint(PrimaryStorageVO vo, String newUrl) {
