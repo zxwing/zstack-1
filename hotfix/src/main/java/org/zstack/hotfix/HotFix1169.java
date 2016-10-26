@@ -258,14 +258,14 @@ done
                         pathIndb.add(inDb.path);
 
                         String err = String.format(
-                                "diverged snapshot tree(AFTER FIXING!!!):\n" +
+                                "diverged snapshot tree(AFTER FIXING!!!), this may not be an error:\n" +
                                         "volume[name:%s, uuid:%s]'s snapshot tree is diverged between database and storage\n" +
                                         "path: %s\n" +
                                         "in database: has %s children\n" +
                                         "on storage: has %s children\n", volume.getName(), volume.getUuid(), StringUtils.join(pathIndb, " --> "),
                                         inDb.children.size(), onStorage.children.size());
                         logger.warn(err);
-                        throw new NodeException(errf.stringToOperationError(err));
+                        //throw new NodeException(errf.stringToOperationError(err));
                     }
 
                     path.push(inDb.path);
@@ -411,6 +411,26 @@ done
                 ));
             }
 
+            for (Node db : dbnode.children.values()) {
+                Node stor = snode.children.get(db.path);
+                if (!db.isLeaf()) {
+                    walkAndFixMissingSnapshot(stor, db);
+                } else if (db.isLeaf() && !stor.isLeaf()) {
+                    // two cases to be here
+                    // 1. the snapshot doesn't exist in the database
+                    // 2. the snapshot exists in the database, but it has children not recorded by the database
+                    logger.debug(String.format("[HOTFIX 1169] found %s missing in the DB snapshot tree of the volume[uuid:%s, name:%s]",
+                            stor.path, volume.getUuid(), volume.getName()));
+
+                    if (treeUuid == null) {
+                        treeUuid = createNewTree();
+                    }
+
+                    insertMissingSnapshotInDatabase(stor);
+                }
+            }
+
+            /*
             for (Node scnode : snode.children.values()) {
                 Node dbcnode = dbnode.children.get(scnode.path);
                 if (dbcnode != null && scnode.children.size() == dbcnode.children.size()) {
@@ -429,6 +449,7 @@ done
                     insertMissingSnapshotInDatabase(scnode);
                 }
             }
+            */
         }
 
         @Transactional
@@ -650,7 +671,7 @@ done
 
                 try {
                     HotFix1169Result res = fixer.fix();
-                    if (res.error != null || !res.details.isEmpty()) {
+                    if (res.error != null || res.details != null) {
                         // a hotfix applied
                         results.add(res);
                     }
