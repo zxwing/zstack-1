@@ -62,6 +62,7 @@ public class VirtualRouterDnsBackend implements NetworkServiceDnsBackend {
             @Override
             public DnsInfo call(String arg) {
                 DnsInfo info = new DnsInfo();
+                info.setNicMac(vr.getGuestNic().getMac());
                 info.setDnsAddress(arg);
                 return info;
             }
@@ -108,6 +109,7 @@ public class VirtualRouterDnsBackend implements NetworkServiceDnsBackend {
             public DnsInfo call(String arg) {
                 DnsInfo info = new DnsInfo();
                 info.setDnsAddress(arg);
+                info.setNicMac(vr.getGuestNic().getMac());
                 return info;
             }
         }));
@@ -155,6 +157,7 @@ public class VirtualRouterDnsBackend implements NetworkServiceDnsBackend {
                 for (String d : l3.getDns()) {
                     VirtualRouterCommands.DnsInfo dinfo = new VirtualRouterCommands.DnsInfo();
                     dinfo.setDnsAddress(d);
+                    dinfo.setNicMac(vr.getGuestNic().getMac());
                     dns.add(dinfo);
                 }
 
@@ -230,6 +233,7 @@ public class VirtualRouterDnsBackend implements NetworkServiceDnsBackend {
         for (String dns : struct.getDns()) {
             VirtualRouterCommands.DnsInfo i = new VirtualRouterCommands.DnsInfo();
             i.setDnsAddress(dns);
+            i.setNicMac(vr.getGuestNic().getMac());
             info.add(i);
         }
 
