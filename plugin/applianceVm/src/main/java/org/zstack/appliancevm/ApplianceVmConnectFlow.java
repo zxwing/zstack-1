@@ -9,12 +9,10 @@ import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.thread.CancelablePeriodicTask;
 import org.zstack.core.thread.ThreadFacade;
-import org.zstack.header.core.Completion;
 import org.zstack.header.core.workflow.FlowTrigger;
 import org.zstack.header.core.workflow.NoRollbackFlow;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
-import org.zstack.header.rest.RESTFacade;
 import org.zstack.header.vm.VmInstanceConstant;
 import org.zstack.header.vm.VmInstanceSpec;
 import org.zstack.header.vm.VmNicInventory;
@@ -44,8 +42,6 @@ public class ApplianceVmConnectFlow extends NoRollbackFlow {
     private ErrorFacade errf;
     @Autowired
     private AnsibleFacade asf;
-    @Autowired
-    private RESTFacade restf;
 
     private static final String ERROR_LOG_PATH = "/var/lib/zstack/error.log";
 
@@ -57,8 +53,8 @@ public class ApplianceVmConnectFlow extends NoRollbackFlow {
         }
 
         final VmInstanceSpec spec = (VmInstanceSpec) data.get(VmInstanceConstant.Params.VmInstanceSpec.toString());
-        final ApplianceVmSpec aspec = spec.getExtensionData(ApplianceVmConstant.Params.applianceVmSpec.toString(), ApplianceVmSpec.class);
         VmNicInventory mgmtNic;
+        final ApplianceVmSpec aspec = spec.getExtensionData(ApplianceVmConstant.Params.applianceVmSpec.toString(), ApplianceVmSpec.class);
         if (spec.getCurrentVmOperation() == VmInstanceConstant.VmOperation.NewCreate) {
             mgmtNic = CollectionUtils.find(spec.getDestNics(), new Function<VmNicInventory, VmNicInventory>() {
                 @Override
@@ -73,10 +69,10 @@ public class ApplianceVmConnectFlow extends NoRollbackFlow {
         }
 
         final int connectTimeout = ApplianceVmGlobalConfig.CONNECT_TIMEOUT.value(Integer.class);
+        final String privKey = asf.getPrivateKey();
         final String username = aspec.getSshUsername();
         final int sshPort = aspec.getSshPort();
-        final int agentPort = aspec.getAgentPort();
-        final String privKey = asf.getPrivateKey();
+
         final boolean connectVerbose = ApplianceVmGlobalProperty.CONNECT_VERBOSE;
 
         final String mgmtIp = mgmtNic.getIp();
@@ -105,24 +101,12 @@ public class ApplianceVmConnectFlow extends NoRollbackFlow {
             private void connected() {
                 String info = String.format("successfully connected to appliance vm[uuid:%s, name:%s, ip:%s], deploying agent now ...", spec.getVmInventory().getUuid(), spec.getVmInventory().getName(), mgmtIp);
                 logger.debug(info);
-
-                String echoURL = ApplianceVmBase.buildAgentUrl(mgmtIp, ApplianceVmConstant.ECHO_PATH, agentPort);
-                restf.echo(echoURL, new Completion(chain) {
-                    @Override
-                    public void success() {
-                        chain.next();
-                    }
-
-                    @Override
-                    public void fail(ErrorCode errorCode) {
-                        chain.fail(errorCode);
-                    }
-                });
+                chain.next();
             }
 
             private void sshLogIn() throws InterruptedException {
                 long expired = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(ApplianceVmGlobalConfig.SSH_LOGIN_TIMEOUT.value(Long.class));
-                SshException se;
+                SshException se = null;
                 while (true) {
                    try {
                        new Ssh().setHostname(mgmtIp).setUsername(username).setPrivateKey(privKey).setPort(sshPort).setSuppressException(!connectVerbose)

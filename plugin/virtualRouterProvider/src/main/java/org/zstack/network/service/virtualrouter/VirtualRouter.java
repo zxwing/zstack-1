@@ -40,13 +40,13 @@ public class VirtualRouter extends ApplianceVmBase {
     }
 
     @Autowired
-    private VirtualRouterManager vrMgr;
+    protected VirtualRouterManager vrMgr;
     @Autowired
-    private RESTFacade restf;
+    protected RESTFacade restf;
     @Autowired
-    private ErrorFacade errf;
+    protected ErrorFacade errf;
 
-    private VirtualRouterVmInventory vr;
+    protected VirtualRouterVmInventory vr;
 
     public VirtualRouter(ApplianceVmVO vo) {
         super(vo);

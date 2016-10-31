@@ -53,7 +53,7 @@ public abstract class ApplianceVmBase extends VmInstanceBase implements Applianc
     }
 
     @Autowired
-    private ApplianceVmFacade apvmf;
+    protected ApplianceVmFacade apvmf;
 
     protected abstract List<Flow> getPostCreateFlows();
     protected abstract List<Flow> getPostStartFlows();
@@ -74,14 +74,14 @@ public abstract class ApplianceVmBase extends VmInstanceBase implements Applianc
         return ApplianceVmInventory.valueOf(getSelf());
     }
 
-    private List<Flow> createBootstrapFlows(HypervisorType hvType) {
+    protected List<Flow> createBootstrapFlows(HypervisorType hvType) {
         Boolean unitTestOn = CoreGlobalProperty.UNIT_TEST_ON;
         List<Flow> flows = new ArrayList<Flow>();
 
         flows.add(apvmf.createBootstrapFlow(hvType));
         if (!unitTestOn) {
             flows.add(new ApplianceVmConnectFlow());
-            //flows.add(new ApplianceVmDeployAgentFlow());
+            flows.add(new ApplianceVmDeployAgentFlow());
         }
         flows.add(new ApplianceVmSetFirewallFlow());
 
