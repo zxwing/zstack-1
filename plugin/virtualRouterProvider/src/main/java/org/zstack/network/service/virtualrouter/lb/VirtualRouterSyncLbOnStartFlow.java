@@ -43,6 +43,7 @@ public class VirtualRouterSyncLbOnStartFlow implements Flow {
     @Qualifier("VirtualRouterLoadBalancerBackend")
     private VirtualRouterLoadBalancerBackend bkd;
     @Autowired
+    @Qualifier("VirtualRouterVipBackend")
     protected VirtualRouterVipBackend vipExt;
 
     private LoadBalancerStruct makeStruct(LoadBalancerVO vo) {

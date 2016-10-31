@@ -4,13 +4,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.zstack.appliancevm.ApplianceVmAsyncHttpCallMsg;
 import org.zstack.appliancevm.ApplianceVmRefreshFirewallMsg;
 import org.zstack.appliancevm.ApplianceVmRefreshFirewallReply;
-import org.zstack.appliancevm.ApplianceVmVO;
 import org.zstack.core.CoreGlobalProperty;
 import org.zstack.header.core.workflow.Flow;
 import org.zstack.header.core.workflow.FlowChain;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.host.HypervisorType;
 import org.zstack.network.service.virtualrouter.VirtualRouter;
+import org.zstack.network.service.virtualrouter.VirtualRouterVmVO;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +22,7 @@ public class VyosVm extends VirtualRouter {
     @Autowired
     private VyosVmFactory vyosf;
 
-    public VyosVm(ApplianceVmVO vo) {
+    public VyosVm(VirtualRouterVmVO vo) {
         super(vo);
     }
 

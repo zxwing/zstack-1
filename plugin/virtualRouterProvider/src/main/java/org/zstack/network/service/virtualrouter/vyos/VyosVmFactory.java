@@ -24,6 +24,7 @@ import org.zstack.header.network.service.*;
 import org.zstack.network.service.eip.EipConstant;
 import org.zstack.network.service.lb.LoadBalancerConstants;
 import org.zstack.network.service.virtualrouter.VirtualRouterApplianceVmFactory;
+import org.zstack.network.service.virtualrouter.VirtualRouterVmVO;
 import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
 
@@ -117,7 +118,8 @@ public class VyosVmFactory extends VirtualRouterApplianceVmFactory implements Co
 
     @Override
     public ApplianceVm getSubApplianceVm(ApplianceVmVO apvm) {
-        return new VyosVm(apvm);
+        VirtualRouterVmVO vr = dbf.findByUuid(apvm.getUuid(), VirtualRouterVmVO.class);
+        return new VyosVm(vr);
     }
 
     private void buildWorkFlowBuilder() {

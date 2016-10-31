@@ -32,11 +32,9 @@ import java.util.List;
 
 /**
  */
-public class VirtualRouterDnsBackend implements NetworkServiceDnsBackend {
+public class VirtualRouterDnsBackend extends AbstractVirtualRouterBackend implements NetworkServiceDnsBackend {
     private final CLogger logger = Utils.getLogger(VirtualRouterDnsBackend.class);
 
-    @Autowired
-    private VirtualRouterManager vrMgr;
     @Autowired
     private CloudBus bus;
     @Autowired
@@ -149,8 +147,11 @@ public class VirtualRouterDnsBackend implements NetworkServiceDnsBackend {
 
         final DnsStruct struct = it.next();
         final L3NetworkInventory l3 = struct.getL3Network();
-        vrMgr.acquireVirtualRouterVm(struct.getL3Network(), spec, new ReturnValueCompletion<VirtualRouterVmInventory>(completion) {
 
+        VirtualRouterStruct s = new VirtualRouterStruct();
+        s.setL3Network(l3);
+
+        acquireVirtualRouterVm(s, new ReturnValueCompletion<VirtualRouterVmInventory>(completion) {
             @Override
             public void success(final VirtualRouterVmInventory vr) {
                 final List<VirtualRouterCommands.DnsInfo> dns = new ArrayList<VirtualRouterCommands.DnsInfo>(l3.getDns().size());

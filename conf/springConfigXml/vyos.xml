@@ -117,4 +117,31 @@
             <zstack:extension interface="org.zstack.network.service.lb.LoadBalancerBackend" />
         </zstack:plugin>
     </bean>
+
+    <bean id="VyosPortForwardingBackend" class="org.zstack.network.service.virtualrouter.vyos.VyosPortForwardingBackend">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.header.Component" />
+            <zstack:extension interface="org.zstack.network.service.portforwarding.PortForwardingBackend" />
+        </zstack:plugin>
+
+	<property name="applyPortForwardingRuleElements">
+            <list>
+                <value>org.zstack.network.service.virtualrouter.portforwarding.PortForwardingOpenVirtualRouterFirewallFlow</value>
+                <value>org.zstack.network.service.virtualrouter.portforwarding.ApplyPortforwardingRuleOnVirtualRouterVmFlow</value>
+            </list>
+        </property>
+
+        <property name="releasePortForwardingRuleElements">
+            <list>
+                <value>org.zstack.network.service.virtualrouter.portforwarding.ReleasePortForwardingRuleOnVirtualRouterVmFlow</value>
+                <value>org.zstack.network.service.virtualrouter.portforwarding.PortForwardingRemoveVirtualRouterFirewallFlow</value>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="VyosVipBackend" class="org.zstack.network.service.virtualrouter.vyos.VyosVipBackend">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.network.service.vip.VipBackend" />
+        </zstack:plugin>
+    </bean>
 </beans>

@@ -1,4 +1,4 @@
-package org.zstack.test.virtualrouter;
+package org.zstack.test.virtualrouter.vyos;
 
 import junit.framework.Assert;
 import org.junit.Before;
@@ -20,6 +20,8 @@ import org.zstack.test.ApiSenderException;
 import org.zstack.test.DBUtil;
 import org.zstack.test.WebBeanConstructor;
 import org.zstack.test.deployer.Deployer;
+import org.zstack.test.virtualrouter.PortForwardingRuleTestValidator;
+import org.zstack.test.virtualrouter.VipTestValidator;
 
 /**
  * 
@@ -88,7 +90,5 @@ public class TestVyosPortForwarding {
         PortForwardingRuleTO to = vconfig.portForwardingRules.get(0);
         PortForwardingRuleTestValidator validator = new PortForwardingRuleTestValidator();
         Assert.assertTrue(validator.compare(to, rule));
-
-        validator.hasFirewall(aconfig, rule);
     }
 }
