@@ -105,7 +105,7 @@ public abstract class ApplianceVmBase extends VmInstanceBase implements Applianc
         }
     }
 
-    private void handle(final ApplianceVmAsyncHttpCallMsg msg) {
+    protected void handle(final ApplianceVmAsyncHttpCallMsg msg) {
         thdf.chainSubmit(new ChainTask(msg) {
             @Override
             public int getSyncLevel() {
@@ -159,7 +159,7 @@ public abstract class ApplianceVmBase extends VmInstanceBase implements Applianc
         });
     }
 
-    private void handle(final ApplianceVmRefreshFirewallMsg msg) {
+    protected void handle(final ApplianceVmRefreshFirewallMsg msg) {
         if (msg.isInSyncThread()) {
             thdf.chainSubmit(new ChainTask(msg) {
                 @Override
@@ -183,7 +183,7 @@ public abstract class ApplianceVmBase extends VmInstanceBase implements Applianc
                 }
             });
         } else {
-            refreshFirewall(msg, new NoErrorCompletion() {
+            refreshFirewall(msg, new NoErrorCompletion(msg) {
                 @Override
                 public void done() {
                     // nothing

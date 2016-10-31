@@ -12,6 +12,8 @@ import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.workflow.FlowChainBuilder;
 import org.zstack.header.Component;
+import org.zstack.header.core.workflow.Flow;
+import org.zstack.header.core.workflow.FlowChain;
 import org.zstack.header.managementnode.PrepareDbInitialValueExtensionPoint;
 import org.zstack.header.network.NetworkException;
 import org.zstack.header.network.l2.APICreateL2NetworkMsg;
@@ -78,6 +80,34 @@ public class VyosVmFactory extends VirtualRouterApplianceVmFactory implements Co
 
     public void setVyosReconnectFlows(List<String> vyosReconnectFlows) {
         this.vyosReconnectFlows = vyosReconnectFlows;
+    }
+
+    public List<Flow> getPostCreateFlows() {
+        return postCreateFlowsBuilder.getFlows();
+    }
+
+    public List<Flow> getPostStartFlows() {
+        return postStartFlowsBuilder.getFlows();
+    }
+
+    public List<Flow> getPostRebootFlows() {
+        return postRebootFlowsBuilder.getFlows();
+    }
+
+    public List<Flow> getPostStopFlows() {
+        return null;
+    }
+
+    public List<Flow> getPostMigrateFlows() {
+        return null;
+    }
+
+    public List<Flow> getPostDestroyFlows() {
+        return postDestroyFlowsBuilder.getFlows();
+    }
+
+    public FlowChain getReconnectFlowChain() {
+        return reconnectFlowsBuilder.build();
     }
 
     @Override
@@ -152,7 +182,6 @@ public class VyosVmFactory extends VirtualRouterApplianceVmFactory implements Co
         if (!supportedL2NetworkTypes.contains(l2Network.getType())) {
             return;
         }
-
 
         NetworkServiceProviderL2NetworkRefVO ref = new NetworkServiceProviderL2NetworkRefVO();
         ref.setNetworkServiceProviderUuid(providerVO.getUuid());

@@ -87,4 +87,34 @@
             <zstack:extension interface="org.zstack.header.network.l2.L2NetworkCreateExtensionPoint" />
         </zstack:plugin>
     </bean>
+
+    <bean id="VyosDhcpBackend" class="org.zstack.network.service.virtualrouter.vyos.VyosDhcpBackend">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.header.network.service.NetworkServiceDhcpBackend" />
+        </zstack:plugin>
+    </bean>
+
+    <bean id="VyosSnatBackend" class="org.zstack.network.service.virtualrouter.vyos.VyosSnatBackend">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.header.network.service.NetworkServiceSnatBackend" />
+        </zstack:plugin>
+    </bean>
+
+    <bean id="VyosDnsBackend" class="org.zstack.network.service.virtualrouter.vyos.VyosDnsBackend">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.header.network.service.NetworkServiceDnsBackend" />
+        </zstack:plugin>
+    </bean>
+
+    <bean id="VyosEipBackend" class="org.zstack.network.service.virtualrouter.vyos.VyosEipBackend">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.network.service.eip.EipBackend" />
+        </zstack:plugin>
+    </bean>
+
+    <bean id="VyosLbBackend" class="org.zstack.network.service.virtualrouter.vyos.VyosLbBackend">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.network.service.lb.LoadBalancerBackend" />
+        </zstack:plugin>
+    </bean>
 </beans>

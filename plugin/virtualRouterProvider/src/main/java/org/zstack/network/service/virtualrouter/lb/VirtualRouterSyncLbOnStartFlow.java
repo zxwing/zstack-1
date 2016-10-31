@@ -3,6 +3,7 @@ package org.zstack.network.service.virtualrouter.lb;
 import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
@@ -39,6 +40,7 @@ public class VirtualRouterSyncLbOnStartFlow implements Flow {
     @Autowired
     private DatabaseFacade dbf;
     @Autowired
+    @Qualifier("VirtualRouterLoadBalancerBackend")
     private VirtualRouterLoadBalancerBackend bkd;
     @Autowired
     protected VirtualRouterVipBackend vipExt;
