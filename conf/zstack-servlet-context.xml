@@ -16,6 +16,6 @@
 	default-init-method="init" default-destroy-method="destory" default-lazy-init="true">
 	
 	<context:component-scan base-package="org.zstack" />
-	<aop:aspectj-autoproxy proxy-target-class="true" />
+	<!--aop:aspectj-autoproxy proxy-target-class="true" /-->
 	<mvc:annotation-driven />
 </beans>

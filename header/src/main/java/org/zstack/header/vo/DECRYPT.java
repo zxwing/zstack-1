@@ -10,6 +10,6 @@ import java.lang.annotation.Target;
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ENCRYPT {
-    String value() default "/root/RSAPrivate";
+public @interface DECRYPT {
+    String value() default "/root/RSAPublic";
 }

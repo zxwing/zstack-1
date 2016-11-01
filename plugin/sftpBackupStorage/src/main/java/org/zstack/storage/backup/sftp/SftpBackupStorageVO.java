@@ -3,13 +3,14 @@ package org.zstack.storage.backup.sftp;
 import org.zstack.header.storage.backup.BackupStorageEO;
 import org.zstack.header.storage.backup.BackupStorageVO;
 import org.zstack.header.tag.AutoDeleteTag;
+import org.zstack.header.vo.DECRYPT;
+import org.zstack.header.vo.ENCRYPT;
 import org.zstack.header.vo.EO;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.Table;
-import org.zstack.header.vo.ENCRYPT;
 
 @Entity
 @Table
@@ -17,6 +18,7 @@ import org.zstack.header.vo.ENCRYPT;
 @EO(EOClazz = BackupStorageEO.class, needView = false)
 @AutoDeleteTag
 public class SftpBackupStorageVO extends BackupStorageVO {
+
     @Column
     private String hostname;
     @Column
@@ -49,11 +51,12 @@ public class SftpBackupStorageVO extends BackupStorageVO {
         this.username = username;
     }
 
+    @DECRYPT
     public String getPassword() {
         return this.password;
     }
 
-    @ENCRYPT(value = "test")
+    @ENCRYPT
     public void setPassword(String password) {
         this.password = password;
     }
