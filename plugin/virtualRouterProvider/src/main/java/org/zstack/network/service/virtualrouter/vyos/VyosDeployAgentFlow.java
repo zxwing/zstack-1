@@ -9,6 +9,9 @@ import org.zstack.core.ansible.AnsibleFacade;
 import org.zstack.core.ansible.AnsibleRunner;
 import org.zstack.core.ansible.SshFileMd5Checker;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.core.errorcode.ErrorFacade;
+import org.zstack.core.thread.CancelablePeriodicTask;
+import org.zstack.core.thread.ThreadFacade;
 import org.zstack.header.core.Completion;
 import org.zstack.header.core.workflow.FlowTrigger;
 import org.zstack.header.core.workflow.NoRollbackFlow;
@@ -19,9 +22,11 @@ import org.zstack.header.vm.VmInstanceSpec;
 import org.zstack.header.vm.VmNicInventory;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.function.Function;
+import org.zstack.utils.network.NetworkUtils;
 import org.zstack.utils.path.PathUtil;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by xing5 on 2016/10/31.
@@ -32,6 +37,10 @@ public class VyosDeployAgentFlow extends NoRollbackFlow {
     private AnsibleFacade asf;
     @Autowired
     private DatabaseFacade dbf;
+    @Autowired
+    private ThreadFacade thdf;
+    @Autowired
+    private ErrorFacade errf;
 
     @Override
     public void run(FlowTrigger trigger, Map data) {
@@ -59,35 +68,74 @@ public class VyosDeployAgentFlow extends NoRollbackFlow {
             mgmtNicIp = (String) data.get(Params.managementNicIp.toString());
         }
 
-        final String username = "vyos";
-        final String privKey = asf.getPrivateKey();
+        int timeoutInSeconds = ApplianceVmGlobalConfig.CONNECT_TIMEOUT.value(Integer.class);
+        long timeout = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutInSeconds);
 
-        SshFileMd5Checker checker = new SshFileMd5Checker();
-        checker.setTargetIp(mgmtNicIp);
-        checker.setUsername(username);
-        checker.setPrivateKey(privKey);
-        checker.addSrcDestPair(PathUtil.findFileOnClassPath("ansible/zvr/zvr.bin", true).getAbsolutePath(),
-                "/home/vyos/zvr.bin");
-        checker.addSrcDestPair(PathUtil.findFileOnClassPath("ansible/zvr/zvrboot.bin", true).getAbsolutePath(),
-                "/home/vyos/zvrboot.bin");
-
-        AnsibleRunner runner = new AnsibleRunner();
-        runner.installChecker(checker);
-        runner.putArgument("remote_root", "/home/vyos/zvr");
-        runner.setUsername(username);
-        runner.setPlayBookName(VyosConstants.ANSIBLE_PLAYBOOK_NAME);
-        runner.setPrivateKey(privKey);
-        runner.setAgentPort(ApplianceVmGlobalProperty.AGENT_PORT);
-        runner.setTargetIp(mgmtNicIp);
-        runner.run(new Completion(trigger) {
+        thdf.submitCancelablePeriodicTask(new CancelablePeriodicTask() {
             @Override
-            public void success() {
-                trigger.next();
+            public boolean run() {
+                long now = System.currentTimeMillis();
+                if (now > timeout) {
+                    trigger.fail(errf.instantiateErrorCode(ApplianceVmErrors.UNABLE_TO_START, String.format("the SSH port is not" +
+                            " open after %s seconds. Failed to login the vyos router[ip:%s]", timeoutInSeconds, mgmtNicIp)));
+                    return true;
+                }
+
+                if (NetworkUtils.isRemotePortOpen(mgmtNicIp, 22, 2)) {
+                    deployAgent();
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            private void deployAgent() {
+                final String username = "vyos";
+                final String privKey = asf.getPrivateKey();
+
+                SshFileMd5Checker checker = new SshFileMd5Checker();
+                checker.setTargetIp(mgmtNicIp);
+                checker.setUsername(username);
+                checker.setPrivateKey(privKey);
+                checker.addSrcDestPair(PathUtil.findFileOnClassPath("ansible/zvr/zvr.bin", true).getAbsolutePath(),
+                        "/home/vyos/zvr.bin");
+                checker.addSrcDestPair(PathUtil.findFileOnClassPath("ansible/zvr/zvrboot.bin", true).getAbsolutePath(),
+                        "/home/vyos/zvrboot.bin");
+
+                AnsibleRunner runner = new AnsibleRunner();
+                runner.installChecker(checker);
+                runner.putArgument("remote_root", "/home/vyos/zvr");
+                runner.setUsername(username);
+                runner.setPlayBookName(VyosConstants.ANSIBLE_PLAYBOOK_NAME);
+                runner.setPrivateKey(privKey);
+                runner.setAgentPort(ApplianceVmGlobalProperty.AGENT_PORT);
+                runner.setTargetIp(mgmtNicIp);
+                runner.run(new Completion(trigger) {
+                    @Override
+                    public void success() {
+                        trigger.next();
+                    }
+
+                    @Override
+                    public void fail(ErrorCode errorCode) {
+                        trigger.fail(errorCode);
+                    }
+                });
             }
 
             @Override
-            public void fail(ErrorCode errorCode) {
-                trigger.fail(errorCode);
+            public TimeUnit getTimeUnit() {
+                return TimeUnit.SECONDS;
+            }
+
+            @Override
+            public long getInterval() {
+                return 1;
+            }
+
+            @Override
+            public String getName() {
+                return VyosDeployAgentFlow.class.getName();
             }
         });
     }
