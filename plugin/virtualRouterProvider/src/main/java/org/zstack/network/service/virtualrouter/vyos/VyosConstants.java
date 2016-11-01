@@ -9,8 +9,8 @@ public interface VyosConstants {
     String VYOS_VM_TYPE = "Vyos";
     String VYOS_ROUTER_PROVIDER_TYPE = "Vyos";
 
-    String ANSIBLE_PLAYBOOK_NAME = "vyos.py";
-    String ANSIBLE_MODULE_PATH = "ansible/vyos";
+    String ANSIBLE_PLAYBOOK_NAME = "zvr.py";
+    String ANSIBLE_MODULE_PATH = "ansible/zvr";
 
     NetworkServiceProviderType PROVIDER_TYPE = new NetworkServiceProviderType(VyosConstants.VYOS_ROUTER_PROVIDER_TYPE);
 }

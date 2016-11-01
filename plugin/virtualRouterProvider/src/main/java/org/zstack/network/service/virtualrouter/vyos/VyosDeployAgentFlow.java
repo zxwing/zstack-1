@@ -66,13 +66,14 @@ public class VyosDeployAgentFlow extends NoRollbackFlow {
         checker.setTargetIp(mgmtNicIp);
         checker.setUsername(username);
         checker.setPrivateKey(privKey);
-        checker.addSrcDestPair(PathUtil.findFileOnClassPath("ansible/vyos/zvr.bin", true).getAbsolutePath(),
+        checker.addSrcDestPair(PathUtil.findFileOnClassPath("ansible/zvr/zvr.bin", true).getAbsolutePath(),
                 "/home/vyos/zvr.bin");
-        checker.addSrcDestPair(PathUtil.findFileOnClassPath("ansible/vyos/zvrboot.bin", true).getAbsolutePath(),
+        checker.addSrcDestPair(PathUtil.findFileOnClassPath("ansible/zvr/zvrboot.bin", true).getAbsolutePath(),
                 "/home/vyos/zvrboot.bin");
 
         AnsibleRunner runner = new AnsibleRunner();
         runner.installChecker(checker);
+        runner.putArgument("remote_root", "/home/vyos/zvr");
         runner.setUsername(username);
         runner.setPlayBookName(VyosConstants.ANSIBLE_PLAYBOOK_NAME);
         runner.setPrivateKey(privKey);
