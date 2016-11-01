@@ -6,16 +6,12 @@ import org.springframework.beans.factory.annotation.Configurable;
 import org.zstack.appliancevm.*;
 import org.zstack.appliancevm.ApplianceVmConstant.Params;
 import org.zstack.core.ansible.AnsibleFacade;
-import org.zstack.core.ansible.AnsibleRunner;
-import org.zstack.core.ansible.SshFileMd5Checker;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.thread.CancelablePeriodicTask;
 import org.zstack.core.thread.ThreadFacade;
-import org.zstack.header.core.Completion;
 import org.zstack.header.core.workflow.FlowTrigger;
 import org.zstack.header.core.workflow.NoRollbackFlow;
-import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.vm.VmInstanceConstant;
 import org.zstack.header.vm.VmInstanceConstant.VmOperation;
 import org.zstack.header.vm.VmInstanceSpec;
@@ -24,6 +20,7 @@ import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.network.NetworkUtils;
 import org.zstack.utils.path.PathUtil;
+import org.zstack.utils.ssh.Ssh;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +42,12 @@ public class VyosDeployAgentFlow extends NoRollbackFlow {
     @Override
     public void run(FlowTrigger trigger, Map data) {
         boolean isReconnect = Boolean.valueOf((String) data.get(Params.isReconnect.toString()));
+
+        if (!isReconnect && !ApplianceVmGlobalConfig.DEPLOY_AGENT_ON_START.value(Boolean.class)) {
+            // no need to deploy agent
+            trigger.next();
+            return;
+        }
 
         String mgmtNicIp;
         if (!isReconnect) {
@@ -90,6 +93,22 @@ public class VyosDeployAgentFlow extends NoRollbackFlow {
             }
 
             private void deployAgent() {
+                new Ssh().scp(
+                        PathUtil.findFileOnClassPath("ansible/zvr/zvr.bin", true).getAbsolutePath(),
+                        "/home/vyos/zvr.bin"
+                ).scp(
+                        PathUtil.findFileOnClassPath("ansible/zvr/zvrboot.bin", true).getAbsolutePath(),
+                        "/home/vyos/zvrboot.bin"
+                ).setPrivateKey(asf.getPrivateKey()).setUsername("vyos").setHostname(mgmtNicIp).setPort(22).runErrorByExceptionAndClose();
+
+                new Ssh().shell("sudo bash /home/vyos/zvrboot.bin\n" +
+                        "sudo bash /home/vyos/zvr.bin\n" +
+                        "sudo bash /etc/init.d/zstack-virtualrouteragent restart\n"
+                ).setPrivateKey(asf.getPrivateKey()).setUsername("vyos").setHostname(mgmtNicIp).setPort(22).runErrorByExceptionAndClose();
+
+                trigger.next();
+
+                /*
                 final String username = "vyos";
                 final String privKey = asf.getPrivateKey();
 
@@ -121,6 +140,7 @@ public class VyosDeployAgentFlow extends NoRollbackFlow {
                         trigger.fail(errorCode);
                     }
                 });
+                */
             }
 
             @Override
