@@ -9,6 +9,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.Table;
+import org.zstack.header.vo.ENCRYPT;
 
 @Entity
 @Table
@@ -47,9 +48,12 @@ public class SftpBackupStorageVO extends BackupStorageVO {
     public void setUsername(String username) {
         this.username = username;
     }
+
     public String getPassword() {
-        return password;
+        return this.password;
     }
+
+    @ENCRYPT(value = "test")
     public void setPassword(String password) {
         this.password = password;
     }
