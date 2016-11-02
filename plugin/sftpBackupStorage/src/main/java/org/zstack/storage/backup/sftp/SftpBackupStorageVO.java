@@ -3,8 +3,6 @@ package org.zstack.storage.backup.sftp;
 import org.zstack.header.storage.backup.BackupStorageEO;
 import org.zstack.header.storage.backup.BackupStorageVO;
 import org.zstack.header.tag.AutoDeleteTag;
-import org.zstack.header.vo.DECRYPT;
-import org.zstack.header.vo.ENCRYPT;
 import org.zstack.header.vo.EO;
 
 import javax.persistence.Column;
@@ -51,12 +49,10 @@ public class SftpBackupStorageVO extends BackupStorageVO {
         this.username = username;
     }
 
-    @DECRYPT
     public String getPassword() {
         return this.password;
     }
 
-    @ENCRYPT
     public void setPassword(String password) {
         this.password = password;
     }
