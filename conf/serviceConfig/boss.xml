@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<service xmlns="http://zstack.org/schema/zstack">
+    <interceptor>BossApiInterceptor</interceptor>
+
+    <message>
+        <name>org.zstack.storage.boss.backup.APIAddBossBackupStorageMsg</name>
+        <serviceId>storage.backup</serviceId>
+    </message>
+
+    <message>
+        <name>org.zstack.storage.boss.primary.APIAddBossPrimaryStorageMsg</name>
+        <serviceId>storage.primary</serviceId>
+    </message>
+</service>

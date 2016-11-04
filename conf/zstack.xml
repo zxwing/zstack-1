@@ -39,6 +39,7 @@
     <import resource="springConfigXml/ApplianceVmFacade.xml"/>
     <import resource="springConfigXml/Aspect.xml"/>
     <import resource="springConfigXml/BackupStorageManager.xml"/>
+    <import resource="springConfigXml/boss.xml"/>
     <import resource="springConfigXml/CascadeFacade.xml"/>
     <import resource="springConfigXml/ceph.xml"/>
     <import resource="springConfigXml/CloudBus.xml"/>
