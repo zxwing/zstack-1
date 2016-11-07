@@ -47,7 +47,7 @@
                                         <exclude>springConfigXml/sharedMountPointPrimaryStorage.xml</exclude>
                                         <exclude>springConfigXml/ceph.xml</exclude>
                                         <exclude>springConfigXml/fusionstor.xml</exclude>
-                                        <exclude>springConfigXml/boss.xml</exclude>
+                                        <exclude>springConfigXml/bossStorage.xml</exclude>
                                     </excludes>
                                 </resource>
                                 <resource>
@@ -148,6 +148,11 @@
                 <dependency>
                     <groupId>org.zstack</groupId>
                     <artifactId>ceph</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.zstack</groupId>
+                    <artifactId>bossStorage</artifactId>
                     <version>${project.version}</version>
                 </dependency>
                 <dependency>
@@ -362,6 +367,11 @@
         <dependency>
             <groupId>org.zstack</groupId>
             <artifactId>ceph</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.zstack</groupId>
+            <artifactId>bossStorage</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
