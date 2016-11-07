@@ -15,6 +15,8 @@ import org.zstack.storage.boss.BossConstants;
 })
 public class APIAddBossPrimaryStorageMsg extends APIAddPrimaryStorageMsg{
     @APIParam(required = false, maxLength = 255)
+    private String clusterName;
+    @APIParam(required = false, maxLength = 255)
     private String rootVolumePoolName;
     @APIParam(required = false, maxLength = 255)
     private String dataVolumePoolName;
@@ -24,6 +26,10 @@ public class APIAddBossPrimaryStorageMsg extends APIAddPrimaryStorageMsg{
     public String getUrl() {
         return "not used";
     }
+
+    public String getClusterName() { return clusterName;}
+
+    public void setClusterName( String clusterName) { this.clusterName = clusterName;}
 
     public String getRootVolumePoolName() {
         return rootVolumePoolName;

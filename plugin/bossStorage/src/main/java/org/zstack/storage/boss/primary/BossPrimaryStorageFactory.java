@@ -92,6 +92,7 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
         BossPrimaryStorageVO bvo = new BossPrimaryStorageVO(vo);
         bvo.setType(BossConstants.BOSS_PRIMARY_STORAGE_TYPE);
         bvo.setMountPath(BossConstants.BOSS_PRIMARY_STORAGE_TYPE);
+        bvo.setClusterName(bmsg.getClusterName() == null ? String.format("pri-c-%s",vo.getUuid()) : bmsg.getClusterName());
         bvo.setRootVolumePoolName(bmsg.getRootVolumePoolName() == null ? String.format("pri-v-r-%s", vo.getUuid()) : bmsg.getRootVolumePoolName());
         bvo.setDataVolumePoolName(bmsg.getDataVolumePoolName() == null ? String.format("pri-v-d-%s", vo.getUuid()) : bmsg.getDataVolumePoolName());
         bvo.setImageCachePoolName(bmsg.getImageCachePoolName() == null ? String.format("pri-c-%s", vo.getUuid()) : bmsg.getImageCachePoolName());
