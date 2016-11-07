@@ -1,4 +1,4 @@
-package org.zstack.storage.boss.primary;
+package org.zstack.storage.boss;
 
 import javax.persistence.Column;
 import javax.persistence.Id;
