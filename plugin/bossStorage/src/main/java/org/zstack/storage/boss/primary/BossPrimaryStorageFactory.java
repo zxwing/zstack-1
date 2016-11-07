@@ -16,6 +16,7 @@ import org.zstack.header.vm.VmInstanceInventory;
 import org.zstack.header.vm.VmInstanceSpec;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.kvm.*;
+import org.zstack.storage.boss.BossCapacityUpdateExtensionPoint;
 import org.zstack.storage.boss.BossConstants;
 import org.zstack.storage.boss.BossSystemTags;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
@@ -29,7 +30,7 @@ import java.util.concurrent.Future;
 /**
  * Created by XXPS-PC1 on 2016/10/28.
  */
-public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapacityUpdateExtensionPoint , KVMStartVmExtensionPoint,
+public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapacityUpdateExtensionPoint, KVMStartVmExtensionPoint,
         KVMAttachVolumeExtensionPoint, KVMDetachVolumeExtensionPoint, CreateTemplateFromVolumeSnapshotExtensionPoint,
         KvmSetupSelfFencerExtensionPoint, KVMPreAttachIsoExtensionPoint, Component {
     private static final CLogger logger = Utils.getLogger(BossPrimaryStorageFactory.class);
