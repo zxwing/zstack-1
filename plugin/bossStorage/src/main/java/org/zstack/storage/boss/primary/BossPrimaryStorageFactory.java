@@ -4,16 +4,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.ansible.AnsibleFacade;
 import org.zstack.core.cloudbus.CloudBus;
+import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.thread.ThreadFacade;
 import org.zstack.header.Component;
 import org.zstack.header.core.Completion;
+import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
+import org.zstack.header.message.MessageReply;
+import org.zstack.header.storage.backup.BackupStorageAskInstallPathMsg;
+import org.zstack.header.storage.backup.BackupStorageAskInstallPathReply;
+import org.zstack.header.storage.backup.BackupStorageConstant;
+import org.zstack.header.storage.backup.DeleteBitsOnBackupStorageMsg;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.snapshot.CreateTemplateFromVolumeSnapshotExtensionPoint;
 import org.zstack.header.vm.VmInstanceInventory;
 import org.zstack.header.vm.VmInstanceSpec;
+import org.zstack.header.volume.SyncVolumeSizeMsg;
+import org.zstack.header.volume.SyncVolumeSizeReply;
+import org.zstack.header.volume.VolumeConstant;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.kvm.*;
 import org.zstack.storage.boss.BossCapacityUpdateExtensionPoint;
@@ -25,6 +35,7 @@ import org.zstack.utils.logging.CLogger;
 
 import javax.persistence.TypedQuery;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Future;
 
 /**
@@ -212,11 +223,92 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
 
     @Override
     public WorkflowTemplate createTemplateFromVolumeSnapshot(ParamIn paramIn) {
-        return null;
+        WorkflowTemplate template = new WorkflowTemplate();
+        template.setCreateTemporaryTemplate(new NoRollbackFlow() {
+            @Override
+            public void run(final FlowTrigger trigger, final Map data) {
+                SyncVolumeSizeMsg msg = new SyncVolumeSizeMsg();
+                msg.setVolumeUuid(paramIn.getSnapshot().getVolumeUuid());
+                bus.makeTargetServiceIdByResourceUuid(msg, VolumeConstant.SERVICE_ID, paramIn.getSnapshot().getVolumeUuid());
+                bus.send(msg, new CloudBusCallBack(trigger) {
+                    @Override
+                    public void run(MessageReply reply) {
+                        if (reply.isSuccess()) {
+                            ParamOut paramOut = (ParamOut) data.get(ParamOut.class);
+                            SyncVolumeSizeReply gr = reply.castReply();
+                            paramOut.setActualSize(gr.getActualSize());
+                            paramOut.setSize(gr.getSize());
+                            trigger.next();
+                        } else {
+                            trigger.fail(reply.getError());
+                        }
+                    }
+                });
+            }
+        });
+
+        template.setUploadToBackupStorage(new Flow() {
+            String __name__ = "upload-to-backup-storage";
+
+            @Override
+            public void run(final FlowTrigger trigger, Map data) {
+                final ParamOut out = (ParamOut) data.get(ParamOut.class);
+
+                BackupStorageAskInstallPathMsg ask = new BackupStorageAskInstallPathMsg();
+                ask.setImageUuid(paramIn.getImage().getUuid());
+                ask.setBackupStorageUuid(paramIn.getBackupStorageUuid());
+                ask.setImageMediaType(paramIn.getImage().getMediaType());
+                bus.makeTargetServiceIdByResourceUuid(ask, BackupStorageConstant.SERVICE_ID, paramIn.getBackupStorageUuid());
+                MessageReply ar = bus.call(ask);
+                if (!ar.isSuccess()) {
+                    trigger.fail(ar.getError());
+                    return;
+                }
+
+                String bsInstallPath = ((BackupStorageAskInstallPathReply)ar).getInstallPath();
+
+                UploadBitsToBackupStorageMsg msg = new UploadBitsToBackupStorageMsg();
+                msg.setPrimaryStorageUuid(paramIn.getPrimaryStorageUuid());
+                msg.setPrimaryStorageInstallPath(paramIn.getSnapshot().getPrimaryStorageInstallPath());
+                msg.setBackupStorageUuid(paramIn.getBackupStorageUuid());
+                msg.setBackupStorageInstallPath(bsInstallPath);
+                bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, paramIn.getPrimaryStorageUuid());
+
+                bus.send(msg, new CloudBusCallBack(trigger) {
+                    @Override
+                    public void run(MessageReply reply) {
+                        if (!reply.isSuccess()) {
+                            trigger.fail(reply.getError());
+                        } else {
+                            out.setBackupStorageInstallPath(bsInstallPath);
+                            trigger.next();
+                        }
+                    }
+                });
+            }
+
+            @Override
+            public void rollback(FlowRollback trigger, Map data) {
+                final ParamOut out = (ParamOut) data.get(ParamOut.class);
+                if (out.getBackupStorageInstallPath() != null) {
+                    DeleteBitsOnBackupStorageMsg msg = new DeleteBitsOnBackupStorageMsg();
+                    msg.setInstallPath(out.getBackupStorageInstallPath());
+                    msg.setBackupStorageUuid(paramIn.getBackupStorageUuid());
+                    bus.makeTargetServiceIdByResourceUuid(msg, BackupStorageConstant.SERVICE_ID, paramIn.getBackupStorageUuid());
+                    bus.send(msg);
+                }
+
+                trigger.rollback();
+            }
+        });
+
+        template.setDeleteTemporaryTemplate(new NopeFlow());
+
+        return template;
     }
 
     @Override
     public String createTemplateFromVolumeSnapshotPrimaryStorageType() {
-        return null;
+        return BossConstants.BOSS_PRIMARY_STORAGE_TYPE;
     }
 }
