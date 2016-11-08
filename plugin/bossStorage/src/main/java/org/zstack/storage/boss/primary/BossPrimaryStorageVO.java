@@ -18,8 +18,6 @@ import javax.persistence.*;
 @EO(EOClazz = PrimaryStorageEO.class, needView = false)
 @AutoDeleteTag
 public class BossPrimaryStorageVO extends PrimaryStorageVO {
-    @JoinColumn(name="primaryStorageUuid", insertable=false, updatable=false)
-    @NoView
     @Column
     private String clusterName;
 
