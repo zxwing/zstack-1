@@ -63,50 +63,33 @@ ALTER TABLE VCenterPrimaryStorageVO ADD CONSTRAINT fkVCenterPrimaryStorageVOPrim
 ALTER TABLE VCenterPrimaryStorageVO ADD CONSTRAINT fkVCenterPrimaryStorageVOVCenterVO FOREIGN KEY (vCenterUuid) REFERENCES VCenterVO (uuid) ON DELETE CASCADE;
 
 # Foreign keys for table VCenterVO
+ALTER TABLE ApplianceVmVO ADD agentPort int unsigned DEFAULT 7759;
 ALTER TABLE VCenterVO ADD CONSTRAINT fkVCenterVOZoneEO FOREIGN KEY (zoneUuid) REFERENCES ZoneEO (uuid) ON DELETE CASCADE  ;
 ALTER TABLE SchedulerVO CHANGE startDate  startTime  timestamp;
 ALTER TABLE SchedulerVO CHANGE stopDate  stopTime  timestamp NULL DEFAULT NULL;
 UPDATE SchedulerVO SET stopTime = NULL;
 
-CREATE TABLE `zstack`.`IPsecConnectionVO` (
-    `uuid` varchar(32) NOT NULL UNIQUE,
-    `name` varchar(255) NOT NULL,
-    `description` varchar(2048) DEFAULT NULL,
-    `l3NetworkUuid` varchar(32) NOT NULL,
-    `peerAddress` varchar(255) NOT NULL,
-    `authMode` varchar(255) NOT NULL,
-    `authKey` text NOT NULL,
-    `vipUuid` varchar(32) NOT NULL,
-    `ikeAuthAlgorithm` varchar(32) NOT NULL,
-    `ikeEncryptionAlgorithm` varchar(32) NOT NULL,
-    `ikeDhGroup` int unsigned NOT NULL,
-    `policyAuthAlgorithm` varchar(32) NOT NULL,
-    `policyEncryptionAlgorithm` varchar(32) NOT NULL,
-    `pfs` varchar(32) DEFAULT NULL,
-    `policyMode` varchar(32) NOT NULL,
-    `transformProtocol` varchar(32) NOT NULL,
-    `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
-    `createDate` timestamp,
-    PRIMARY KEY  (`uuid`)
+CREATE TABLE  `zstack`.`BossBackupStorageVO` (
+  `uuid` varchar(32) NOT NULL UNIQUE,
+  `clusterName` varchar(64) DEFAULT NULL,
+  `poolName` varchar(255) NOT NULL,
+  PRIMARY KEY  (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `zstack`.`IPsecPeerCidrVO` (
-    `uuid` varchar(32) NOT NULL UNIQUE,
-    `cidr` varchar(255) NOT NULL,
-    `description` varchar(2048) DEFAULT NULL,
-    `connectionUuid` varchar(32) NOT NULL,
-    `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
-    `createDate` timestamp,
-    PRIMARY KEY  (`uuid`)
+CREATE TABLE  `zstack`.`BossPrimaryStorageVO` (
+  `uuid` varchar(32) NOT NULL UNIQUE,
+  `clusterName` varchar(64) DEFAULT NULL,
+  `rootVolumePoolName` varchar(255) NOT NULL,
+  `dataVolumePoolName` varchar(255) NOT NULL,
+  `imageCachePoolName` varchar(255) NOT NULL,
+  PRIMARY KEY  (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-# Foreign keys for table IPsecConnectionVO
-
-ALTER TABLE IPsecConnectionVO ADD CONSTRAINT fkIPsecConnectionVOL3NetworkVO FOREIGN KEY (l3NetworkUuid) REFERENCES L3NetworkEO (uuid) ON DELETE RESTRICT;
-ALTER TABLE IPsecConnectionVO ADD CONSTRAINT fkIPsecConnectionVOVipVO FOREIGN KEY (vipUuid) REFERENCES VipVO (uuid) ON DELETE RESTRICT;
-
-# Foreign keys for table IPsecPeerCidrVO
-
-ALTER TABLE IPsecPeerCidrVO ADD CONSTRAINT fkIPsecPeerCidrVOIPsecConnectionVO FOREIGN KEY (connectionUuid) REFERENCES IPsecConnectionVO (uuid) ON DELETE CASCADE;
-
-ALTER TABLE ApplianceVmVO ADD agentPort int unsigned DEFAULT 7759;
+CREATE TABLE  `zstack`.`BossCapacityVO` (
+  `clusterName` varchar(64) NOT NULL UNIQUE,
+  `totalCapacity` bigint unsigned DEFAULT 0,
+  `availableCapacity` bigint unsigned DEFAULT 0,
+  `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+  `createDate` timestamp,
+  PRIMARY KEY  (`fsid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
