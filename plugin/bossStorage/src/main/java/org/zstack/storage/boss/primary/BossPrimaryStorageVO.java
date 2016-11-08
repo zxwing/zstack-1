@@ -4,6 +4,7 @@ import org.zstack.header.storage.primary.PrimaryStorageEO;
 import org.zstack.header.storage.primary.PrimaryStorageVO;
 import org.zstack.header.tag.AutoDeleteTag;
 import org.zstack.header.vo.EO;
+import org.zstack.header.vo.NoView;
 
 import javax.persistence.*;
 
@@ -17,6 +18,8 @@ import javax.persistence.*;
 @EO(EOClazz = PrimaryStorageEO.class, needView = false)
 @AutoDeleteTag
 public class BossPrimaryStorageVO extends PrimaryStorageVO {
+    @JoinColumn(name="primaryStorageUuid", insertable=false, updatable=false)
+    @NoView
     @Column
     private String clusterName;
 
