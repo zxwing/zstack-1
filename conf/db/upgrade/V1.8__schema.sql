@@ -68,28 +68,3 @@ ALTER TABLE VCenterVO ADD CONSTRAINT fkVCenterVOZoneEO FOREIGN KEY (zoneUuid) RE
 ALTER TABLE SchedulerVO CHANGE startDate  startTime  timestamp;
 ALTER TABLE SchedulerVO CHANGE stopDate  stopTime  timestamp NULL DEFAULT NULL;
 UPDATE SchedulerVO SET stopTime = NULL;
-
-CREATE TABLE  `zstack`.`BossBackupStorageVO` (
-  `uuid` varchar(32) NOT NULL UNIQUE,
-  `clusterName` varchar(64) DEFAULT NULL,
-  `poolName` varchar(255) NOT NULL,
-  PRIMARY KEY  (`uuid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-CREATE TABLE  `zstack`.`BossPrimaryStorageVO` (
-  `uuid` varchar(32) NOT NULL UNIQUE,
-  `clusterName` varchar(64) DEFAULT NULL,
-  `rootVolumePoolName` varchar(255) NOT NULL,
-  `dataVolumePoolName` varchar(255) NOT NULL,
-  `imageCachePoolName` varchar(255) NOT NULL,
-  PRIMARY KEY  (`uuid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-CREATE TABLE  `zstack`.`BossCapacityVO` (
-  `clusterName` varchar(64) NOT NULL UNIQUE,
-  `totalCapacity` bigint unsigned DEFAULT 0,
-  `availableCapacity` bigint unsigned DEFAULT 0,
-  `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
-  `createDate` timestamp,
-  PRIMARY KEY  (`fsid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
