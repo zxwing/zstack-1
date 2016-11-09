@@ -1,13 +1,13 @@
 CREATE TABLE  `zstack`.`BossBackupStorageVO` (
   `uuid` varchar(32) NOT NULL UNIQUE,
-  `clusterName` varchar(64) DEFAULT NULL,
+  `clusterName` varchar(64) NOT NULL,
   `poolName` varchar(255) NOT NULL,
   PRIMARY KEY  (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE  `zstack`.`BossPrimaryStorageVO` (
   `uuid` varchar(32) NOT NULL UNIQUE,
-  `clusterName` varchar(64) DEFAULT NULL,
+  `clusterName` varchar(64) NOT NULL,
   `rootVolumePoolName` varchar(255) NOT NULL,
   `dataVolumePoolName` varchar(255) NOT NULL,
   `imageCachePoolName` varchar(255) NOT NULL,

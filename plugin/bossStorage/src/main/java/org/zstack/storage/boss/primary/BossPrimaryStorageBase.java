@@ -113,6 +113,11 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
     @Override
     protected void connectHook(ConnectParam param, Completion completion) {
+        //connect(param.isNewAdded(), completion);
+        completion.success();
+    }
+
+    private void connect(final boolean newAdded, final Completion completion) {
 
     }
 
