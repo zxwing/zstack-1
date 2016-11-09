@@ -149,7 +149,7 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
 
     @Override
     public boolean start() {
-        return false;
+        return true;
     }
 
     @Override

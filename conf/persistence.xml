@@ -115,6 +115,7 @@
         <class>org.zstack.storage.fusionstor.primary.FusionstorPrimaryStorageVO</class>
         <class>org.zstack.storage.fusionstor.FusionstorCapacityVO</class>
         <class>org.zstack.storage.boss.primary.BossPrimaryStorageVO</class>
+        <class>org.zstack.storage.boss.backup.BossBackupStorageVO</class>
         <class>org.zstack.storage.boss.BossCapacityVO</class>
         <class>org.zstack.core.gc.GarbageCollectorVO</class>
         <class>org.zstack.header.storage.primary.ImageCacheVolumeRefVO</class>
