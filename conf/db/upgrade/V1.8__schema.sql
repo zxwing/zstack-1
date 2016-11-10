@@ -63,7 +63,6 @@ ALTER TABLE VCenterPrimaryStorageVO ADD CONSTRAINT fkVCenterPrimaryStorageVOPrim
 ALTER TABLE VCenterPrimaryStorageVO ADD CONSTRAINT fkVCenterPrimaryStorageVOVCenterVO FOREIGN KEY (vCenterUuid) REFERENCES VCenterVO (uuid) ON DELETE CASCADE;
 
 # Foreign keys for table VCenterVO
-ALTER TABLE ApplianceVmVO ADD agentPort int unsigned DEFAULT 7759;
 ALTER TABLE VCenterVO ADD CONSTRAINT fkVCenterVOZoneEO FOREIGN KEY (zoneUuid) REFERENCES ZoneEO (uuid) ON DELETE CASCADE  ;
 ALTER TABLE SchedulerVO CHANGE startDate  startTime  timestamp;
 ALTER TABLE SchedulerVO CHANGE stopDate  stopTime  timestamp NULL DEFAULT NULL;
