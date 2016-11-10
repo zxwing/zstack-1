@@ -50,5 +50,6 @@ public class BossBackupStorageVO extends BackupStorageVO{
 
     public BossBackupStorageVO(BossBackupStorageVO other) {
         super(other);
+        this.clusterName = other.getClusterName();
     }
 }
