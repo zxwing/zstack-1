@@ -6,8 +6,6 @@ import org.junit.Test;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
-import org.zstack.ha.HaSystemTags;
-import org.zstack.header.host.HostInventory;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.header.network.l3.L3NetworkInventory;
 import org.zstack.header.vm.VmInstanceInventory;
@@ -36,7 +34,7 @@ import java.util.List;
 import static java.util.Arrays.asList;
 
 /**
- * test create ipsec connection
+ *  test create ipsec connection
  */
 public class TestVyosIPsec1 {
     Deployer deployer;
@@ -62,7 +60,6 @@ public class TestVyosIPsec1 {
         deployer.addSpringConfig("vyos.xml");
         deployer.addSpringConfig("ipsec.xml");
         deployer.addSpringConfig("ipsecSimulator.xml");
-        deployer.addSpringConfig("vyosHa.xml");
         deployer.build();
         api = deployer.getApi();
         loader = deployer.getComponentLoader();
