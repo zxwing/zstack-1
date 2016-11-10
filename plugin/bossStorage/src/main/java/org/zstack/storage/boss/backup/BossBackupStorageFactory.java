@@ -68,7 +68,9 @@ public class BossBackupStorageFactory implements BackupStorageFactory, BossCapac
         BossBackupStorageVO bvo = new BossBackupStorageVO(vo);
         bvo.setType(BossConstants.BOSS_BACKUP_STORAGE_TYPE);
         String poolName = bmsg.getPoolName() == null ? String.format("bak-t-%s", vo.getUuid()) : bmsg.getPoolName();
+        String clusterName = bmsg.getClusterName() == null ? String.format("bak-c-%s",vo.getUuid()) : bmsg.getClusterName();
         bvo.setPoolName(poolName);
+        bvo.setClusterName(clusterName);
 
         dbf.getEntityManager().persist(bvo);
 
