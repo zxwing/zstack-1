@@ -99,3 +99,14 @@ CREATE TABLE `zstack`.`IPsecPeerCidrVO` (
     `createDate` timestamp,
     PRIMARY KEY  (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+# Foreign keys for table IPsecConnectionVO
+
+ALTER TABLE IPsecConnectionVO ADD CONSTRAINT fkIPsecConnectionVOL3NetworkVO FOREIGN KEY (l3NetworkUuid) REFERENCES L3NetworkEO (uuid) ON DELETE RESTRICT;
+ALTER TABLE IPsecConnectionVO ADD CONSTRAINT fkIPsecConnectionVOVipVO FOREIGN KEY (vipUuid) REFERENCES VipVO (uuid) ON DELETE RESTRICT;
+
+# Foreign keys for table IPsecPeerCidrVO
+
+ALTER TABLE IPsecPeerCidrVO ADD CONSTRAINT fkIPsecPeerCidrVOIPsecConnectionVO FOREIGN KEY (connectionUuid) REFERENCES IPsecConnectionVO (uuid) ON DELETE CASCADE;
+
+ALTER TABLE ApplianceVmVO ADD agentPort int unsigned DEFAULT 7759;
