@@ -6,6 +6,8 @@ import org.junit.Test;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.ha.HaSystemTags;
+import org.zstack.header.host.HostInventory;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.header.network.l3.L3NetworkInventory;
 import org.zstack.header.vm.VmInstanceInventory;
@@ -19,6 +21,7 @@ import org.zstack.ipsec.vyos.VyosIPsecBackend.IPsecInfo;
 import org.zstack.ipsec.vyos.VyosIPsecSimulatorConfig;
 import org.zstack.network.service.vip.VipInventory;
 import org.zstack.network.service.vip.VipVO;
+import org.zstack.network.service.virtualrouter.VirtualRouterVmVO;
 import org.zstack.network.service.virtualrouter.vyos.VyosConstants;
 import org.zstack.simulator.appliancevm.ApplianceVmSimulatorConfig;
 import org.zstack.simulator.virtualrouter.VirtualRouterSimulatorConfig;
@@ -182,7 +185,9 @@ public class TestVyosIPsec1 {
         Assert.assertEquals(1, iconfig.createIPsecConnectionCmdList.size());
         CreateIPsecConnectionCmd cmd = iconfig.createIPsecConnectionCmdList.get(0);
         Assert.assertEquals(1, cmd.infos.size());
-        compare(ipsec, null, cmd.infos.get(0));
+        IPsecInfo info = cmd.infos.get(0);
+        compare(ipsec, null, info);
+        Assert.assertTrue(info.excludeSnat);
 
         VipVO vipvo = dbf.findByUuid(vip.getUuid(), VipVO.class);
         Assert.assertEquals(IPsecConstants.IPSEC_NETWORK_SERVICE_TYPE.toString(), vipvo.getUseFor());
@@ -198,5 +203,13 @@ public class TestVyosIPsec1 {
         Assert.assertEquals(0, count);
         count = dbf.count(IPsecPeerCidrVO.class);
         Assert.assertEquals(0, count);
+
+        // test host reconnect is not effected by the flat network provider
+        HostInventory host1 = deployer.hosts.get("host1");
+        api.reconnectHost(host1.getUuid());
+
+        // test the vr is set to never stop
+        VirtualRouterVmVO vr = dbf.listAll(VirtualRouterVmVO.class).get(0);
+        Assert.assertTrue(HaSystemTags.HA.hasTag(vr.getUuid()));
     }
 }
