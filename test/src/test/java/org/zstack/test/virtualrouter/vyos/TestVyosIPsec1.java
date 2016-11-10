@@ -6,8 +6,6 @@ import org.junit.Test;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
-import org.zstack.ha.HaSystemTags;
-import org.zstack.header.host.HostInventory;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.header.network.l3.L3NetworkInventory;
 import org.zstack.header.vm.VmInstanceInventory;
@@ -21,7 +19,6 @@ import org.zstack.ipsec.vyos.VyosIPsecBackend.IPsecInfo;
 import org.zstack.ipsec.vyos.VyosIPsecSimulatorConfig;
 import org.zstack.network.service.vip.VipInventory;
 import org.zstack.network.service.vip.VipVO;
-import org.zstack.network.service.virtualrouter.VirtualRouterVmVO;
 import org.zstack.network.service.virtualrouter.vyos.VyosConstants;
 import org.zstack.simulator.appliancevm.ApplianceVmSimulatorConfig;
 import org.zstack.simulator.virtualrouter.VirtualRouterSimulatorConfig;
@@ -37,7 +34,7 @@ import java.util.List;
 import static java.util.Arrays.asList;
 
 /**
- * test create ipsec connection
+ *  test create ipsec connection
  */
 public class TestVyosIPsec1 {
     Deployer deployer;
@@ -63,7 +60,6 @@ public class TestVyosIPsec1 {
         deployer.addSpringConfig("vyos.xml");
         deployer.addSpringConfig("ipsec.xml");
         deployer.addSpringConfig("ipsecSimulator.xml");
-        deployer.addSpringConfig("vyosHa.xml");
         deployer.build();
         api = deployer.getApi();
         loader = deployer.getComponentLoader();
@@ -133,7 +129,7 @@ public class TestVyosIPsec1 {
         Assert.assertEquals(String.format("different ikeAuthAlgorithm[%s, %s]",
                 inv1.getIkeAuthAlgorithm(), inv2.ikeAuthAlgorithm), inv1.getIkeAuthAlgorithm(), inv2.ikeAuthAlgorithm);
         Assert.assertEquals(String.format("different ikeEncryptionAlgorithm[%s, %s]",
-                inv1.getIkeEncryptionAlgorithm().replaceAll("-", ""), inv2.ikeEncryptionAlgorithm), inv1.getIkeEncryptionAlgorithm().replaceAll("-", ""), inv2.ikeEncryptionAlgorithm);
+                inv1.getIkeEncryptionAlgorithm(), inv2.ikeEncryptionAlgorithm), inv1.getIkeEncryptionAlgorithm(), inv2.ikeEncryptionAlgorithm);
         Assert.assertEquals(String.format("different ikeDhGroup[%s, %s]",
                 inv1.getIkeDhGroup(), inv2.ikeDhGroup), inv1.getIkeDhGroup().intValue(), inv2.ikeDhGroup);
         Assert.assertEquals(String.format("different policyAuthAlgorithm[%s, %s]",
@@ -171,8 +167,8 @@ public class TestVyosIPsec1 {
         inv.setIkeEncryptionAlgorithm("aes-256");
         inv.setIkeDhGroup(3);
         inv.setPolicyAuthAlgorithm("sha1");
-        inv.setPolicyEncryptionAlgorithm("aes-128");
-        inv.setPfs("dh-group19");
+        inv.setPolicyEncryptionAlgorithm("aes-192");
+        inv.setPfs("hs");
         inv.setPolicyMode("tunnel");
 
         List<String> peerCidrs = asList("10.2.1.0/24", "10.3.1.0/24");
@@ -185,9 +181,7 @@ public class TestVyosIPsec1 {
         Assert.assertEquals(1, iconfig.createIPsecConnectionCmdList.size());
         CreateIPsecConnectionCmd cmd = iconfig.createIPsecConnectionCmdList.get(0);
         Assert.assertEquals(1, cmd.infos.size());
-        IPsecInfo info = cmd.infos.get(0);
-        compare(ipsec, null, info);
-        Assert.assertTrue(info.excludeSnat);
+        compare(ipsec, null, cmd.infos.get(0));
 
         VipVO vipvo = dbf.findByUuid(vip.getUuid(), VipVO.class);
         Assert.assertEquals(IPsecConstants.IPSEC_NETWORK_SERVICE_TYPE.toString(), vipvo.getUseFor());
@@ -203,16 +197,5 @@ public class TestVyosIPsec1 {
         Assert.assertEquals(0, count);
         count = dbf.count(IPsecPeerCidrVO.class);
         Assert.assertEquals(0, count);
-
-        // test host reconnect is not effected by the flat network provider
-        HostInventory host1 = deployer.hosts.get("host1");
-        api.reconnectHost(host1.getUuid());
-
-        // test the vr is set to never stop
-        VirtualRouterVmVO vr = dbf.listAll(VirtualRouterVmVO.class).get(0);
-        Assert.assertTrue(HaSystemTags.HA.hasTag(vr.getUuid()));
-
-        api.destroyVmInstance(vr.getUuid());
-        api.rebootVmInstance(vm.getUuid());
     }
 }
