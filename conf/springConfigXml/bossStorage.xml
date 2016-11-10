@@ -11,7 +11,7 @@
     http://zstack.org/schema/zstack/plugin.xsd"
        default-init-method="init" default-destroy-method="destroy">
 
-    <bean id="BossBackupStorageFactory" class="org.zstack.storage.ceph.backup.BossBackupStorageFactory">
+    <bean id="BossBackupStorageFactory" class="org.zstack.storage.boss.backup.BossBackupStorageFactory">
         <zstack:plugin>
             <zstack:extension interface="org.zstack.header.storage.backup.BackupStorageFactory" />
             <zstack:extension interface="org.zstack.storage.boss.BossCapacityUpdateExtensionPoint" />
