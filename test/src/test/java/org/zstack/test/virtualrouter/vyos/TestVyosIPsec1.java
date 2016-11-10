@@ -63,6 +63,7 @@ public class TestVyosIPsec1 {
         deployer.addSpringConfig("vyos.xml");
         deployer.addSpringConfig("ipsec.xml");
         deployer.addSpringConfig("ipsecSimulator.xml");
+        deployer.addSpringConfig("vyosHa.xml");
         deployer.build();
         api = deployer.getApi();
         loader = deployer.getComponentLoader();
