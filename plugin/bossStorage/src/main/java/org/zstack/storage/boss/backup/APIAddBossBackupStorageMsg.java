@@ -15,6 +15,8 @@ import org.zstack.storage.boss.BossConstants;
 public class APIAddBossBackupStorageMsg extends APIAddBackupStorageMsg {
     @APIParam(required = false, maxLength = 255)
     private String poolName;
+    @APIParam(required = false, maxLength = 255)
+    private  String clusterName;
 
     public String getUrl() {
         return "not used";
@@ -27,6 +29,10 @@ public class APIAddBossBackupStorageMsg extends APIAddBackupStorageMsg {
     public void setPoolName(String poolName) {
         this.poolName = poolName;
     }
+
+    public String getClusterName() { return clusterName;}
+
+    public void setClusterName(String clusterName) { this.clusterName = clusterName;}
 
     @Override
     public String getType() {
