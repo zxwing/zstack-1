@@ -241,8 +241,8 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
         cmd.pools = pools;
 
         rsp.setClusterName(getSelf().getClusterName());
-        rsp.availableCapacity = Long.valueOf(1024*1024*1024);
-        rsp.totalCapacity = Long.valueOf(10*1024*1024*1024);
+        rsp.availableCapacity = Long.valueOf(1024);
+        rsp.totalCapacity = Long.valueOf(512);
         BossCapacityUpdater updater = new BossCapacityUpdater();
         updater.update(rsp.clusterName,rsp.totalCapacity,rsp.availableCapacity,true);
 
