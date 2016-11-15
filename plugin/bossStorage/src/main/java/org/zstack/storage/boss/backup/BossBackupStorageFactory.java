@@ -95,7 +95,7 @@ public class BossBackupStorageFactory implements BackupStorageFactory, BossCapac
 
     @Override
     public void update(String clusterName, long total, long avail) {
-        String sql = "select c from CephBackupStorageVO c where c.clusterName = :clusterName";
+        String sql = "select c from BossBackupStorageVO c where c.clusterName = :clusterName";
         TypedQuery<BossBackupStorageVO> q = dbf.getEntityManager().createQuery(sql, BossBackupStorageVO.class);
         q.setParameter("clusterName", clusterName);
         q.setLockMode(LockModeType.PESSIMISTIC_WRITE);
