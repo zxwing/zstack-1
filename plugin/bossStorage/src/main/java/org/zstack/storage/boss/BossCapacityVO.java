@@ -1,14 +1,13 @@
 package org.zstack.storage.boss;
 
-import javax.persistence.Column;
-import javax.persistence.Id;
-import javax.persistence.PreUpdate;
+import javax.persistence.*;
 import java.sql.Timestamp;
 
 /**
  * Created by XXPS-PC1 on 2016/10/31.
  */
-
+@Entity
+@Table
 public class BossCapacityVO {
     @Id
     @Column
