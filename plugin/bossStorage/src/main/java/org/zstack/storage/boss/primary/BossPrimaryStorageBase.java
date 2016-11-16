@@ -216,6 +216,16 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
     }
 
+    protected Long convertToSize(String[] sSize){
+        switch (sSize[1]){
+            case "B": return Long.valueOf(sSize[0]);
+            case "KB": return Long.valueOf(sSize[0])*1024;
+            case "MB": return Long.valueOf(sSize[0])*1024*1024;
+            case "GB": return Long.valueOf(sSize[0])*1024*1024*1024;
+            case "TB": return Long.valueOf(sSize[0])*1024*1024*1024*1024;
+            default: return Long.valueOf(0);
+        }
+    }
     @Override
     protected void connectHook(ConnectParam param, Completion completion) {
         //connect(param.isNewAdded(), completion);
@@ -241,8 +251,8 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
         cmd.pools = pools;
 
         rsp.setClusterName(getSelf().getClusterName());
-        rsp.availableCapacity = Long.valueOf(100000);
-        rsp.totalCapacity = Long.valueOf(1000000);
+        rsp.availableCapacity = Long.valueOf(1000000000);
+        rsp.totalCapacity = Long.valueOf(1000000000);
         BossCapacityUpdater updater = new BossCapacityUpdater();
         updater.update(rsp.clusterName,rsp.totalCapacity,rsp.availableCapacity,true);
 
