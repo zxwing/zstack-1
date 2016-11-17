@@ -13,6 +13,7 @@ import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -269,7 +270,8 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             pools.add(p);
 
             cmd.pools = pools;
-            for (Pool pool : cmd.pools) {
+            HashSet<Pool> hsPools = new HashSet<Pool>(pools);
+            for (Pool pool : hsPools) {
                 rsp.totalCapacity = rsp.totalCapacity + getPoolTotalSize(pool.name);
                 rsp.availableCapacity = rsp.availableCapacity + getPoolAvailableSize(pool.name);
             }

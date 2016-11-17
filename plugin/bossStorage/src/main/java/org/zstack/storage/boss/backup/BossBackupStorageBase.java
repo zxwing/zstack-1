@@ -512,6 +512,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
 
     @Override
     protected void connectHook(boolean newAdd, Completion completion) {
+        List<ErrorCode> errorCodes = new ArrayList<ErrorCode>();
         try {
             InitCmd cmd = new InitCmd();
             InitRsp rsp = new InitRsp();
@@ -530,7 +531,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
             updater.update(rsp.clusterName, rsp.totalCapacity, rsp.availableCapacity, true);
             completion.success();
         }catch (Exception e) {
-            completion.fail(errf.stringToOperationError("initialize BossBackupStorage failed"));
+            completion.fail(errf.stringToOperationError(String.format("initialize BossBackupStorage failed causes[%s]",errorCodes)));
         }
 
     }
