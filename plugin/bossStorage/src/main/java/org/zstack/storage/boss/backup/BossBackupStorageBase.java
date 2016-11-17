@@ -368,8 +368,8 @@ public class BossBackupStorageBase extends BackupStorageBase {
         ExecuteShellCommand esc = new ExecuteShellCommand();
 
         if (cmd.url.startsWith("http://") || cmd.url.startsWith("https://")) {
-            esc.executeCommand(String.format("set -o pipefail; wget --no-check-certificate -q -O %s %s", tmpImageName,
-                    cmd.url), errf);
+            esc.executeCommand(String.format("set -o pipefail; wget --no-check-certificate -q -O %s %s",tmpImageName,
+                    cmd.url.toString()), errf);
             tmpImagePath = getFilePath(tmpImageName);
             rsp.actualSize = getNetFileSize(cmd.url);
         } else if (cmd.url.startsWith("file://")) {
