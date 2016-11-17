@@ -512,27 +512,20 @@ public class BossBackupStorageBase extends BackupStorageBase {
 
     @Override
     protected void connectHook(boolean newAdd, Completion completion) {
-        List<ErrorCode> errorCodes = new ArrayList<ErrorCode>();
-        try {
-            InitCmd cmd = new InitCmd();
-            InitRsp rsp = new InitRsp();
-            Pool p = new Pool();
-            p.name = getSelf().getPoolName();
-            p.predefined = BossSystemTags.PREDEFINED_BACKUP_STORAGE_POOL.hasTag(self.getUuid());
-            cmd.pools = list(p);
+        InitCmd cmd = new InitCmd();
+        InitRsp rsp = new InitRsp();
+        Pool p = new Pool();
+        p.name = getSelf().getPoolName();
+        p.predefined = BossSystemTags.PREDEFINED_BACKUP_STORAGE_POOL.hasTag(self.getUuid());
 
-            for (Pool pool : cmd.pools) {
-                rsp.totalCapacity = rsp.totalCapacity + getPoolTotalSize(pool.name);
-                rsp.availableCapacity = rsp.availableCapacity + getPoolAvailableSize(pool.name);
-            }
+        rsp.totalCapacity = getPoolTotalSize(p.name);
+        rsp.availableCapacity = getPoolAvailableSize(p.name);
 
-            rsp.setClusterName(getSelf().getClusterName());
-            BossCapacityUpdater updater = new BossCapacityUpdater();
-            updater.update(rsp.clusterName, rsp.totalCapacity, rsp.availableCapacity, true);
-            completion.success();
-        }catch (Exception e) {
-            completion.fail(errf.stringToOperationError(String.format("initialize BossBackupStorage failed causes[%s]",errorCodes)));
-        }
+        rsp.setClusterName(getSelf().getClusterName());
+        BossCapacityUpdater updater = new BossCapacityUpdater();
+        updater.update(rsp.clusterName, rsp.totalCapacity, rsp.availableCapacity, true);
+        completion.success();
+
 
     }
 
