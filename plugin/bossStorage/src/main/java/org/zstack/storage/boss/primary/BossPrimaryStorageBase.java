@@ -6,6 +6,7 @@ import org.zstack.header.message.Message;
 import org.zstack.header.storage.primary.*;
 import org.zstack.storage.boss.BossCapacityUpdater;
 import org.zstack.storage.boss.BossSystemTags;
+import org.zstack.storage.boss.ExecuteShellCommand;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
@@ -44,8 +45,8 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
     public static class ShellResponse {
         String error;
         boolean success = true;
-        Long totalCapacity;
-        Long availableCapacity;
+        Long totalCapacity = 0L;
+        Long availableCapacity= 0L;
 
         public String getError() {
             return error;
@@ -216,16 +217,33 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
     }
 
-    protected Long convertToSize(String[] sSize){
-        switch (sSize[1]){
-            case "B": return Long.valueOf(sSize[0]);
-            case "KB": return Long.valueOf(sSize[0])*1024;
-            case "MB": return Long.valueOf(sSize[0])*1024*1024;
-            case "GB": return Long.valueOf(sSize[0])*1024*1024*1024;
-            case "TB": return Long.valueOf(sSize[0])*1024*1024*1024*1024;
-            default: return Long.valueOf(0);
+    protected static Long unitConvert(String unit){
+        switch (unit){
+            case "B": return 1L;
+            case "KB": return 1024L;
+            case "MB": return 1024*1024L;
+            case "GB": return 1024*1024*1024L;
+            case "TB": return 1024*1024*1024*1024L;
+            default: return 1L;
         }
     }
+
+    protected Long getPoolTotalSize(String poolName){
+        ExecuteShellCommand esc;
+        esc = new ExecuteShellCommand();
+        String totalSize = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $3}'" , poolName),errf);
+        String unit = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $4}'" , poolName),errf);
+        return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
+    }
+
+    protected Long getPoolAvailableSize(String poolName){
+        ExecuteShellCommand esc;
+        esc = new ExecuteShellCommand();
+        String totalSize = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $5}'" , poolName),errf);
+        String unit = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $6}'" , poolName),errf);
+        return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
+    }
+
     @Override
     protected void connectHook(ConnectParam param, Completion completion) {
         //connect(param.isNewAdded(), completion);
@@ -249,10 +267,13 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
         pools.add(p);
 
         cmd.pools = pools;
+        for(Pool pool : cmd.pools){
+            rsp.totalCapacity = rsp.totalCapacity+getPoolTotalSize(pool.name);
+            rsp.availableCapacity = rsp.availableCapacity+getPoolAvailableSize(pool.name);
+        }
+
 
         rsp.setClusterName(getSelf().getClusterName());
-        rsp.availableCapacity = Long.valueOf(1000000000);
-        rsp.totalCapacity = Long.valueOf(1000000000);
         BossCapacityUpdater updater = new BossCapacityUpdater();
         updater.update(rsp.clusterName,rsp.totalCapacity,rsp.availableCapacity,true);
 

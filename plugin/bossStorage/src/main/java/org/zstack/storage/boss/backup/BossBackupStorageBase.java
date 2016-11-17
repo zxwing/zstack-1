@@ -29,7 +29,7 @@ import java.util.List;
  * Created by XXPS-PC1 on 2016/11/9.
  */
 @Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
-public class BossBackupStorageBase extends BackupStorageBase{
+public class BossBackupStorageBase extends BackupStorageBase {
     private static final CLogger logger = Utils.getLogger(BossBackupStorageBase.class);
 
     public static class ShellCommand {
@@ -199,7 +199,7 @@ public class BossBackupStorageBase extends BackupStorageBase{
     }
 
     protected String makeImageInstallPath(String imageUuid) {
-        return String.format("%s://%s/%s",getSelf().getClusterName(), getSelf().getPoolName(), imageUuid);
+        return String.format("%s://%s/%s", getSelf().getClusterName(), getSelf().getPoolName(), imageUuid);
     }
 
     public BossBackupStorageBase(BackupStorageVO self) {
@@ -215,7 +215,7 @@ public class BossBackupStorageBase extends BackupStorageBase{
     }
 
     @Override
-    public List<ImageInventory> scanImages(){
+    public List<ImageInventory> scanImages() {
         return null;
     }
 
@@ -238,15 +238,15 @@ public class BossBackupStorageBase extends BackupStorageBase{
         return filesize;
     }
 
-    protected Long getLocalFileSize(String path){
+    protected Long getLocalFileSize(String path) {
         File file = new File(path);
         return file.length();
     }
 
 
-    protected String getFilePath(String url){
+    protected String getFilePath(String url) {
         String srcPath = "";
-        try{
+        try {
             File file = new File(url);
             srcPath = file.getCanonicalPath();
         } catch (IOException e) {
@@ -255,56 +255,56 @@ public class BossBackupStorageBase extends BackupStorageBase{
         return srcPath;
     }
 
-    protected boolean isFile(String path){
+    protected boolean isFile(String path) {
         File file = new File(path);
 
-        if(file.isFile()){
+        if (file.isFile()) {
             return true;
         } else {
             return false;
         }
     }
 
-    protected void handleDownload(DownloadCmd cmd, DownloadRsp rsp, Message msg,ReturnValueCompletion<DownloadRsp> completion){
+    protected void handleDownload(DownloadCmd cmd, DownloadRsp rsp, Message msg, ReturnValueCompletion<DownloadRsp> completion) {
         List<ErrorCode> errorCodes = new ArrayList<ErrorCode>();
-        if(msg instanceof DownloadImageMsg || msg instanceof DownloadVolumeMsg){
+        if (msg instanceof DownloadImageMsg || msg instanceof DownloadVolumeMsg) {
             String tmpImageName = cmd.imageUuid;
             String tmpImagePath = null;
 
             ExecuteShellCommand esc = new ExecuteShellCommand();
 
-            if(cmd.url.startsWith("http://") || cmd.url.startsWith("https://")){
-                esc.executeCommand(String.format("set -o pipefail; wget --no-check-certificate -q -O %s %s",tmpImageName,
-                        cmd.url),errf);
+            if (cmd.url.startsWith("http://") || cmd.url.startsWith("https://")) {
+                esc.executeCommand(String.format("set -o pipefail; wget --no-check-certificate -q -O %s %s", tmpImageName,
+                        cmd.url), errf);
                 tmpImagePath = getFilePath(tmpImageName);
                 rsp.actualSize = getNetFileSize(cmd.url);
             } else if (cmd.url.startsWith("file://")) {
-                String srcPath = getFilePath(cmd.url.replace("file:",""));
+                String srcPath = getFilePath(cmd.url.replace("file:", ""));
 
-                if(isFile(srcPath)) {
+                if (isFile(srcPath)) {
                     tmpImagePath = srcPath;
                     rsp.actualSize = getLocalFileSize(srcPath);
                 } else {
-                    completion.fail(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s",srcPath,JSONObjectUtil.toJsonString(errorCodes))));
-                    throw new OperationFailureException(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s",srcPath,JSONObjectUtil.toJsonString(errorCodes))));
+                    completion.fail(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s", srcPath, JSONObjectUtil.toJsonString(errorCodes))));
+                    throw new OperationFailureException(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s", srcPath, JSONObjectUtil.toJsonString(errorCodes))));
                 }
             } else {
-                completion.fail(errf.stringToOperationError(String.format("unknow url[%s]",cmd.url)));
-                throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]",cmd.url)));
+                completion.fail(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
+                throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
             }
 
             String fileFormat = esc.executeCommand(String.format("qemu-img info %s | grep 'file format' " +
-                    "| cut -d ':' -f 2",tmpImagePath),errf);
+                    "| cut -d ':' -f 2", tmpImagePath), errf);
 
-            if(fileFormat.equals("qcow2") || fileFormat.equals("raw")){
-                esc.executeCommand(String.format("qemu-img convert -O raw %s %s",tmpImagePath,cmd.installPath),errf);
+            if (fileFormat.equals("qcow2") || fileFormat.equals("raw")) {
+                esc.executeCommand(String.format("qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath), errf);
                 rsp.format = fileFormat;
                 String fileSize = esc.executeCommand(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
-                        "cut -d ':' -f 2",getSelf().getPoolName(), getSelf().getUuid()),errf);
-                rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0])*1024*1024);
+                        "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()), errf);
+                rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
             } else {
-                completion.fail(errf.stringToOperationError(String.format("unknow image format[%s]",fileFormat)));
-                throw new OperationFailureException(errf.stringToOperationError(String.format("unknow image format[%s]",fileFormat)));
+                completion.fail(errf.stringToOperationError(String.format("unknow image format[%s]", fileFormat)));
+                throw new OperationFailureException(errf.stringToOperationError(String.format("unknow image format[%s]", fileFormat)));
             }
             completion.success(rsp);
         }
@@ -347,52 +347,52 @@ public class BossBackupStorageBase extends BackupStorageBase{
             }
         };
 
-        String tmpImageName = String.format("tmp-s%",msg.getImageInventory().getUuid());
+        String tmpImageName = String.format("tmp-%s", msg.getImageInventory().getUuid());
         String tmpImagePath = null;
 
         ExecuteShellCommand esc = new ExecuteShellCommand();
 
-        if(cmd.url.startsWith("http://") || cmd.url.startsWith("https://")){
-            esc.executeCommand(String.format("set -o pipefail; wget --no-check-certificate -q -O %s %s",tmpImageName,
-                    cmd.url),errf);
+        if (cmd.url.startsWith("http://") || cmd.url.startsWith("https://")) {
+            esc.executeCommand(String.format("set -o pipefail; wget --no-check-certificate -q -O %s %s", tmpImageName,
+                    cmd.url), errf);
             tmpImagePath = getFilePath(tmpImageName);
             rsp.actualSize = getNetFileSize(cmd.url);
         } else if (cmd.url.startsWith("file://")) {
-            String srcPath = getFilePath(cmd.url.replace("file:",""));
+            String srcPath = getFilePath(cmd.url.replace("file:", ""));
 
-            if(isFile(srcPath)) {
+            if (isFile(srcPath)) {
                 tmpImagePath = srcPath;
                 rsp.actualSize = getLocalFileSize(srcPath);
             } else {
-                throw new OperationFailureException(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s",srcPath,JSONObjectUtil.toJsonString(errorCodes))));
+                throw new OperationFailureException(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s", srcPath, JSONObjectUtil.toJsonString(errorCodes))));
             }
         } else {
-            throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]",cmd.url)));
+            throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
         }
 
         String fileFormat = esc.executeCommand(String.format("qemu-img info %s | grep 'file format' " +
-                "| cut -d ':' -f 2",tmpImagePath),errf);
+                "| cut -d ':' -f 2", tmpImagePath), errf);
 
-        if(fileFormat.equals("qcow2") || fileFormat.equals("raw")){
-            esc.executeCommand(String.format("qemu-img convert -O raw %s %s",tmpImagePath,cmd.installPath),errf);
-            if(esc.getExitValue() == 0){
+        if (fileFormat.equals("qcow2") || fileFormat.equals("raw")) {
+            esc.executeCommand(String.format("qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath), errf);
+            if (esc.getExitValue() == 0) {
                 completion.success(rsp);
             } else {
-                completion.fail(errf.stringToOperationError(String.format("download image failed,cause[%s]",errorCodes)));
+                completion.fail(errf.stringToOperationError(String.format("download image failed,cause[%s]", errorCodes)));
             }
             rsp.format = fileFormat;
             String fileSize = esc.executeCommand(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
-                            "cut -d ':' -f 2",getSelf().getPoolName(), getSelf().getUuid()),errf);
-            rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0])*1024*1024);
+                    "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()), errf);
+            rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
         } else {
-            throw new OperationFailureException(errf.stringToOperationError(String.format("unknow image format[%s]",fileFormat)));
+            throw new OperationFailureException(errf.stringToOperationError(String.format("unknow image format[%s]", fileFormat)));
         }
 
     }
 
     @Override
     protected void handle(GetImageSizeOnBackupStorageMsg msg) {
-        GetImageSizeCmd cmd= new GetImageSizeCmd();
+        GetImageSizeCmd cmd = new GetImageSizeCmd();
         cmd.imageUuid = msg.getImageUuid();
         cmd.installPath = msg.getImageUrl();
         GetImageSizeRsp rsp = new GetImageSizeRsp();
@@ -415,12 +415,12 @@ public class BossBackupStorageBase extends BackupStorageBase{
         };
 
         String fileSize = esc.executeCommand(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
-                "cut -d ':' -f 2",getSelf().getPoolName(), getSelf().getUuid()),errf);
-        if(esc.getExitValue() == 0) {
+                "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()), errf);
+        if (esc.getExitValue() == 0) {
             rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
             completion.success(rsp);
         } else {
-            completion.fail(errf.stringToOperationError(String.format("get the size if image[%s] failed",cmd.imageUuid)));
+            completion.fail(errf.stringToOperationError(String.format("get the size if image[%s] failed", cmd.imageUuid)));
         }
     }
 
