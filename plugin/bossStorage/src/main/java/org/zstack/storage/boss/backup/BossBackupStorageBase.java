@@ -112,7 +112,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
             return clusterName;
         }
 
-        public void setClusterName(String fsid) {
+        public void setClusterName(String clusterName) {
             this.clusterName = clusterName;
         }
     }
