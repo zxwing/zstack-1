@@ -22,7 +22,8 @@ public class ExecuteShellCommand {
         StringBuffer output = new StringBuffer();
         Process p;
         try {
-            p = Runtime.getRuntime().exec(command);
+            String []cmdArray = new String[]{"/bin/bash","-c",command};
+            p = Runtime.getRuntime().exec(cmdArray);
             this.exitValue = p.waitFor();
             BufferedReader reader =
                     new BufferedReader(new InputStreamReader(p.getInputStream()));
