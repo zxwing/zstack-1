@@ -385,7 +385,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
         }
 
         String fileFormat = esc.executeCommand(String.format("qemu-img info %s | grep 'file format' " +
-                "| cut -d ':' -f 2", tmpImagePath), errf);
+                "| cut -d ':' -f 2", tmpImagePath), errf).trim();
 
         if (fileFormat.equals("qcow2") || fileFormat.equals("raw")) {
             esc.executeCommand(String.format("qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath), errf);

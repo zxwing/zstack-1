@@ -27,8 +27,16 @@ public class ExecuteShellCommand {
             this.exitValue = p.waitFor();
             BufferedReader reader =
                     new BufferedReader(new InputStreamReader(p.getInputStream()));
+            BufferedReader reader2 =
+                    new BufferedReader(new InputStreamReader(p.getErrorStream()));
             String line = "";
             while ((line = reader.readLine())!= null) {
+                output.append(line + "\n");
+            }
+
+            output.append("error:\n");
+
+            while ((line = reader2.readLine())!= null) {
                 output.append(line + "\n");
             }
 
