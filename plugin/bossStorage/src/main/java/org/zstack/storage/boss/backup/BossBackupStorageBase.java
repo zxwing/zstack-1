@@ -214,7 +214,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
     }
 
     protected String makeImageInstallPath(String imageUuid) {
-        return String.format("%s://%s/%s", getSelf().getClusterName(), getSelf().getPoolName(), imageUuid);
+        return String.format("%s://%s/%s", getSelf().getClusterName().trim(), getSelf().getPoolName(), imageUuid);
     }
 
     public BossBackupStorageBase(BackupStorageVO self) {
