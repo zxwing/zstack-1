@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 public class ExecuteShellCommand {
 
     private int exitValue = 1;
+    private StringBuffer exeError = null;
 
     public ExecuteShellCommand(){
     }
@@ -34,10 +35,9 @@ public class ExecuteShellCommand {
                 output.append(line + "\n");
             }
 
-            output.append("error:\n");
 
             while ((line = reader2.readLine())!= null) {
-                output.append(line + "\n");
+                exeError.append(line + "\n");
             }
 
 
