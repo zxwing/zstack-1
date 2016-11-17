@@ -13,7 +13,10 @@ import org.zstack.header.image.ImageInventory;
 import org.zstack.header.message.Message;
 import org.zstack.header.storage.backup.*;
 import org.zstack.storage.backup.BackupStorageBase;
+import org.zstack.storage.boss.BossCapacityUpdater;
+import org.zstack.storage.boss.BossSystemTags;
 import org.zstack.storage.boss.ExecuteShellCommand;
+import org.zstack.storage.boss.primary.BossPrimaryStorageBase;
 import org.zstack.utils.Utils;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
@@ -24,6 +27,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.zstack.utils.CollectionDSL.list;
 
 /**
  * Created by XXPS-PC1 on 2016/11/9.
@@ -56,8 +61,8 @@ public class BossBackupStorageBase extends BackupStorageBase {
     public static class ShellResponse {
         String error;
         boolean success = true;
-        Long totalCapacity;
-        Long availableCapacity;
+        Long totalCapacity = 0L;
+        Long availableCapacity = 0L;
 
         public String getError() {
             return error;
@@ -96,11 +101,21 @@ public class BossBackupStorageBase extends BackupStorageBase {
         String name;
         boolean predefined;
     }
-    /*
     public static class InitCmd extends ShellCommand {
         List<Pool> pools;
     }
-    */
+
+    public static class InitRsp extends ShellResponse {
+        String clusterName;
+
+        public String getClusetName() {
+            return clusterName;
+        }
+
+        public void setClusterName(String fsid) {
+            this.clusterName = clusterName;
+        }
+    }
 
 
     @ApiTimeout(apiClasses = {APIAddImageMsg.class})
@@ -467,9 +482,56 @@ public class BossBackupStorageBase extends BackupStorageBase {
 
     }
 
+    protected static Long unitConvert(String unit){
+        switch (unit){
+            case "B": return 1L;
+            case "KB": return 1024L;
+            case "MB": return 1024*1024L;
+            case "GB": return 1024*1024*1024L;
+            case "TB": return 1024*1024*1024*1024L;
+            default: return 1L;
+        }
+    }
+
+    protected Long getPoolTotalSize(String poolName){
+        ExecuteShellCommand esc;
+        esc = new ExecuteShellCommand();
+        String totalSize = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $3}'" , poolName),errf);
+        String unit = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $4}'" , poolName),errf);
+        return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
+    }
+
+    protected Long getPoolAvailableSize(String poolName){
+        ExecuteShellCommand esc;
+        esc = new ExecuteShellCommand();
+        String totalSize = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $5}'" , poolName),errf);
+        String unit = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $6}'" , poolName),errf);
+        return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
+    }
+
+
     @Override
     protected void connectHook(boolean newAdd, Completion completion) {
-        completion.success();
+        try {
+            InitCmd cmd = new InitCmd();
+            InitRsp rsp = new InitRsp();
+            Pool p = new Pool();
+            p.name = getSelf().getPoolName();
+            p.predefined = BossSystemTags.PREDEFINED_BACKUP_STORAGE_POOL.hasTag(self.getUuid());
+            cmd.pools = list(p);
+
+            for (Pool pool : cmd.pools) {
+                rsp.totalCapacity = rsp.totalCapacity + getPoolTotalSize(pool.name);
+                rsp.availableCapacity = rsp.availableCapacity + getPoolAvailableSize(pool.name);
+            }
+
+            rsp.setClusterName(getSelf().getClusterName());
+            BossCapacityUpdater updater = new BossCapacityUpdater();
+            updater.update(rsp.clusterName, rsp.totalCapacity, rsp.availableCapacity, true);
+            completion.success();
+        }catch (Exception e) {
+            completion.fail(errf.stringToOperationError("initialize BossBackupStorage failed"));
+        }
 
     }
 

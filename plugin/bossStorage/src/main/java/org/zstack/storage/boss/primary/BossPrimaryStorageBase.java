@@ -2,6 +2,7 @@ package org.zstack.storage.boss.primary;
 
 import org.zstack.header.core.Completion;
 import org.zstack.header.core.ReturnValueCompletion;
+import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.message.Message;
 import org.zstack.header.storage.primary.*;
 import org.zstack.storage.boss.BossCapacityUpdater;
@@ -246,38 +247,42 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
     @Override
     protected void connectHook(ConnectParam param, Completion completion) {
-        //connect(param.isNewAdded(), completion);
-        InitCmd cmd = new InitCmd();
-        InitRsp rsp = new InitRsp();
-        List<Pool> pools = new ArrayList<Pool>();
+        try {
+            //connect(param.isNewAdded(), completion);
+            InitCmd cmd = new InitCmd();
+            InitRsp rsp = new InitRsp();
+            List<Pool> pools = new ArrayList<Pool>();
 
-        Pool p = new Pool();
-        p.name = getSelf().getImageCachePoolName();
-        p.predefined = BossSystemTags.PREDEFINED_PRIMARY_STORAGE_IMAGE_CACHE_POOL.hasTag(self.getUuid());
-        pools.add(p);
+            Pool p = new Pool();
+            p.name = getSelf().getImageCachePoolName();
+            p.predefined = BossSystemTags.PREDEFINED_PRIMARY_STORAGE_IMAGE_CACHE_POOL.hasTag(self.getUuid());
+            pools.add(p);
 
-        p = new Pool();
-        p.name = getSelf().getRootVolumePoolName();
-        p.predefined = BossSystemTags.PREDEFINED_PRIMARY_STORAGE_ROOT_VOLUME_POOL.hasTag(self.getUuid());
-        pools.add(p);
+            p = new Pool();
+            p.name = getSelf().getRootVolumePoolName();
+            p.predefined = BossSystemTags.PREDEFINED_PRIMARY_STORAGE_ROOT_VOLUME_POOL.hasTag(self.getUuid());
+            pools.add(p);
 
-        p = new Pool();
-        p.name = getSelf().getDataVolumePoolName();
-        p.predefined = BossSystemTags.PREDEFINED_PRIMARY_STORAGE_DATA_VOLUME_POOL.hasTag(self.getUuid());
-        pools.add(p);
+            p = new Pool();
+            p.name = getSelf().getDataVolumePoolName();
+            p.predefined = BossSystemTags.PREDEFINED_PRIMARY_STORAGE_DATA_VOLUME_POOL.hasTag(self.getUuid());
+            pools.add(p);
 
-        cmd.pools = pools;
-        for(Pool pool : cmd.pools){
-            rsp.totalCapacity = rsp.totalCapacity+getPoolTotalSize(pool.name);
-            rsp.availableCapacity = rsp.availableCapacity+getPoolAvailableSize(pool.name);
+            cmd.pools = pools;
+            for (Pool pool : cmd.pools) {
+                rsp.totalCapacity = rsp.totalCapacity + getPoolTotalSize(pool.name);
+                rsp.availableCapacity = rsp.availableCapacity + getPoolAvailableSize(pool.name);
+            }
+
+
+            rsp.setClusterName(getSelf().getClusterName());
+            BossCapacityUpdater updater = new BossCapacityUpdater();
+            updater.update(rsp.clusterName, rsp.totalCapacity, rsp.availableCapacity, true);
+
+            completion.success();
+        } catch (Exception e){
+            completion.fail(errf.stringToOperationError("initialize boss failed"));
         }
-
-
-        rsp.setClusterName(getSelf().getClusterName());
-        BossCapacityUpdater updater = new BossCapacityUpdater();
-        updater.update(rsp.clusterName,rsp.totalCapacity,rsp.availableCapacity,true);
-
-        completion.success();
     }
 
     private void connect(final boolean newAdded, final Completion completion) {
