@@ -285,7 +285,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
     protected void handleDownload(DownloadCmd cmd, DownloadRsp rsp, Message msg, ReturnValueCompletion<DownloadRsp> completion) {
         List<ErrorCode> errorCodes = new ArrayList<ErrorCode>();
         if (msg instanceof DownloadImageMsg || msg instanceof DownloadVolumeMsg) {
-            String tmpImageName = cmd.imageUuid;
+            String tmpImageName = String.format("tmp-%s",cmd.imageUuid);
             String tmpImagePath = null;
 
             if (cmd.url.startsWith("http://") || cmd.url.startsWith("https://")) {
@@ -307,8 +307,6 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
             }
 
-
-
             String fileFormat = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img info %s | grep 'file format' " +
                     "| cut -d ':' -f 2", tmpImagePath), true).getStdout().trim();
 
@@ -319,7 +317,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 }
                 rsp.format = fileFormat;
                 String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
-                        "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()),true).getStdout();
+                        "cut -d ':' -f 2", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
                 rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
             } else {
                 throw new OperationFailureException(errf.stringToOperationError(String.format("unknow image format[%s]", fileFormat)));
@@ -340,7 +338,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
         cmd.imageUuid = msg.getImageInventory().getUuid();
         cmd.inject = msg.isInject();
         final DownloadImageReply reply = new DownloadImageReply();
-        ReturnValueCompletion<DownloadRsp> completion = new ReturnValueCompletion<DownloadRsp>(msg) {
+        handleDownload(cmd, rsp, msg, new ReturnValueCompletion<DownloadRsp>(msg) {
             @Override
             public void fail(ErrorCode err) {
                 reply.setError(err);
@@ -364,46 +362,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 }
                 bus.reply(msg, reply);
             }
-        };
-
-        String tmpImageName = String.format("tmp-%s", msg.getImageInventory().getUuid());
-        String tmpImagePath = null;
-
-
-        if (cmd.url.startsWith("http://") || cmd.url.startsWith("https://")) {
-            ShellUtils.run(String.format("wget --no-check-certificate -q -O /home/%s %s",tmpImageName,cmd.url.toString()),true);
-            tmpImagePath = getFilePath(tmpImageName);
-            rsp.actualSize = getNetFileSize(cmd.url);
-        } else if (cmd.url.startsWith("file://")) {
-            String srcPath = getFilePath(cmd.url.replace("file:", ""));
-
-            if (isFile(srcPath)) {
-                tmpImagePath = srcPath;
-                rsp.actualSize = getLocalFileSize(srcPath);
-            } else {
-                throw new OperationFailureException(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s", srcPath, JSONObjectUtil.toJsonString(errorCodes))));
-            }
-        } else {
-            throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
-        }
-
-        String fileFormat = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img info %s | grep 'file format' " +
-                "| cut -d ':' -f 2", tmpImagePath), true).getStdout().trim();
-
-        if (fileFormat.equals("qcow2") || fileFormat.equals("raw")) {
-            ShellResult shellResult = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath),true);
-            if (shellResult.getRetCode() != 0) {
-                completion.fail(errf.stringToOperationError(String.format("Download image failed,errors:%s",shellResult.getStderr())));
-            }
-            rsp.format = fileFormat;
-            String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' | " +
-                    "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()),true).getStdout();
-            rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
-        } else {
-            throw new OperationFailureException(errf.stringToOperationError(String.format("unknow image format[%s]", fileFormat)));
-        }
-
-        completion.success(rsp);
+        });
 
     }
 
