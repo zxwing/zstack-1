@@ -216,7 +216,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
     }
 
     protected String makeImageInstallPath(String imageUuid) {
-        return String.format("%s://%s/%s", getSelf().getClusterName().trim().toString(), getSelf().getPoolName(), imageUuid);
+        return String.format("%s://%s/Image-%s", getSelf().getClusterName().trim().toString(), getSelf().getPoolName(), imageUuid);
     }
 
     public BossBackupStorageBase(BackupStorageVO self) {
@@ -391,12 +391,12 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 "| cut -d ':' -f 2", tmpImagePath), true).getStdout().trim();
 
         if (fileFormat.equals("qcow2") || fileFormat.equals("raw")) {
-            int exitCode = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath),true).getRetCode();
-            if (exitCode != 0) {
-                completion.fail(errf.stringToOperationError("Download image failed"));
+            ShellResult shellResult = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath),true);
+            if (shellResult.getRetCode() != 0) {
+                completion.fail(errf.stringToOperationError(String.format("Download image failed,errors:%s",shellResult.getStderr())));
             }
             rsp.format = fileFormat;
-            String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
+            String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' | " +
                     "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()),true).getStdout();
             rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
         } else {
