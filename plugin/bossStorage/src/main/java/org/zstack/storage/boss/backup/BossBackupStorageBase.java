@@ -388,8 +388,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 "| cut -d ':' -f 2", tmpImagePath), errf).trim();
 
         if (fileFormat.equals("qcow2") || fileFormat.equals("raw")) {
-            //esc.executeCommand(String.format("qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath), errf);
-            esc.executeCommand(String.format("/usr/local/bin/qemu-img convert -O raw %s %s", tmpImagePath, "boss://p1/test1"), errf);
+            esc.executeCommand(String.format("qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath), errf);
             if (esc.getExitValue() == 0) {
                 completion.success(rsp);
             } else {
