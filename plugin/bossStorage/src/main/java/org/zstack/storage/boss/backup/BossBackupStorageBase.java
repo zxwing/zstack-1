@@ -368,7 +368,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
         ExecuteShellCommand esc = new ExecuteShellCommand();
 
         if (cmd.url.startsWith("http://") || cmd.url.startsWith("https://")) {
-            esc.executeCommand(String.format("wget --no-check-certificate -q -O %s %s",tmpImageName,cmd.url.toString()), errf);
+            esc.executeCommand(String.format("wget --no-check-certificate -q -O /home/%s %s",tmpImageName,cmd.url.toString()), errf);
             tmpImagePath = getFilePath(tmpImageName);
             rsp.actualSize = getNetFileSize(cmd.url);
         } else if (cmd.url.startsWith("file://")) {
@@ -384,11 +384,11 @@ public class BossBackupStorageBase extends BackupStorageBase {
             throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
         }
 
-        String fileFormat = esc.executeCommand(String.format("qemu-img info %s | grep 'file format' " +
+        String fileFormat = esc.executeCommand(String.format("/usr/local/bin/qemu-img info %s | grep 'file format' " +
                 "| cut -d ':' -f 2", tmpImagePath), errf).trim();
 
         if (fileFormat.equals("qcow2") || fileFormat.equals("raw")) {
-            esc.executeCommand(String.format("qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath), errf);
+            esc.executeCommand(String.format("/usr/local/bin/qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath), errf);
             if (esc.getExitValue() == 0) {
                 completion.success(rsp);
             } else {
