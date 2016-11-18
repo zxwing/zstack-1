@@ -17,6 +17,8 @@ import org.zstack.storage.boss.BossCapacityUpdater;
 import org.zstack.storage.boss.BossSystemTags;
 import org.zstack.storage.boss.ExecuteShellCommand;
 import org.zstack.storage.boss.primary.BossPrimaryStorageBase;
+import org.zstack.utils.ShellResult;
+import org.zstack.utils.ShellUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
@@ -365,10 +367,10 @@ public class BossBackupStorageBase extends BackupStorageBase {
         String tmpImageName = String.format("tmp-%s", msg.getImageInventory().getUuid());
         String tmpImagePath = null;
 
-        ExecuteShellCommand esc = new ExecuteShellCommand();
+        //ExecuteShellCommand esc = new ExecuteShellCommand();
 
         if (cmd.url.startsWith("http://") || cmd.url.startsWith("https://")) {
-            esc.executeCommand(String.format("wget --no-check-certificate -q -O /home/%s %s",tmpImageName,cmd.url.toString()), errf);
+            ShellUtils.run(String.format("wget --no-check-certificate -q -O /home/%s %s",tmpImageName,cmd.url.toString()),true);
             tmpImagePath = getFilePath(tmpImageName);
             rsp.actualSize = getNetFileSize(cmd.url);
         } else if (cmd.url.startsWith("file://")) {
@@ -384,19 +386,19 @@ public class BossBackupStorageBase extends BackupStorageBase {
             throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
         }
 
-        String fileFormat = esc.executeCommand(String.format("/usr/local/bin/qemu-img info %s | grep 'file format' " +
-                "| cut -d ':' -f 2", tmpImagePath), errf).trim();
+        String fileFormat = ShellUtils.run(String.format("/usr/local/bin/qemu-img info %s | grep 'file format' " +
+                "| cut -d ':' -f 2", tmpImagePath), true).trim();
 
         if (fileFormat.equals("qcow2") || fileFormat.equals("raw")) {
-            esc.executeCommand(String.format("/usr/local/bin/qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath), errf);
-            if (esc.getExitValue() == 0) {
+            int exitCode = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath),true).getRetCode();
+            if (exitCode == 0) {
                 completion.success(rsp);
             } else {
-                completion.fail(errf.stringToOperationError(String.format("download image failed,cause[%s]", errorCodes)));
+                completion.fail(errf.stringToOperationError("Download image failed"));
             }
             rsp.format = fileFormat;
-            String fileSize = esc.executeCommand(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
-                    "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()), errf);
+            String fileSize = ShellUtils.run(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
+                    "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()),true);
             rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
         } else {
             throw new OperationFailureException(errf.stringToOperationError(String.format("unknow image format[%s]", fileFormat)));
@@ -410,7 +412,6 @@ public class BossBackupStorageBase extends BackupStorageBase {
         cmd.imageUuid = msg.getImageUuid();
         cmd.installPath = msg.getImageUrl();
         GetImageSizeRsp rsp = new GetImageSizeRsp();
-        ExecuteShellCommand esc = new ExecuteShellCommand();
 
         final GetImageSizeOnBackupStorageReply reply = new GetImageSizeOnBackupStorageReply();
 
@@ -428,9 +429,10 @@ public class BossBackupStorageBase extends BackupStorageBase {
             }
         };
 
-        String fileSize = esc.executeCommand(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
-                "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()), errf);
-        if (esc.getExitValue() == 0) {
+        ShellResult shellResult = ShellUtils.runAndReturn(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
+                "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()));
+        if (shellResult.getRetCode() == 0) {
+            String fileSize = shellResult.getStdout();
             rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
             completion.success(rsp);
         } else {
@@ -493,18 +495,14 @@ public class BossBackupStorageBase extends BackupStorageBase {
     }
 
     protected Long getPoolTotalSize(String poolName){
-        ExecuteShellCommand esc;
-        esc = new ExecuteShellCommand();
-        String totalSize = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $3}'" , poolName),errf);
-        String unit = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $4}'" , poolName),errf);
+        String totalSize = ShellUtils.run(String.format("pool_list -l | grep %s | awk '{print $3}'" , poolName));
+        String unit = ShellUtils.run(String.format("pool_list -l | grep %s | awk '{print $4}'" , poolName));
         return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
     }
 
     protected Long getPoolAvailableSize(String poolName){
-        ExecuteShellCommand esc;
-        esc = new ExecuteShellCommand();
-        String totalSize = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $5}'" , poolName),errf);
-        String unit = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $6}'" , poolName),errf);
+        String totalSize = ShellUtils.run(String.format("pool_list -l | grep %s | awk '{print $5}'" , poolName));
+        String unit = ShellUtils.run(String.format("pool_list -l | grep %s | awk '{print $6}'" , poolName));
         return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
     }
 
