@@ -286,11 +286,10 @@ public class BossBackupStorageBase extends BackupStorageBase {
         List<ErrorCode> errorCodes = new ArrayList<ErrorCode>();
         if (msg instanceof DownloadImageMsg || msg instanceof DownloadVolumeMsg) {
             String tmpImageName = String.format("tmp-%s",cmd.imageUuid);
-            String tmpImagePath = null;
+            String tmpImagePath = "/home/"+tmpImageName;
 
             if (cmd.url.startsWith("http://") || cmd.url.startsWith("https://")) {
-                ShellUtils.run(String.format("wget --no-check-certificate -q -O /home/%s %s",tmpImageName,cmd.url.toString()),true);
-                tmpImagePath = getFilePath(tmpImageName);
+                ShellUtils.run(String.format("wget --no-check-certificate -q -O  %s",tmpImagePath,cmd.url.toString()),true);
                 rsp.actualSize = getNetFileSize(cmd.url);
             } else if (cmd.url.startsWith("file://")) {
                 String srcPath = getFilePath(cmd.url.replace("file:", ""));
@@ -316,14 +315,20 @@ public class BossBackupStorageBase extends BackupStorageBase {
                     completion.fail(errf.stringToOperationError("Download image failed"));
                 }
                 rsp.format = fileFormat;
-                String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
-                        "cut -d ':' -f 2", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
-                rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
+                String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v tmp-%s | grep 'volume size' " +
+                        "| awk '{print $3}'", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
+                String unit = ShellUtils.runAndReturn(String.format("volume_info -p %s -v tmp-%s | grep 'volume size' " +
+                        "| awk '{print $4}'", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
+                rsp.size = Math.round(Double.valueOf(fileSize.trim()) * unitConvert(unit.trim()));
             } else {
                 throw new OperationFailureException(errf.stringToOperationError(String.format("unknow image format[%s]", fileFormat)));
             }
-
             completion.success(rsp);
+
+            //delete the temp image
+            if(cmd.url.startsWith("http://") || cmd.url.startsWith("https://"){
+                ShellUtils.run(String.format("rm -rf %s",tmpImagePath));
+            }
         }
 
     }
