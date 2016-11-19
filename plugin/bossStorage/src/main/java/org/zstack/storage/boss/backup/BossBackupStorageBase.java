@@ -3,12 +3,15 @@ package org.zstack.storage.boss.backup;
 import jdk.nashorn.tools.Shell;
 import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Configurable;
+import org.springframework.transaction.annotation.Transactional;
 import org.zstack.header.core.ApiTimeout;
 import org.zstack.header.core.Completion;
 import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
+import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.image.APIAddImageMsg;
+import org.zstack.header.image.ImageBackupStorageRefInventory;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.message.Message;
 import org.zstack.header.storage.backup.*;
@@ -17,12 +20,15 @@ import org.zstack.storage.boss.BossCapacityUpdater;
 import org.zstack.storage.boss.BossSystemTags;
 import org.zstack.storage.boss.ExecuteShellCommand;
 import org.zstack.storage.boss.primary.BossPrimaryStorageBase;
+import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.ShellResult;
 import org.zstack.utils.ShellUtils;
 import org.zstack.utils.Utils;
+import org.zstack.utils.function.Function;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 
+import javax.persistence.TypedQuery;
 import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -215,6 +221,12 @@ public class BossBackupStorageBase extends BackupStorageBase {
         public Long actualSize;
     }
 
+    private void updateCapacityIfNeeded(ShellResponse rsp) {
+        if (rsp.getTotalCapacity() != null && rsp.getAvailableCapacity() != null) {
+            new BossCapacityUpdater().update(getSelf().getClusterName(), rsp.totalCapacity, rsp.availableCapacity);
+        }
+    }
+
     protected String makeImageInstallPath(String imageUuid) {
         return String.format("%s://%s/Image-%s", getSelf().getClusterName().trim().toString(), getSelf().getPoolName(), imageUuid);
     }
@@ -299,11 +311,13 @@ public class BossBackupStorageBase extends BackupStorageBase {
                     rsp.actualSize = getLocalFileSize(srcPath);
                 } else {
                     completion.fail(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s", srcPath, JSONObjectUtil.toJsonString(errorCodes))));
-                    throw new OperationFailureException(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s", srcPath, JSONObjectUtil.toJsonString(errorCodes))));
+                    return;
+                    //throw new OperationFailureException(errf.stringToOperationError(String.format("can not find the file[%s],errors are %s", srcPath, JSONObjectUtil.toJsonString(errorCodes))));
                 }
             } else {
                 completion.fail(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
-                throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
+                //throw new OperationFailureException(errf.stringToOperationError(String.format("unknow url[%s]", cmd.url)));
+                return;
             }
 
             String fileFormat = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img info %s | grep 'file format' " +
@@ -320,6 +334,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 int exitCode = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath),true).getRetCode();
                 if (exitCode != 0) {
                     completion.fail(errf.stringToOperationError("Download image failed"));
+                    return;
                 }
                 rsp.format = fileFormat;
                 String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' " +
@@ -327,10 +342,13 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 String unit = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' " +
                         "| awk '{print $4}'", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
                 rsp.size = Math.round(Double.valueOf(fileSize.trim()) * unitConvert(unit.trim()));
+                rsp.availableCapacity = getPoolAvailableSize(getSelf().getPoolName());
+                rsp.totalCapacity = getPoolTotalSize(getSelf().getPoolName());
             } else {
                 throw new OperationFailureException(errf.stringToOperationError(String.format("unknow image format[%s]", fileFormat)));
             }
             completion.success(rsp);
+            updateCapacityIfNeeded(rsp);
 
             //delete the temp image
             if(cmd.url.startsWith("http://") || cmd.url.startsWith("https://")){
@@ -342,7 +360,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
 
     @Override
     protected void handle(DownloadImageMsg msg) {
-        List<ErrorCode> errorCodes = new ArrayList<ErrorCode>();
+        //List<ErrorCode> errorCodes = new ArrayList<ErrorCode>();
         final DownloadCmd cmd = new DownloadCmd();
         final DownloadRsp rsp = new DownloadRsp();
         cmd.url = msg.getImageInventory().getUrl();
@@ -362,7 +380,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 reply.setInstallPath(cmd.installPath);
                 reply.setSize(ret.size);
 
-                // current ceph has no way to get the actual size
+                // current boss has no way to get the actual size
                 // if we cannot get the actual size from HTTP, use the virtual size
                 long asize = ret.actualSize == null ? ret.size : ret.actualSize;
                 reply.setActualSize(asize);
@@ -400,14 +418,14 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 bus.reply(msg, reply);
             }
         };
-
-        ShellResult shellResult = ShellUtils.runAndReturn(String.format("volume_info -p %s -v %s | grep 'volume size' | " +
-                "cut -d ':' -f 2", getSelf().getPoolName(), getSelf().getUuid()));
-        if (shellResult.getRetCode() == 0) {
-            String fileSize = shellResult.getStdout();
-            rsp.size = Math.round(Double.valueOf(fileSize.trim().split(" ")[0]) * 1024 * 1024);
+        try{
+            String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' " +
+                    "| awk '{print $3}'", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
+            String unit = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' " +
+                    "| awk '{print $4}'", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
+            rsp.size = Math.round(Double.valueOf(fileSize.trim()) * unitConvert(unit.trim()));
             completion.success(rsp);
-        } else {
+        } catch (Exception e){
             completion.fail(errf.stringToOperationError(String.format("get the size if image[%s] failed", cmd.imageUuid)));
         }
     }
@@ -438,8 +456,52 @@ public class BossBackupStorageBase extends BackupStorageBase {
 
     }
 
+    @Transactional(readOnly = true)
+    private boolean canDelete(String installPath) {
+        String sql = "select count(c) from ImageBackupStorageRefVO img, ImageCacheVO c where img.imageUuid = c.imageUuid and img.backupStorageUuid = :bsUuid and img.installPath = :installPath";
+        TypedQuery<Long> q = dbf.getEntityManager().createQuery(sql, Long.class);
+        q.setParameter("bsUuid", self.getUuid());
+        q.setParameter("installPath", installPath);
+        return q.getSingleResult() == 0;
+    }
+
     @Override
     protected void handle(DeleteBitsOnBackupStorageMsg msg) {
+        final DeleteBitsOnBackupStorageReply reply = new DeleteBitsOnBackupStorageReply();
+        if (!canDelete(msg.getInstallPath())) {
+            //TODO: the image is still referred, need to cleanup
+            bus.reply(msg, reply);
+            return;
+        }
+        DeleteCmd cmd = new DeleteCmd();
+        String imageName = msg.getInstallPath().replace(String.format("%s://%s/",getSelf().getClusterName(),getSelf().getPoolName()),"");
+        DeleteRsp rsp = new DeleteRsp();
+
+        ReturnValueCompletion<DeleteRsp> completion = new ReturnValueCompletion<DeleteRsp>(msg) {
+            @Override
+            public void fail(ErrorCode err) {
+                //TODO
+                reply.setError(err);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void success(DeleteRsp ret) {
+                bus.reply(msg, reply);
+            }
+        };
+        ShellResult shellResult = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",getSelf().getPoolName(),imageName));
+        if(shellResult.getRetCode() == 0){
+            rsp.availableCapacity = getPoolAvailableSize(getSelf().getPoolName());
+            rsp.totalCapacity = getPoolTotalSize(getSelf().getPoolName());
+            completion.success(rsp);
+            updateCapacityIfNeeded(rsp);
+        }else{
+            completion.fail(errf.stringToOperationError(String.format("Delete image[%s] failed",imageName)));
+        }
+
+
+
 
     }
 
@@ -452,8 +514,54 @@ public class BossBackupStorageBase extends BackupStorageBase {
 
     @Override
     protected void handle(SyncImageSizeOnBackupStorageMsg msg) {
+        GetImageSizeCmd cmd = new GetImageSizeCmd();
+        cmd.imageUuid = msg.getImage().getUuid();
+        GetImageSizeRsp rsp = new GetImageSizeRsp();
 
+        ImageBackupStorageRefInventory ref = CollectionUtils.find(msg.getImage().getBackupStorageRefs(), new Function<ImageBackupStorageRefInventory, ImageBackupStorageRefInventory>() {
+            @Override
+            public ImageBackupStorageRefInventory call(ImageBackupStorageRefInventory arg) {
+                return self.getUuid().equals(arg.getBackupStorageUuid()) ? arg : null;
+            }
+        });
+
+        if (ref == null) {
+            throw new CloudRuntimeException(String.format("cannot find ImageBackupStorageRefInventory of image[uuid:%s] for" +
+                    " the backup storage[uuid:%s]", msg.getImage().getUuid(), self.getUuid()));
+        }
+
+        final SyncImageSizeOnBackupStorageReply reply = new SyncImageSizeOnBackupStorageReply();
+        cmd.installPath = ref.getInstallPath();
+
+        ReturnValueCompletion<GetImageSizeRsp> completion = new ReturnValueCompletion<GetImageSizeRsp>(msg) {
+            @Override
+            public void success(GetImageSizeRsp rsp) {
+                reply.setSize(rsp.size);
+
+                // current ceph cannot get actual size
+                long asize = rsp.actualSize == null ? msg.getImage().getActualSize() : rsp.actualSize;
+                reply.setActualSize(asize);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        };
+        try{
+            String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' " +
+                    "| awk '{print $3}'", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
+            String unit = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' " +
+                    "| awk '{print $4}'", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
+            rsp.size = Math.round(Double.valueOf(fileSize.trim()) * unitConvert(unit.trim()));
+            completion.success(rsp);
+        } catch (Exception e){
+            completion.fail(errf.stringToOperationError(String.format("get the size if image[%s] failed", cmd.imageUuid)));
+        }
     }
+
 
     protected static Long unitConvert(String unit){
         switch (unit){
@@ -469,13 +577,21 @@ public class BossBackupStorageBase extends BackupStorageBase {
     protected Long getPoolTotalSize(String poolName){
         String totalSize = ShellUtils.runAndReturn(String.format("pool_list -l | grep %s | awk '{print $3}'" , poolName)).getStdout();
         String unit = ShellUtils.runAndReturn(String.format("pool_list -l | grep %s | awk '{print $4}'" , poolName)).getStdout();
-        return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
+        if(totalSize != "") {
+            return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
+        }else{
+            return 0L;
+        }
     }
 
     protected Long getPoolAvailableSize(String poolName){
         String totalSize = ShellUtils.runAndReturn(String.format("pool_list -l | grep %s | awk '{print $5}'" , poolName)).getStdout();
         String unit = ShellUtils.runAndReturn(String.format("pool_list -l | grep %s | awk '{print $6}'" , poolName)).getStdout();
-        return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
+        if(totalSize != "") {
+            return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
+        }else{
+            return 0L;
+        }
     }
 
 
