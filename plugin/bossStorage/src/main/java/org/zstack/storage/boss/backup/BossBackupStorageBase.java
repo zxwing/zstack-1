@@ -322,9 +322,9 @@ public class BossBackupStorageBase extends BackupStorageBase {
                     completion.fail(errf.stringToOperationError("Download image failed"));
                 }
                 rsp.format = fileFormat;
-                String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v tmp-%s | grep 'volume size' " +
+                String fileSize = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' " +
                         "| awk '{print $3}'", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
-                String unit = ShellUtils.runAndReturn(String.format("volume_info -p %s -v tmp-%s | grep 'volume size' " +
+                String unit = ShellUtils.runAndReturn(String.format("volume_info -p %s -v Image-%s | grep 'volume size' " +
                         "| awk '{print $4}'", getSelf().getPoolName(), cmd.imageUuid),true).getStdout();
                 rsp.size = Math.round(Double.valueOf(fileSize.trim()) * unitConvert(unit.trim()));
             } else {
