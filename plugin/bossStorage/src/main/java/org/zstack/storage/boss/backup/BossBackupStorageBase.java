@@ -289,7 +289,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
             String tmpImagePath = "/home/"+tmpImageName;
 
             if (cmd.url.startsWith("http://") || cmd.url.startsWith("https://")) {
-                ShellUtils.run(String.format("wget --no-check-certificate -q -O  %s",tmpImagePath,cmd.url.toString()),true);
+                ShellUtils.run(String.format("wget --no-check-certificate -q -O %s %s",tmpImagePath,cmd.url.toString()),true);
                 rsp.actualSize = getNetFileSize(cmd.url);
             } else if (cmd.url.startsWith("file://")) {
                 String srcPath = getFilePath(cmd.url.replace("file:", ""));
