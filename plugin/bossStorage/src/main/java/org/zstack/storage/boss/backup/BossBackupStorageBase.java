@@ -326,7 +326,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
             completion.success(rsp);
 
             //delete the temp image
-            if(cmd.url.startsWith("http://") || cmd.url.startsWith("https://"){
+            if(cmd.url.startsWith("http://") || cmd.url.startsWith("https://")){
                 ShellUtils.run(String.format("rm -rf %s",tmpImagePath));
             }
         }
