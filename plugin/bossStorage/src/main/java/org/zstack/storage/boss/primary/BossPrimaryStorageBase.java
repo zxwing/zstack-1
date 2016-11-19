@@ -253,27 +253,29 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             InitCmd cmd = new InitCmd();
             InitRsp rsp = new InitRsp();
             List<Pool> pools = new ArrayList<Pool>();
+            HashSet<String> poolNames = new HashSet<>();
 
             Pool p = new Pool();
             p.name = getSelf().getImageCachePoolName();
             p.predefined = BossSystemTags.PREDEFINED_PRIMARY_STORAGE_IMAGE_CACHE_POOL.hasTag(self.getUuid());
             pools.add(p);
+            poolNames.add(p.name);
 
             p = new Pool();
             p.name = getSelf().getRootVolumePoolName();
             p.predefined = BossSystemTags.PREDEFINED_PRIMARY_STORAGE_ROOT_VOLUME_POOL.hasTag(self.getUuid());
             pools.add(p);
+            poolNames.add(p.name);
 
             p = new Pool();
             p.name = getSelf().getDataVolumePoolName();
             p.predefined = BossSystemTags.PREDEFINED_PRIMARY_STORAGE_DATA_VOLUME_POOL.hasTag(self.getUuid());
             pools.add(p);
-
+            poolNames.add(p.name);
             cmd.pools = pools;
-            HashSet<Pool> hsPools = new HashSet<Pool>(pools);
-            for (Pool pool : hsPools) {
-                rsp.totalCapacity = rsp.totalCapacity + getPoolTotalSize(pool.name);
-                rsp.availableCapacity = rsp.availableCapacity + getPoolAvailableSize(pool.name);
+            for (String poolname : poolNames) {
+                rsp.totalCapacity = rsp.totalCapacity + getPoolTotalSize(poolname);
+                rsp.availableCapacity = rsp.availableCapacity + getPoolAvailableSize(poolname);
             }
 
 
