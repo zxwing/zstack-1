@@ -310,6 +310,13 @@ public class BossBackupStorageBase extends BackupStorageBase {
                     "| cut -d ':' -f 2", tmpImagePath), true).getStdout().trim();
 
             if (fileFormat.equals("qcow2") || fileFormat.equals("raw")) {
+                //get the virtual size of the image
+                String imageVirtualSize = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img info %s | grep 'virtual size' " +
+                        "| awk '{print $4}'", tmpImagePath), true).getStdout().trim().replace("(","");
+                //create a blank volume in boss
+                ShellUtils.run(String.format("volume_create -p %s -v Image-%s -s %s -r 3 ",getSelf().getPoolName(),cmd.imageUuid,Long.valueOf(imageVirtualSize)));
+
+                //import the image into boss
                 int exitCode = ShellUtils.runAndReturn(String.format("/usr/local/bin/qemu-img convert -O raw %s %s", tmpImagePath, cmd.installPath),true).getRetCode();
                 if (exitCode != 0) {
                     completion.fail(errf.stringToOperationError("Download image failed"));
