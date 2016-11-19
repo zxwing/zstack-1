@@ -108,194 +108,44 @@ public class VipManagerImpl extends AbstractService implements VipManager, Repor
     }
 
     @Override
+    public FlowChain getReleaseVipChain() {
+        return releaseVipByApiFlowChainBuilder.build();
+    }
+
+    @Override
     @MessageSafe
     public void handleMessage(Message msg) {
-        if (msg instanceof APIMessage) {
+        if (msg instanceof VipMessage) {
+            passThrough((VipMessage) msg);
+        } else if (msg instanceof APIMessage) {
             handleApiMessage((APIMessage) msg);
         } else {
             handleLocalMessage(msg);
         }
     }
 
-    private void handleLocalMessage(Message msg) {
-        if (msg instanceof VipDeletionMsg) {
-            handle((VipDeletionMsg) msg);
-        } else {
-            bus.dealWithUnknownMessage(msg);
+    private void passThrough(VipMessage msg) {
+        VipVO vip = dbf.findByUuid(msg.getVipUuid(), VipVO.class);
+        if (vip == null) {
+            throw new OperationFailureException(errf.instantiateErrorCode(SysErrors.RESOURCE_NOT_FOUND,
+                    String.format("cannot find the vip[uuid:%s], it may have been deleted", msg.getVipUuid())
+            ));
         }
+
+        Vip v = new VipBase(vip);
+        v.handleMessage((Message) msg);
     }
 
-    private void handle(final VipDeletionMsg msg) {
-        final VipDeletionReply reply = new VipDeletionReply();
-        final VipVO vip = dbf.findByUuid(msg.getVipUuid(), VipVO.class);
-
-        if (vip.getUseFor() == null) {
-            returnVip(VipInventory.valueOf(vip));
-            dbf.removeByPrimaryKey(vip.getUuid(), VipVO.class);
-            logger.debug(String.format("released vip[uuid:%s, ip:%s] on l3Network[uuid:%s]", vip.getUuid(), vip.getIp(), vip.getL3NetworkUuid()));
-            bus.reply(msg, reply);
-            return;
-        }
-
-        final VipInventory vipinv = VipInventory.valueOf(vip);
-        FlowChain chain = releaseVipByApiFlowChainBuilder.build();
-        chain.setName(String.format("api-release-vip-uuid-%s-ip-%s-name-%s", vipinv.getUuid(), vipinv.getIp(), vipinv.getName()));
-        chain.getData().put(VipConstant.Params.VIP.toString(), vipinv);
-        chain.done(new FlowDoneHandler(msg) {
-            @Override
-            public void handle(Map data) {
-                returnVip(vipinv);
-                dbf.removeByPrimaryKey(vip.getUuid(), VipVO.class);
-                bus.reply(msg, reply);
-            }
-        }).error(new FlowErrorHandler(msg) {
-            @Override
-            public void handle(ErrorCode errCode, Map data) {
-                reply.setError(errCode);
-                bus.reply(msg, reply);
-            }
-        }).start();
+    private void handleLocalMessage(Message msg) {
+        bus.dealWithUnknownMessage(msg);
     }
 
     private void handleApiMessage(APIMessage msg) {
         if (msg instanceof APICreateVipMsg) {
             handle((APICreateVipMsg) msg);
-        } else if (msg instanceof APIDeleteVipMsg) {
-            handle((APIDeleteVipMsg) msg);
-        } else if (msg instanceof APIChangeVipStateMsg) {
-            handle((APIChangeVipStateMsg) msg);
-        } else if (msg instanceof APIUpdateVipMsg) {
-            handle((APIUpdateVipMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
-    }
-
-    private void handle(APIUpdateVipMsg msg) {
-        VipVO vo = dbf.findByUuid(msg.getUuid(), VipVO.class);
-        boolean update = false;
-        if (msg.getName() != null) {
-            vo.setName(msg.getName());
-            update = true;
-        }
-        if (msg.getDescription() != null) {
-            vo.setDescription(msg.getDescription());
-            update = true;
-        }
-        if (update) {
-            vo = dbf.updateAndRefresh(vo);
-        }
-
-        APIUpdateVipEvent evt = new APIUpdateVipEvent(msg.getId());
-        evt.setInventory(VipInventory.valueOf(vo));
-        bus.publish(evt);
-    }
-
-    private void handle(APIChangeVipStateMsg msg) {
-        VipVO vip = dbf.findByUuid(msg.getUuid(), VipVO.class);
-        VipStateEvent sevt = VipStateEvent.valueOf(msg.getStateEvent());
-        vip.setState(vip.getState().nextState(sevt));
-        vip = dbf.updateAndRefresh(vip);
-
-        APIChangeVipStateEvent evt = new APIChangeVipStateEvent(msg.getId());
-        evt.setInventory(VipInventory.valueOf(vip));
-        bus.publish(evt);
-    }
-
-    private void returnVip(VipInventory vip) {
-        ReturnIpMsg msg = new ReturnIpMsg();
-        msg.setL3NetworkUuid(vip.getL3NetworkUuid());
-        msg.setUsedIpUuid(vip.getUsedIpUuid());
-        bus.makeTargetServiceIdByResourceUuid(msg, L3NetworkConstant.SERVICE_ID, vip.getL3NetworkUuid());
-        bus.send(msg);
-    }
-
-    private void handle(final APIDeleteVipMsg msg) {
-        final VipVO vip = dbf.findByUuid(msg.getUuid(), VipVO.class);
-        final APIDeleteVipEvent evt = new APIDeleteVipEvent(msg.getId());
-        final String issuer = VipVO.class.getSimpleName();
-        final List<VipInventory> ctx = Arrays.asList(VipInventory.valueOf(vip));
-        FlowChain chain = FlowChainBuilder.newShareFlowChain();
-        chain.setName(String.format("delete-vip-%s", vip.getUuid()));
-        chain.then(new ShareFlow() {
-            @Override
-            public void setup() {
-                if (msg.getDeletionMode() == DeletionMode.Permissive) {
-                    flow(new NoRollbackFlow() {
-                        String __name__ = String.format("delete-vip-permissive-check");
-
-                        @Override
-                        public void run(final FlowTrigger trigger, Map data) {
-                            casf.asyncCascade(CascadeConstant.DELETION_CHECK_CODE, issuer, ctx, new Completion(trigger) {
-                                @Override
-                                public void success() {
-                                    trigger.next();
-                                }
-
-                                @Override
-                                public void fail(ErrorCode errorCode) {
-                                    trigger.fail(errorCode);
-                                }
-                            });
-                        }
-                    });
-
-                    flow(new NoRollbackFlow() {
-                        String __name__ = String.format("delete-vip-permissive-delete");
-
-                        @Override
-                        public void run(final FlowTrigger trigger, Map data) {
-                            casf.asyncCascade(CascadeConstant.DELETION_DELETE_CODE, issuer, ctx, new Completion(trigger) {
-                                @Override
-                                public void success() {
-                                    trigger.next();
-                                }
-
-                                @Override
-                                public void fail(ErrorCode errorCode) {
-                                    trigger.fail(errorCode);
-                                }
-                            });
-                        }
-                    });
-                } else {
-                    flow(new NoRollbackFlow() {
-                        String __name__ = String.format("delete-vip-force-delete");
-
-                        @Override
-                        public void run(final FlowTrigger trigger, Map data) {
-                            casf.asyncCascade(CascadeConstant.DELETION_FORCE_DELETE_CODE, issuer, ctx, new Completion(trigger) {
-                                @Override
-                                public void success() {
-                                    trigger.next();
-                                }
-
-                                @Override
-                                public void fail(ErrorCode errorCode) {
-                                    trigger.fail(errorCode);
-                                }
-                            });
-                        }
-                    });
-                }
-
-                done(new FlowDoneHandler(msg) {
-                    @Override
-                    public void handle(Map data) {
-                        casf.asyncCascadeFull(CascadeConstant.DELETION_CLEANUP_CODE, issuer, ctx, new NopeCompletion());
-                        bus.publish(evt);
-                    }
-                });
-
-                error(new FlowErrorHandler(msg) {
-                    @Override
-                    public void handle(ErrorCode errCode, Map data) {
-                        evt.setErrorCode(errf.instantiateErrorCode(SysErrors.DELETE_RESOURCE_ERROR, errCode));
-                        bus.publish(evt);
-                    }
-                });
-            }
-        }).start();
     }
 
     private void handle(final APICreateVipMsg msg) {
