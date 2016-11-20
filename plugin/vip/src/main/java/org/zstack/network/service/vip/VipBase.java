@@ -8,7 +8,6 @@ import org.zstack.core.cascade.CascadeFacade;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.MessageSafe;
 import org.zstack.core.db.DatabaseFacade;
-import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.thread.ChainTask;
 import org.zstack.core.thread.SyncTaskChain;
@@ -38,22 +37,22 @@ import java.util.Map;
  */
 @Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
 public class VipBase implements Vip {
-    private static final CLogger logger = Utils.getLogger(VipBase.class);
+    protected static final CLogger logger = Utils.getLogger(VipBase.class);
 
-    private VipVO self;
+    protected VipVO self;
 
     @Autowired
-    private DatabaseFacade dbf;
+    protected DatabaseFacade dbf;
     @Autowired
-    private CloudBus bus;
+    protected CloudBus bus;
     @Autowired
-    private ThreadFacade thdf;
+    protected ThreadFacade thdf;
     @Autowired
-    private CascadeFacade casf;
+    protected CascadeFacade casf;
     @Autowired
-    private ErrorFacade errf;
+    protected ErrorFacade errf;
     @Autowired
-    private VipManager vipMgr;
+    protected VipManager vipMgr;
 
     protected String getThreadSyncSignature() {
         return String.format("vip-%s-%s", self.getName(), self.getUuid());
@@ -71,7 +70,7 @@ public class VipBase implements Vip {
         this.self = self;
     }
 
-    private void refresh() {
+    protected void refresh() {
         VipVO vo = dbf.reload(self);
         if (vo == null) {
             throw new OperationFailureException(errf.instantiateErrorCode(SysErrors.RESOURCE_NOT_FOUND,
@@ -93,19 +92,148 @@ public class VipBase implements Vip {
         }
     }
 
-    private void handleLocalMessage(Message msg) {
+    protected void handleLocalMessage(Message msg) {
         if (msg instanceof VipDeletionMsg) {
             handle((VipDeletionMsg) msg);
         } else if (msg instanceof AcquireAndLockVipMsg) {
             handle((AcquireAndLockVipMsg) msg);
         } else if (msg instanceof AcquireVipMsg) {
             handle((AcquireVipMsg) msg);
+        } else if (msg instanceof ReleaseAndUnlockVipMsg) {
+            handle((ReleaseAndUnlockVipMsg) msg);
+        } else if (msg instanceof ReleaseVipMsg) {
+            handle((ReleaseVipMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
     }
 
-    private void handle(AcquireVipMsg msg) {
+    private void handle(ReleaseVipMsg msg) {
+        ReleaseVipReply reply = new ReleaseVipReply();
+
+        thdf.chainSubmit(new ChainTask(msg) {
+            @Override
+            public String getSyncSignature() {
+                return getThreadSyncSignature();
+            }
+
+            @Override
+            public void run(SyncTaskChain chain) {
+                releaseVip(msg.toReleaseAndUnlockVipStruct(), new Completion(msg, chain) {
+                    @Override
+                    public void success() {
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+
+                    @Override
+                    public void fail(ErrorCode errorCode) {
+                        reply.setError(errorCode);
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+                });
+            }
+
+            @Override
+            public String getName() {
+                return "release-vip";
+            }
+        });
+    }
+
+    protected void handle(ReleaseAndUnlockVipMsg msg) {
+        ReleaseAndUnlockVipReply reply = new ReleaseAndUnlockVipReply();
+
+        thdf.chainSubmit(new ChainTask(msg) {
+            @Override
+            public String getSyncSignature() {
+                return getThreadSyncSignature();
+            }
+
+            @Override
+            public void run(SyncTaskChain chain) {
+                releaseAndUnlock(msg.toReleaseAndUnlockVipStruct(), new Completion(msg, chain) {
+                    @Override
+                    public void success() {
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+
+                    @Override
+                    public void fail(ErrorCode errorCode) {
+                        reply.setError(errorCode);
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+                });
+            }
+
+            @Override
+            public String getName() {
+                return "release-and-unlock-vip";
+            }
+        });
+    }
+
+    protected void unlock() {
+        self.setUseFor(null);
+        self = dbf.updateAndRefresh(self);
+        logger.debug(String.format("successfully unlocked vip[uuid:%s, name:%s, ip:%s]",
+                self.getUuid(), self.getName(), self.getIp()));
+    }
+
+    protected void releaseAndUnlock(ReleaseVipStruct s, Completion completion) {
+        releaseVip(s, new Completion(completion) {
+            @Override
+            public void success() {
+                unlock();
+                completion.success();
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    protected void releaseVip(ReleaseVipStruct s, Completion completion) {
+        if (self.getServiceProvider() == null) {
+            // the vip has been released by other descendant network service
+            logger.debug(String.format("the serviceProvider field is null, the vip[uuid:%s, name:%s, ip:%s] has been released" +
+                    " by other service", self.getUuid(), self.getName(), self.getIp()));
+            completion.success();
+            return;
+        }
+
+        VipFactory f = vipMgr.getVipFactory(self.getServiceProvider());
+        VipBaseBackend vip = f.getVip(getSelf());
+        vip.releaseVipOnBackend(s, new Completion(completion) {
+            @Override
+            public void success() {
+                logger.debug(String.format("successfully released vip[uuid:%s, name:%s, ip:%s] on service[%s]",
+                        self.getUuid(), self.getName(), self.getIp(), self.getServiceProvider()));
+
+                self = dbf.reload(self);
+                self.setServiceProvider(null);
+                if (s.isReleasePeerL3Network()) {
+                    self.setPeerL3NetworkUuid(null);
+                }
+                self = dbf.updateAndRefresh(self);
+                completion.success();
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                logger.warn(String.format("failed to release vip[uuid:%s, name:%s, ip:%s] on service[%s], its garbage collector should" +
+                        " handle this", self.getUuid(), self.getName(), self.getIp(), self.getServiceProvider()));
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    protected void handle(AcquireVipMsg msg) {
         AcquireVipReply reply = new AcquireVipReply();
 
         thdf.chainSubmit(new ChainTask(msg) {
@@ -140,7 +268,7 @@ public class VipBase implements Vip {
         });
     }
 
-    private void handle(AcquireAndLockVipMsg msg) {
+    protected void handle(AcquireAndLockVipMsg msg) {
         AcquireAndLockVipReply reply = new AcquireAndLockVipReply();
 
         thdf.chainSubmit(new ChainTask(msg) {
@@ -213,8 +341,8 @@ public class VipBase implements Vip {
         }
 
         VipFactory f = vipMgr.getVipFactory(s.getNetworkServiceProviderType());
-        VipBase vip = f.getVip(getSelf());
-        vip.acquireVip(s, new Completion(completion) {
+        VipBaseBackend vip = f.getVip(getSelf());
+        vip.acquireVipOnBackend(s, new Completion(completion) {
             @Override
             public void success() {
                 saveVipInfo(self.getUuid(), s.getNetworkServiceProviderType(), s.getPeerL3Network().getUuid());
@@ -236,7 +364,7 @@ public class VipBase implements Vip {
         acquireVip(s, completion);
     }
 
-    private void handle(VipDeletionMsg msg) {
+    protected void handle(VipDeletionMsg msg) {
         VipDeletionReply reply = new VipDeletionReply();
         thdf.chainSubmit(new ChainTask(msg) {
             @Override
@@ -269,7 +397,7 @@ public class VipBase implements Vip {
         });
     }
 
-    private void returnVip() {
+    protected void returnVip() {
         ReturnIpMsg msg = new ReturnIpMsg();
         msg.setL3NetworkUuid(self.getL3NetworkUuid());
         msg.setUsedIpUuid(self.getUsedIpUuid());
@@ -277,7 +405,7 @@ public class VipBase implements Vip {
         bus.send(msg);
     }
 
-    private void deleteVip(Completion completion) {
+    protected void deleteVip(Completion completion) {
         refresh();
 
         if (self.getUseFor() == null) {
@@ -307,7 +435,7 @@ public class VipBase implements Vip {
         }).start();
     }
 
-    private void handleApiMessage(APIMessage msg) {
+    protected void handleApiMessage(APIMessage msg) {
         if (msg instanceof APIChangeVipStateMsg) {
             handle((APIChangeVipStateMsg) msg);
         } else if (msg instanceof APIDeleteVipMsg) {
@@ -319,7 +447,7 @@ public class VipBase implements Vip {
         }
     }
 
-    private void handle(APIUpdateVipMsg msg) {
+    protected void handle(APIUpdateVipMsg msg) {
         VipVO vo = dbf.findByUuid(msg.getUuid(), VipVO.class);
         boolean update = false;
         if (msg.getName() != null) {
@@ -339,7 +467,7 @@ public class VipBase implements Vip {
         bus.publish(evt);
     }
 
-    private void handle(APIDeleteVipMsg msg) {
+    protected void handle(APIDeleteVipMsg msg) {
         final APIDeleteVipEvent evt = new APIDeleteVipEvent(msg.getId());
 
         final String issuer = VipVO.class.getSimpleName();
@@ -427,7 +555,7 @@ public class VipBase implements Vip {
         }).start();
     }
 
-    private void handle(APIChangeVipStateMsg msg) {
+    protected void handle(APIChangeVipStateMsg msg) {
         VipVO vip = dbf.findByUuid(msg.getUuid(), VipVO.class);
         VipStateEvent sevt = VipStateEvent.valueOf(msg.getStateEvent());
         vip.setState(vip.getState().nextState(sevt));

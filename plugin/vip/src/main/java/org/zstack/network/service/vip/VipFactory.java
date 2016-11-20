@@ -6,5 +6,5 @@ package org.zstack.network.service.vip;
 public interface VipFactory {
     String getNetworkServiceProviderType();
 
-    VipBase getVip(VipVO self);
+    VipBaseBackend getVip(VipVO self);
 }
