@@ -24,6 +24,7 @@ import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.ShellResult;
 import org.zstack.utils.ShellUtils;
 import org.zstack.utils.Utils;
+import org.zstack.utils.filelocater.FileLocatorImpl;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
@@ -287,7 +288,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
     protected boolean isFile(String path) {
         File file = new File(path);
 
-        if (file.isFile()) {
+        if (file.exists()) {
             return true;
         } else {
             return false;

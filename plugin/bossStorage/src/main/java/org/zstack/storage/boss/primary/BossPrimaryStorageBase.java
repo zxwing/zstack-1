@@ -295,7 +295,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
     @Override
     protected void pingHook(Completion completion) {
-
+        completion.success();
     }
 
     @Override
