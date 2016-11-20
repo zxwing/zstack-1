@@ -98,9 +98,46 @@ public class VipBase implements Vip {
             handle((VipDeletionMsg) msg);
         } else if (msg instanceof AcquireAndLockVipMsg) {
             handle((AcquireAndLockVipMsg) msg);
+        } else if (msg instanceof AcquireVipMsg) {
+            handle((AcquireVipMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
+    }
+
+    private void handle(AcquireVipMsg msg) {
+        AcquireVipReply reply = new AcquireVipReply();
+
+        thdf.chainSubmit(new ChainTask(msg) {
+            @Override
+            public String getSyncSignature() {
+                return getThreadSyncSignature();
+            }
+
+            @Override
+            public void run(SyncTaskChain chain) {
+                refresh();
+                acquireVip(msg.toAcquireVipStruct(), new Completion(msg, chain) {
+                    @Override
+                    public void success() {
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+
+                    @Override
+                    public void fail(ErrorCode errorCode) {
+                        reply.setError(errorCode);
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+                });
+            }
+
+            @Override
+            public String getName() {
+                return "acquire-vip";
+            }
+        });
     }
 
     private void handle(AcquireAndLockVipMsg msg) {
@@ -114,7 +151,7 @@ public class VipBase implements Vip {
 
             @Override
             public void run(SyncTaskChain chain) {
-                acquireAndLock(msg ,new Completion(msg, chain) {
+                acquireAndLock(msg.toAcquireAndLockVipStruct(), new Completion(msg, chain) {
                     @Override
                     public void success() {
                         self = dbf.reload(self);
@@ -139,7 +176,7 @@ public class VipBase implements Vip {
         });
     }
 
-    private void lock(String networkServiceType) {
+    protected void lock(String networkServiceType) {
         refresh();
 
         if ((self.getUseFor() != null && !self.getUseFor().equals(networkServiceType))) {
@@ -160,8 +197,43 @@ public class VipBase implements Vip {
                 self.getUuid(), self.getName(), self.getIp(), networkServiceType));
     }
 
-    private void acquireAndLock(AcquireAndLockVipMsg msg, Completion completion) {
-        lock(msg.getNetworkServiceType());
+    protected void saveVipInfo(String vipUuid, String networkServiceType, String peerL3NetworkUuid) {
+        VipVO vo = dbf.findByUuid(vipUuid, VipVO.class);
+        vo.setServiceProvider(networkServiceType);
+        if (vo.getPeerL3NetworkUuid() == null) {
+            vo.setPeerL3NetworkUuid(peerL3NetworkUuid);
+        }
+        dbf.update(vo);
+    }
+
+    protected void acquireVip(AcquireVipStruct s, Completion completion) {
+        if (self.getPeerL3NetworkUuid() != null && !self.getPeerL3NetworkUuid().equals(s.getPeerL3Network().getUuid())) {
+            throw new OperationFailureException(errf.stringToOperationError(String.format("vip[uuid:%s, name:%s] has been serving l3Network[uuid:%s], can't serve l3Network[name:%s, uuid:%s]",
+                    self.getUuid(), self.getName(), self.getPeerL3NetworkUuid(), s.getPeerL3Network().getName(), s.getPeerL3Network().getUuid())));
+        }
+
+        VipFactory f = vipMgr.getVipFactory(s.getNetworkServiceProviderType());
+        VipBase vip = f.getVip(getSelf());
+        vip.acquireVip(s, new Completion(completion) {
+            @Override
+            public void success() {
+                saveVipInfo(self.getUuid(), s.getNetworkServiceProviderType(), s.getPeerL3Network().getUuid());
+
+                logger.debug(String.format("successfully acquired vip[uuid:%s, name:%s, ip:%s] on service[%s]",
+                        self.getUuid(), self.getName(), self.getIp(), s.getNetworkServiceProviderType()));
+                completion.success();
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                completion.fail(errorCode);
+            }
+        });
+    }
+
+    protected void acquireAndLock(AcquireAndLockVipStruct s, Completion completion) {
+        lock(s.getNetworkServiceType());
+        acquireVip(s, completion);
     }
 
     private void handle(VipDeletionMsg msg) {

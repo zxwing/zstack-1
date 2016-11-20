@@ -6,6 +6,15 @@ package org.zstack.network.service.vip;
 public class AcquireAndLockVipMsg extends AcquireVipMsg {
     private String networkServiceType;
 
+    public AcquireAndLockVipStruct toAcquireAndLockVipStruct() {
+        AcquireAndLockVipStruct s = new AcquireAndLockVipStruct();
+        s.setVipUuid(getVipUuid());
+        s.setNetworkServiceType(getNetworkServiceType());
+        s.setNetworkServiceProviderType(getNetworkServiceProviderType());
+        s.setPeerL3Network(getPeerL3Network());
+        return s;
+    }
+
     public String getNetworkServiceType() {
         return networkServiceType;
     }

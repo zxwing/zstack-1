@@ -32,4 +32,6 @@ public interface VipManager extends Service {
     VipReleaseExtensionPoint getVipReleaseExtensionPoint(String useFor);
 
     FlowChain getReleaseVipChain();
+
+    VipFactory getVipFactory(String networkServiceProviderType);
 }

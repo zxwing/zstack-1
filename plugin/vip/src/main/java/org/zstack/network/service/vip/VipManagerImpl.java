@@ -70,6 +70,7 @@ public class VipManagerImpl extends AbstractService implements VipManager, Repor
 
     private Map<String, VipReleaseExtensionPoint> vipReleaseExts = new HashMap<String, VipReleaseExtensionPoint>();
     private Map<String, VipBackend> vipBackends = new HashMap<String, VipBackend>();
+    private Map<String, VipFactory> factories = new HashMap<>();
 
     private List<String> releaseVipByApiFlowNames;
     private FlowChainBuilder releaseVipByApiFlowChainBuilder;
@@ -96,6 +97,16 @@ public class VipManagerImpl extends AbstractService implements VipManager, Repor
             }
             vipBackends.put(extp.getServiceProviderTypeForVip(), extp);
         }
+
+        for (VipFactory ext : pluginRgty.getExtensionList(VipFactory.class)) {
+            VipFactory old = factories.get(ext.getNetworkServiceProviderType());
+            if (old != null) {
+                throw new CloudRuntimeException(String.format("duplicate VipFactory[%s, %s] for the network service provider type[%s]",
+                        old.getClass(), ext.getClass(), ext.getNetworkServiceProviderType()));
+            }
+
+            factories.put(ext.getNetworkServiceProviderType(), ext);
+        }
     }
 
     public VipReleaseExtensionPoint getVipReleaseExtensionPoint(String use) {
@@ -110,6 +121,13 @@ public class VipManagerImpl extends AbstractService implements VipManager, Repor
     @Override
     public FlowChain getReleaseVipChain() {
         return releaseVipByApiFlowChainBuilder.build();
+    }
+
+    @Override
+    public VipFactory getVipFactory(String networkServiceProviderType) {
+        VipFactory f = factories.get(networkServiceProviderType);
+        DebugUtils.Assert(f != null, String.format("cannot find the VipFactory for the network service provider type[%s]", networkServiceProviderType));
+        return f;
     }
 
     @Override
