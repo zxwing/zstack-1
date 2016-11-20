@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
+import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
@@ -23,19 +24,20 @@ import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
+import org.zstack.header.message.MessageReply;
 import org.zstack.header.network.l3.L3NetworkVO;
 import org.zstack.header.network.service.NetworkServiceL3NetworkRefVO;
 import org.zstack.header.vm.VmNicInventory;
 import org.zstack.header.vm.VmNicVO;
 import org.zstack.header.vm.VmNicVO_;
 import org.zstack.identity.AccountManager;
-import org.zstack.network.service.vip.VipInventory;
-import org.zstack.network.service.vip.VipManager;
-import org.zstack.network.service.vip.VipVO;
+import org.zstack.network.service.vip.*;
 import org.zstack.tag.TagManager;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.DebugUtils;
+import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
+import org.zstack.utils.logging.CLogger;
 
 import javax.persistence.TypedQuery;
 import java.util.*;
@@ -45,6 +47,8 @@ import java.util.*;
  */
 @Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
 public class LoadBalancerBase {
+    private static final CLogger logger = Utils.getLogger(LoadBalancerBase.class);
+
     @Autowired
     private CloudBus bus;
     @Autowired
@@ -59,8 +63,6 @@ public class LoadBalancerBase {
     private AccountManager acntMgr;
     @Autowired
     private TagManager tagMgr;
-    @Autowired
-    private VipManager vipMgr;
 
     private LoadBalancerVO self;
 
@@ -567,8 +569,19 @@ public class LoadBalancerBase {
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
                         VipInventory vip = VipInventory.valueOf(dbf.findByUuid(self.getVipUuid(), VipVO.class));
-                        vipMgr.unlockVip(vip);
-                        trigger.next();
+                        UnlockVipMsg msg = new UnlockVipMsg();
+                        msg.setVipUuid(vip.getUuid());
+                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
+                        bus.send(msg, new CloudBusCallBack(trigger) {
+                            @Override
+                            public void run(MessageReply reply) {
+                                if (!reply.isSuccess()) {
+                                    logger.warn(reply.getError().toString());
+                                }
+
+                                trigger.next();
+                            }
+                        });
                     }
                 });
 

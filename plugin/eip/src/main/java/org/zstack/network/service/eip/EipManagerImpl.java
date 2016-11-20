@@ -300,11 +300,24 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
         VipInventory vipInventory = VipInventory.valueOf(vipvo);
 
         if (vo.getVmNicUuid() == null) {
-            vipMgr.unlockVip(vipInventory);
-            dbf.remove(vo);
-            bus.publish(evt);
+            UnlockVipMsg umsg = new UnlockVipMsg();
+            umsg.setVipUuid(vipInventory.getUuid());
+            bus.makeTargetServiceIdByResourceUuid(umsg, VipConstant.SERVICE_ID, vipInventory.getUuid());
+            bus.send(umsg, new CloudBusCallBack(msg) {
+                @Override
+                public void run(MessageReply reply) {
+                    if (!reply.isSuccess()) {
+                        throw new OperationFailureException(reply.getError());
+                    }
+
+                    dbf.remove(vo);
+                    bus.publish(evt);
+                }
+            });
+
             return;
         }
+
         VmNicVO nicvo = dbf.findByUuid(vo.getVmNicUuid(), VmNicVO.class);
         VmNicInventory nicInventory = VmNicInventory.valueOf(nicvo);
 

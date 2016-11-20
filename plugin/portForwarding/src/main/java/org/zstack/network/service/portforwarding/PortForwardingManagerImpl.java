@@ -342,10 +342,21 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
         final PortForwardingRuleVO vo = dbf.findByUuid(ruleUuid, PortForwardingRuleVO.class);
         if (vo.getVmNicUuid() == null) {
             VipVO vipvo = dbf.findByUuid(vo.getVipUuid(), VipVO.class);
-            VipInventory vipInventory = VipInventory.valueOf(vipvo);
-            vipMgr.unlockVip(vipInventory);
-            dbf.remove(vo);
-            complete.success();
+            UnlockVipMsg msg = new UnlockVipMsg();
+            msg.setVipUuid(vipvo.getUuid());
+            bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vipvo.getUuid());
+            bus.send(msg, new CloudBusCallBack(complete) {
+                @Override
+                public void run(MessageReply reply) {
+                    if (!reply.isSuccess()) {
+                        throw new OperationFailureException(reply.getError());
+                    }
+
+                    dbf.remove(vo);
+                    complete.success();
+                }
+            });
+
             return;
         }
 

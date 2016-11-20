@@ -12,10 +12,6 @@ public interface VipManager extends Service {
 
     void saveVipInfo(String vipUuid, String networkServiceType, String peerL3NetworkUuid);
 
-    void lockVip(VipInventory vip,  String networkServiceType);
-
-    void unlockVip(VipInventory vip);
-
     VipReleaseExtensionPoint getVipReleaseExtensionPoint(String useFor);
 
     FlowChain getReleaseVipChain();
