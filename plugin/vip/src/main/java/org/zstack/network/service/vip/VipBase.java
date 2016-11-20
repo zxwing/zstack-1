@@ -103,9 +103,59 @@ public class VipBase implements Vip {
             handle((ReleaseAndUnlockVipMsg) msg);
         } else if (msg instanceof ReleaseVipMsg) {
             handle((ReleaseVipMsg) msg);
+        } else if (msg instanceof LockVipForNetworkServiceMsg) {
+            handle((LockVipForNetworkServiceMsg) msg);
+        } else if (msg instanceof UnlockVipMsg) {
+            handle((UnlockVipMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
+    }
+
+    private void handle(UnlockVipMsg msg) {
+        thdf.chainSubmit(new ChainTask(msg) {
+            @Override
+            public String getSyncSignature() {
+                return getThreadSyncSignature();
+            }
+
+            @Override
+            public void run(SyncTaskChain chain) {
+                unlock();
+
+                UnlockVipReply reply = new UnlockVipReply();
+                bus.reply(msg, reply);
+                chain.next();
+            }
+
+            @Override
+            public String getName() {
+                return "unlock-vip";
+            }
+        });
+    }
+
+    private void handle(LockVipForNetworkServiceMsg msg) {
+        thdf.chainSubmit(new ChainTask(msg) {
+            @Override
+            public String getSyncSignature() {
+                return getThreadSyncSignature();
+            }
+
+            @Override
+            public void run(SyncTaskChain chain) {
+                lock(msg.getNetworkServiceType());
+
+                LockVipForNetworkServiceReply reply = new LockVipForNetworkServiceReply();
+                bus.reply(msg, reply);
+                chain.next();
+            }
+
+            @Override
+            public String getName() {
+                return "lock-vip";
+            }
+        });
     }
 
     private void handle(ReleaseVipMsg msg) {

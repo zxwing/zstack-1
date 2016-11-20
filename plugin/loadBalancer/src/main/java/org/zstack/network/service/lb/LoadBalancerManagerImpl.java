@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
+import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.MessageSafe;
 import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.db.DatabaseFacade;
@@ -22,6 +23,7 @@ import org.zstack.header.identity.Quota.QuotaOperator;
 import org.zstack.header.identity.Quota.QuotaPair;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
+import org.zstack.header.message.MessageReply;
 import org.zstack.header.message.NeedQuotaCheckMessage;
 import org.zstack.header.query.AddExpandedQueryExtensionPoint;
 import org.zstack.header.query.ExpandedQueryAliasStruct;
@@ -32,10 +34,10 @@ import org.zstack.header.tag.SystemTagValidator;
 import org.zstack.header.vm.VmNicInventory;
 import org.zstack.identity.AccountManager;
 import org.zstack.identity.QuotaUtil;
-import org.zstack.network.service.vip.VipInventory;
-import org.zstack.network.service.vip.VipManager;
-import org.zstack.network.service.vip.VipVO;
+import org.zstack.network.service.vip.*;
 import org.zstack.tag.TagManager;
+import org.zstack.utils.Utils;
+import org.zstack.utils.logging.CLogger;
 
 import javax.persistence.TypedQuery;
 import java.util.ArrayList;
@@ -50,6 +52,8 @@ import static org.zstack.utils.CollectionDSL.list;
  */
 public class LoadBalancerManagerImpl extends AbstractService implements LoadBalancerManager,
         AddExpandedQueryExtensionPoint, ReportQuotaExtensionPoint {
+    private static final CLogger logger = Utils.getLogger(LoadBalancerManagerImpl.class);
+
     @Autowired
     private CloudBus bus;
     @Autowired
@@ -62,8 +66,6 @@ public class LoadBalancerManagerImpl extends AbstractService implements LoadBala
     private PluginRegistry pluginRgty;
     @Autowired
     private TagManager tagMgr;
-    @Autowired
-    private VipManager vipMgr;
 
     private Map<String, LoadBalancerBackend> backends = new HashMap<String, LoadBalancerBackend>();
 
@@ -115,16 +117,47 @@ public class LoadBalancerManagerImpl extends AbstractService implements LoadBala
                 flow(new Flow() {
                     String __name__ = "lock-vip";
 
+                    boolean s = false;
+
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
-                        vipMgr.lockVip(vip, LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
-                        trigger.next();
+                        LockVipForNetworkServiceMsg msg = new LockVipForNetworkServiceMsg();
+                        msg.setVipUuid(vip.getUuid());
+                        msg.setNetworkServiceType(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
+                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
+                        bus.send(msg, new CloudBusCallBack(trigger) {
+                            @Override
+                            public void run(MessageReply reply) {
+                                if (!reply.isSuccess()) {
+                                    throw new OperationFailureException(reply.getError());
+                                }
+
+                                s = true;
+                                trigger.next();
+                            }
+                        });
                     }
 
                     @Override
                     public void rollback(FlowRollback trigger, Map data) {
-                        vipMgr.unlockVip(vip);
-                        trigger.rollback();
+                        if (!s) {
+                            trigger.rollback();
+                            return;
+                        }
+
+                        UnlockVipMsg msg = new UnlockVipMsg();
+                        msg.setVipUuid(vip.getUuid());
+                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
+                        bus.send(msg, new CloudBusCallBack(trigger) {
+                            @Override
+                            public void run(MessageReply reply) {
+                                if (!reply.isSuccess()) {
+                                    logger.warn(reply.getError().toString());
+                                }
+
+                                trigger.rollback();
+                            }
+                        });
                     }
                 });
 

@@ -25,10 +25,7 @@ import org.zstack.header.tag.SystemTagVO;
 import org.zstack.header.tag.SystemTagVO_;
 import org.zstack.header.vm.*;
 import org.zstack.network.service.lb.*;
-import org.zstack.network.service.vip.VipInventory;
-import org.zstack.network.service.vip.VipManager;
-import org.zstack.network.service.vip.VipVO;
-import org.zstack.network.service.vip.VipVO_;
+import org.zstack.network.service.vip.*;
 import org.zstack.network.service.virtualrouter.*;
 import org.zstack.network.service.virtualrouter.VirtualRouterCommands.AgentCommand;
 import org.zstack.network.service.virtualrouter.VirtualRouterCommands.AgentResponse;
@@ -405,17 +402,43 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
-                        vipMgr.lockVip(vip, LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
-                        success = true;
-                        trigger.next();
+                        LockVipForNetworkServiceMsg msg = new LockVipForNetworkServiceMsg();
+                        msg.setVipUuid(vip.getUuid());
+                        msg.setNetworkServiceType(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
+                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
+                        bus.send(msg, new CloudBusCallBack(trigger) {
+                            @Override
+                            public void run(MessageReply reply) {
+                                if (!reply.isSuccess()) {
+                                    throw new OperationFailureException(reply.getError());
+                                }
+
+                                success = true;
+                                trigger.next();
+                            }
+                        });
                     }
 
                     @Override
                     public void rollback(FlowRollback trigger, Map data) {
-                        if (success) {
-                            vipMgr.unlockVip(vip);
+                        if (!success) {
+                            trigger.rollback();
+                            return;
                         }
-                        trigger.rollback();
+
+                        UnlockVipMsg msg = new UnlockVipMsg();
+                        msg.setVipUuid(vip.getUuid());
+                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
+                        bus.send(msg, new CloudBusCallBack(trigger) {
+                            @Override
+                            public void run(MessageReply reply) {
+                                if (!reply.isSuccess()) {
+                                    logger.warn(reply.getError().toString());
+                                }
+
+                                trigger.rollback();
+                            }
+                        });
                     }
                 });
 
@@ -720,15 +743,18 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
                     @Override
                     public void run(final FlowTrigger trigger, Map data) {
                         VipInventory vip = VipInventory.valueOf(dbf.findByUuid(struct.getLb().getVipUuid(), VipVO.class));
-                        vipMgr.releaseAndUnlockVip(vip, true, new Completion(trigger) {
+                        ReleaseAndUnlockVipMsg msg = new ReleaseAndUnlockVipMsg();
+                        msg.setReleasePeerL3Network(true);
+                        msg.setVipUuid(vip.getUuid());
+                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
+                        bus.send(msg, new CloudBusCallBack(trigger) {
                             @Override
-                            public void success() {
-                                trigger.next();
-                            }
+                            public void run(MessageReply reply) {
+                                if (!reply.isSuccess()) {
+                                    throw new OperationFailureException(reply.getError());
+                                }
 
-                            @Override
-                            public void fail(ErrorCode errorCode) {
-                                trigger.fail(errorCode);
+                                trigger.next();
                             }
                         });
                     }

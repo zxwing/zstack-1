@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
+import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.MessageSafe;
 import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.db.DatabaseFacade;
@@ -18,6 +19,7 @@ import org.zstack.header.core.workflow.FlowChain;
 import org.zstack.header.core.workflow.FlowDoneHandler;
 import org.zstack.header.core.workflow.FlowErrorHandler;
 import org.zstack.header.errorcode.ErrorCode;
+import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.errorcode.SysErrors;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.identity.*;
@@ -25,6 +27,7 @@ import org.zstack.header.identity.Quota.QuotaOperator;
 import org.zstack.header.identity.Quota.QuotaPair;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
+import org.zstack.header.message.MessageReply;
 import org.zstack.header.message.NeedQuotaCheckMessage;
 import org.zstack.header.network.l3.L3NetworkInventory;
 import org.zstack.header.network.l3.L3NetworkVO;
@@ -462,9 +465,22 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
 
         VipInventory vipInventory = VipInventory.valueOf(vip);
         if (msg.getVmNicUuid() == null) {
-            vipMgr.lockVip(vipInventory, PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE);
-            evt.setInventory(PortForwardingRuleInventory.valueOf(vo));
-            bus.publish(evt);
+            LockVipForNetworkServiceMsg lmsg = new LockVipForNetworkServiceMsg();
+            lmsg.setVipUuid(vipInventory.getUuid());
+            lmsg.setNetworkServiceType(PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE);
+            bus.makeTargetServiceIdByResourceUuid(lmsg, VipConstant.SERVICE_ID, vipInventory.getUuid());
+            bus.send(lmsg, new CloudBusCallBack(msg) {
+                @Override
+                public void run(MessageReply reply) {
+                    if (!reply.isSuccess()) {
+                        throw new OperationFailureException(reply.getError());
+                    }
+
+                    evt.setInventory(PortForwardingRuleInventory.valueOf(vo));
+                    bus.publish(evt);
+                }
+            });
+
             return;
         }
 
@@ -474,12 +490,22 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
         q.add(VmInstanceVO_.uuid, Op.EQ, vmNic.getVmInstanceUuid());
         VmInstanceState vmState = q.findValue();
         if (VmInstanceState.Running != vmState) {
-            vipMgr.lockVip(vipInventory, PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE);
-            vo.setVmNicUuid(vmNic.getUuid());
-            vo.setGuestIp(vmNic.getIp());
-            PortForwardingRuleVO pvo = dbf.updateAndRefresh(vo);
-            evt.setInventory(PortForwardingRuleInventory.valueOf(pvo));
-            bus.publish(evt);
+            LockVipForNetworkServiceMsg lmsg = new LockVipForNetworkServiceMsg();
+            lmsg.setVipUuid(vipInventory.getUuid());
+            lmsg.setNetworkServiceType(PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE);
+            bus.makeTargetServiceIdByResourceUuid(lmsg, VipConstant.SERVICE_ID, vipInventory.getUuid());
+            bus.send(lmsg, new CloudBusCallBack(msg) {
+                @Override
+                public void run(MessageReply reply) {
+                    if (!reply.isSuccess()) {
+                        throw new OperationFailureException(reply.getError());
+                    }
+
+                    evt.setInventory(PortForwardingRuleInventory.valueOf(vo));
+                    bus.publish(evt);
+                }
+            });
+
             return;
         }
 

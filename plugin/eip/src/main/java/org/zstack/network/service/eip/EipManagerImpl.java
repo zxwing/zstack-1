@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
+import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.MessageSafe;
 import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.db.DatabaseFacade;
@@ -25,6 +26,7 @@ import org.zstack.header.identity.Quota.QuotaOperator;
 import org.zstack.header.identity.Quota.QuotaPair;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
+import org.zstack.header.message.MessageReply;
 import org.zstack.header.message.NeedQuotaCheckMessage;
 import org.zstack.header.network.l3.L3NetworkInventory;
 import org.zstack.header.network.l3.L3NetworkVO;
@@ -367,11 +369,25 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
         final VipInventory vipInventory = VipInventory.valueOf(vipvo);
 
         if (vo.getVmNicUuid() == null) {
-            vipMgr.lockVip(vipInventory, EipConstant.EIP_NETWORK_SERVICE_TYPE);
-            evt.setInventory(EipInventory.valueOf(vo));
-            logger.debug(String.format("successfully created eip[uuid:%s, name:%s] on vip[uuid:%s, ip:%s]",
-                    vo.getUuid(), vo.getName(), vipInventory.getUuid(), vipInventory.getIp()));
-            bus.publish(evt);
+            LockVipForNetworkServiceMsg lmsg = new LockVipForNetworkServiceMsg();
+            lmsg.setNetworkServiceType(EipConstant.EIP_NETWORK_SERVICE_TYPE);
+            lmsg.setVipUuid(vipvo.getUuid());
+            bus.makeTargetServiceIdByResourceUuid(lmsg, EipConstant.SERVICE_ID, vipInventory.getUuid());
+            EipVO finalVo = vo;
+            bus.send(lmsg, new CloudBusCallBack(msg) {
+                @Override
+                public void run(MessageReply reply) {
+                    if (!reply.isSuccess()) {
+                        throw new OperationFailureException(reply.getError());
+                    }
+
+                    evt.setInventory(EipInventory.valueOf(finalVo));
+                    logger.debug(String.format("successfully created eip[uuid:%s, name:%s] on vip[uuid:%s, ip:%s]",
+                            finalVo.getUuid(), finalVo.getName(), vipInventory.getUuid(), vipInventory.getIp()));
+                    bus.publish(evt);
+                }
+            });
+
             return;
         }
 
@@ -389,11 +405,25 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
         q.add(VmInstanceVO_.uuid, SimpleQuery.Op.EQ, nicvo.getVmInstanceUuid());
         VmInstanceState state = q.findValue();
         if (state != VmInstanceState.Running) {
-            vipMgr.lockVip(vipInventory, EipConstant.EIP_NETWORK_SERVICE_TYPE);
-            evt.setInventory(retinv);
-            logger.debug(String.format("successfully created eip[uuid:%s, name:%s] on vip[uuid:%s, ip:%s]",
-                    retinv.getUuid(), retinv.getName(), vipInventory.getUuid(), vipInventory.getIp()));
-            bus.publish(evt);
+            LockVipForNetworkServiceMsg lmsg = new LockVipForNetworkServiceMsg();
+            lmsg.setNetworkServiceType(EipConstant.EIP_NETWORK_SERVICE_TYPE);
+            lmsg.setVipUuid(vipvo.getUuid());
+            bus.makeTargetServiceIdByResourceUuid(lmsg, EipConstant.SERVICE_ID, vipInventory.getUuid());
+            EipVO finalVo = vo;
+            bus.send(lmsg, new CloudBusCallBack(msg) {
+                @Override
+                public void run(MessageReply reply) {
+                    if (!reply.isSuccess()) {
+                        throw new OperationFailureException(reply.getError());
+                    }
+
+                    evt.setInventory(EipInventory.valueOf(finalVo));
+                    logger.debug(String.format("successfully created eip[uuid:%s, name:%s] on vip[uuid:%s, ip:%s]",
+                            finalVo.getUuid(), finalVo.getName(), vipInventory.getUuid(), vipInventory.getIp()));
+                    bus.publish(evt);
+                }
+            });
+
             return;
         }
 
