@@ -92,6 +92,17 @@ public class VipBase implements Vip {
         }
     }
 
+    protected void passToBackend(Message msg) {
+        if (self.getServiceProvider() == null) {
+            bus.dealWithUnknownMessage(msg);
+            return;
+        }
+
+        VipFactory f = vipMgr.getVipFactory(self.getServiceProvider());
+        VipBaseBackend bkd = f.getVip(getSelf());
+        bkd.handleBackendSpecificMessage(msg);
+    }
+
     protected void handleLocalMessage(Message msg) {
         if (msg instanceof VipDeletionMsg) {
             handle((VipDeletionMsg) msg);
@@ -108,7 +119,7 @@ public class VipBase implements Vip {
         } else if (msg instanceof UnlockVipMsg) {
             handle((UnlockVipMsg) msg);
         } else {
-            bus.dealWithUnknownMessage(msg);
+            passToBackend(msg);
         }
     }
 
@@ -493,7 +504,7 @@ public class VipBase implements Vip {
         } else if (msg instanceof APIUpdateVipMsg)  {
             handle((APIUpdateVipMsg) msg);
         } else {
-            bus.dealWithUnknownMessage(msg);
+            passToBackend(msg);
         }
     }
 
