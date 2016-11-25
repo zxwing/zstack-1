@@ -6,12 +6,15 @@ import org.zstack.core.ansible.AnsibleFacade;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.thread.ThreadFacade;
 import org.zstack.header.Component;
 import org.zstack.header.core.Completion;
 import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
+import org.zstack.header.errorcode.OperationFailureException;
+import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.message.MessageReply;
 import org.zstack.header.storage.backup.BackupStorageAskInstallPathMsg;
 import org.zstack.header.storage.backup.BackupStorageAskInstallPathReply;
@@ -30,12 +33,17 @@ import org.zstack.storage.boss.BossCapacityUpdateExtensionPoint;
 import org.zstack.storage.boss.BossConstants;
 import org.zstack.storage.boss.BossSystemTags;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
+import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.Utils;
+import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
+import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 
 /**
@@ -146,6 +154,25 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
         });
     }
 
+    private KVMAgentCommands.VolumeTO convertVolumeToBossIfNeeded(VolumeInventory vol, KVMAgentCommands.VolumeTO to) {
+        if (!vol.getInstallPath().startsWith(KVMAgentCommands.VolumeTO.BOSS)) {
+            return to;
+        }
+
+        KVMBossVolumeTO bto = new KVMBossVolumeTO(to);
+        bto.setDeviceType(KVMAgentCommands.VolumeTO.BOSS);
+        return bto;
+    }
+
+    private KVMAgentCommands.IsoTO convertIsoToBossIfNeeded(final KVMAgentCommands.IsoTO to) {
+        if (to == null || !to.getPath().startsWith(KVMAgentCommands.VolumeTO.CEPH)) {
+            return to;
+        }
+
+        KvmBossIsoTO bto = new KvmBossIsoTO(to);
+
+        return bto;
+    }
 
     @Override
     public boolean start() {
@@ -164,7 +191,23 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
 
     @Override
     public void beforeStartVmOnKvm(KVMHostInventory host, VmInstanceSpec spec, KVMAgentCommands.StartVmCmd cmd) throws KVMException {
+        cmd.setRootVolume(convertVolumeToBossIfNeeded(spec.getDestRootVolume(), cmd.getRootVolume()));
 
+        List<KVMAgentCommands.VolumeTO> dtos = new ArrayList<KVMAgentCommands.VolumeTO>();
+        for (KVMAgentCommands.VolumeTO to : cmd.getDataVolumes()) {
+            VolumeInventory dvol = null;
+            for (VolumeInventory vol : spec.getDestDataVolumes()) {
+                if (vol.getUuid().equals(to.getVolumeUuid())) {
+                    dvol = vol;
+                    break;
+                }
+            }
+
+            dtos.add(convertVolumeToBossIfNeeded(dvol, to));
+        }
+
+        cmd.setDataVolumes(dtos);
+        cmd.setBootIso(convertIsoToBossIfNeeded(cmd.getBootIso()));
     }
 
     @Override
@@ -179,7 +222,7 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
 
     @Override
     public void beforeAttachVolume(KVMHostInventory host, VmInstanceInventory vm, VolumeInventory volume, KVMAgentCommands.AttachDataVolumeCmd cmd) {
-
+        cmd.setVolume(convertVolumeToBossIfNeeded(volume, cmd.getVolume()));
     }
 
     @Override
@@ -194,7 +237,7 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
 
     @Override
     public void beforeDetachVolume(KVMHostInventory host, VmInstanceInventory vm, VolumeInventory volume, KVMAgentCommands.DetachDataVolumeCmd cmd) {
-
+        cmd.setVolume(convertVolumeToBossIfNeeded(volume, cmd.getVolume()));
     }
 
     @Override
@@ -209,17 +252,41 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
 
     @Override
     public String kvmSetupSelfFencerStorageType() {
-        return null;
+        return BossConstants.BOSS_PRIMARY_STORAGE_TYPE;
     }
 
     @Override
     public void kvmSetupSelfFencer(KvmSetupSelfFencerParam param, Completion completion) {
-
+        SetupSelfFencerOnKvmHostMsg msg = new SetupSelfFencerOnKvmHostMsg();
+        msg.setParam(param);
+        bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, param.getPrimaryStorage().getUuid());
+        bus.send(msg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (reply.isSuccess()) {
+                    completion.success();
+                } else {
+                    completion.fail(reply.getError());
+                }
+            }
+        });
     }
 
     @Override
     public void kvmCancelSelfFencer(KvmCancelSelfFencerParam param, Completion completion) {
-
+        CancelSelfFencerOnKvmHostMsg msg = new CancelSelfFencerOnKvmHostMsg();
+        msg.setParam(param);
+        bus.makeTargetServiceIdByResourceUuid(msg, PrimaryStorageConstant.SERVICE_ID, param.getPrimaryStorage().getUuid());
+        bus.send(msg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (reply.isSuccess()) {
+                    completion.success();
+                } else {
+                    completion.fail(reply.getError());
+                }
+            }
+        });
     }
 
     @Override
