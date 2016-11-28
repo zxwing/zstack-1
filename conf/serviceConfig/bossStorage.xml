@@ -8,6 +8,11 @@
     </message>
 
     <message>
+        <name>org.zstack.storage.boss.backup.APIQueryBossBackupStorageMsg</name>
+        <serviceId>query</serviceId>
+    </message>
+
+    <message>
         <name>org.zstack.storage.boss.primary.APIAddBossPrimaryStorageMsg</name>
         <serviceId>storage.primary</serviceId>
     </message>
