@@ -13,7 +13,6 @@ import org.zstack.header.configuration.InstanceOfferingInventory;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.network.l3.L3NetworkInventory;
 import org.zstack.header.tag.TagInventory;
-import org.zstack.tag.SystemTagCreator;
 import org.zstack.test.*;
 import org.zstack.test.deployer.Deployer;
 
@@ -52,9 +51,7 @@ public class TestReservedHostCapacity3 {
     public void test() throws ApiSenderException {
         boolean success = false;
         ClusterInventory cluster = deployer.clusters.values().iterator().next();
-        SystemTagCreator screator = ClusterSystemTags.HOST_RESERVED_CPU_CAPACITY.newSystemTagCreator(cluster.getUuid());
-        screator.setTagByTokens(map(e("capacity", 10*2600L)));
-        TagInventory tag = screator.create();
+        TagInventory tag = ClusterSystemTags.HOST_RESERVED_CPU_CAPACITY.createTag(cluster.getUuid(), map(e("capacity", 10 * 2600L)));
 
         L3NetworkInventory l3 = deployer.l3Networks.get("TestL3Network1");
         InstanceOfferingInventory instanceOffering = deployer.instanceOfferings.get("TestInstanceOffering");
@@ -77,9 +74,7 @@ public class TestReservedHostCapacity3 {
         api.deleteTag(tag.getUuid());
 
         success = false;
-        screator = ClusterSystemTags.HOST_RESERVED_MEMORY_CAPACITY.newSystemTagCreator(cluster.getUuid());
-        screator.setTagByTokens(map(e("capacity", "10G")));
-        tag = screator.create();
+        tag = ClusterSystemTags.HOST_RESERVED_MEMORY_CAPACITY.createTag(cluster.getUuid(), map(e("capacity", "10G")));
         try {
             VmCreator creator = new VmCreator(api);
             creator.timeout = 600;

@@ -8,7 +8,6 @@ import org.zstack.core.componentloader.ComponentLoader;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.header.identity.SessionInventory;
 import org.zstack.header.network.l3.L3NetworkInventory;
-import org.zstack.header.vm.VmInstanceInventory;
 import org.zstack.header.vm.VmNicInventory;
 import org.zstack.network.service.portforwarding.PortForwardingRuleInventory;
 import org.zstack.simulator.kvm.KVMSimulatorConfig;
@@ -22,8 +21,9 @@ import org.zstack.test.deployer.Deployer;
 import java.util.List;
 
 /**
- * test APIGetPortForwardingAttachableVmNicsMsg
- *
+ * @author frank
+ * @condition 1. get attachable vm nics for rule
+ * @test confirm state change success
  */
 public class TestVirtualRouterPortForwarding29 {
     Deployer deployer;
@@ -63,76 +63,29 @@ public class TestVirtualRouterPortForwarding29 {
 
         L3NetworkInventory guestL3 = deployer.l3Networks.get("GuestNetwork");
 
-        VmInstanceInventory vm1 = deployer.vms.get("TestVm");
-        VmInstanceInventory vm2 = deployer.vms.get("TestVm2");
-        VmNicInventory vmNic1 = vm1.getVmNics().get(0);
-        VmNicInventory vmNic2 = vm2.getVmNics().get(0);
-
         List<VmNicInventory> nics = api.getPortForwardingAttachableNics(r1.getUuid());
-        Assert.assertEquals(2, nics.size());
-        VmNicInventory nic1 = nics.get(0);
-        VmNicInventory nic2 = nics.get(1);
-        Assert.assertFalse(nic1.getUuid().equals(nic2.getUuid()));
+        Assert.assertEquals(1, nics.size());
+        VmNicInventory nic = nics.get(0);
+        Assert.assertEquals(guestL3.getUuid(), nic.getL3NetworkUuid());
 
-        nics = api.getPortForwardingAttachableNics(r2.getUuid());
-        Assert.assertEquals(2, nics.size());
-        nic1 = nics.get(0);
-        nic2 = nics.get(1);
-        Assert.assertFalse(nic1.getUuid().equals(nic2.getUuid()));
-
-        nics = api.getPortForwardingAttachableNics(r3.getUuid());
-        Assert.assertEquals(2, nics.size());
-        nic1 = nics.get(0);
-        nic2 = nics.get(1);
-        Assert.assertFalse(nic1.getUuid().equals(nic2.getUuid()));
-
-        api.attachPortForwardingRule(r1.getUuid(), vmNic1.getUuid());
-
-        // rule 2,3 are not attachable to the vm1 because they use other VIPs
         nics = api.getPortForwardingAttachableNics(r2.getUuid());
         Assert.assertEquals(1, nics.size());
-        Assert.assertEquals(vmNic2.getUuid(), nics.get(0).getUuid());
+        nic = nics.get(0);
+        Assert.assertEquals(guestL3.getUuid(), nic.getL3NetworkUuid());
 
         nics = api.getPortForwardingAttachableNics(r3.getUuid());
         Assert.assertEquals(1, nics.size());
-        Assert.assertEquals(vmNic2.getUuid(), nics.get(0).getUuid());
+        nic = nics.get(0);
+        Assert.assertEquals(guestL3.getUuid(), nic.getL3NetworkUuid());
 
-        // rule4 share the same vip with rule1, so it's attachable to the vm1
-        // and only attachable to the vm1 because the vm2 is on another private L3
-        PortForwardingRuleInventory r4 = new PortForwardingRuleInventory();
-        r4.setName("rule4");
-        r4.setVipUuid(r1.getVipUuid());
-        r4.setVipPortStart(200);
-        r4.setVipPortEnd(220);
-        r4.setPrivatePortStart(200);
-        r4.setPrivatePortEnd(220);
-        r4.setProtocolType("TCP");
-        r4 = api.createPortForwardingRuleByFullConfig(r4);
+        api.attachPortForwardingRule(r1.getUuid(), nic.getUuid());
 
-        nics = api.getPortForwardingAttachableNics(r4.getUuid());
+        nics = api.getPortForwardingAttachableNics(r2.getUuid());
+        Assert.assertEquals(0, nics.size());
+
+        nics = api.getPortForwardingAttachableNics(r3.getUuid());
         Assert.assertEquals(1, nics.size());
-        Assert.assertEquals(vmNic1.getUuid(), nics.get(0).getUuid());
-
-        // make the vm1 has no pf rules
-        api.detachPortForwardingRule(r1.getUuid());
-        api.stopVmInstance(vm2.getUuid());
-        api.attachPortForwardingRule(r2.getUuid(), vmNic2.getUuid());
-
-        // rule 5 shares the same vip with rule2, as rule2 has been attached to
-        // the stopped vm2, the rule5 cannot be attached to the vm1 which is on
-        // another guest L3 network
-        PortForwardingRuleInventory r5 = new PortForwardingRuleInventory();
-        r5.setName("rule5");
-        r5.setVipUuid(r2.getVipUuid());
-        r5.setVipPortStart(2000);
-        r5.setVipPortEnd(2200);
-        r5.setPrivatePortStart(2000);
-        r5.setPrivatePortEnd(2200);
-        r5.setProtocolType("TCP");
-        r5 = api.createPortForwardingRuleByFullConfig(r5);
-
-        nics = api.getPortForwardingAttachableNics(r5.getUuid());
-        Assert.assertEquals(1, nics.size());
-        Assert.assertEquals(vmNic2.getUuid(), nics.get(0).getUuid());
+        nic = nics.get(0);
+        Assert.assertEquals(guestL3.getUuid(), nic.getL3NetworkUuid());
     }
 }
