@@ -12,6 +12,6 @@ public class BossGlobalConfig {
     public static final String CATEGORY = "bossStorage";
 
     @GlobalConfigValidation(numberGreaterThan = 0)
-    public static GlobalConfig IMAGE_CACHE_CLEANUP_INTERVAL = new GlobalConfig(CATEGORY, "imageCache.cleanup.interval");
+    public static GlobalConfig IMAGE_CACHE_CLEANUP_INTERVAL_BOSS = new GlobalConfig(CATEGORY, "imageCache.cleanup.interval");
 
 }
