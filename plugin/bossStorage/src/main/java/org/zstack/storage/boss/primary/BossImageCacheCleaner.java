@@ -27,7 +27,7 @@ public class BossImageCacheCleaner extends ImageCacheCleaner implements Manageme
 
     @Override
     protected GlobalConfig cleanupIntervalConfig() {
-        return BossGlobalConfig.IMAGE_CACHE_CLEANUP_INTERVAL_BOSS;
+        return BossGlobalConfig.IMAGE_CACHE_CLEANUP_INTERVAL;
     }
 
     @Transactional

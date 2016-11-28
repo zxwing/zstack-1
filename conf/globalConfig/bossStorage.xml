@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<globalConfig xmlns="http://zstack.org/schema/zstack">
+    <config>
+        <name>imageCache.cleanup.interval</name>
+        <description>interval to cleanup stale image cache on primary storage, in seconds.</description>
+        <category>bossStorage</category>
+        <defaultValue>43200</defaultValue>
+        <type>java.lang.Long</type>
+    </config>
+</globalConfig>
