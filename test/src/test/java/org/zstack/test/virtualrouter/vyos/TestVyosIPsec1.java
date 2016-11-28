@@ -36,7 +36,7 @@ import java.util.List;
 import static java.util.Arrays.asList;
 
 /**
- *  test create ipsec connection
+ * test create ipsec connection
  */
 public class TestVyosIPsec1 {
     Deployer deployer;
