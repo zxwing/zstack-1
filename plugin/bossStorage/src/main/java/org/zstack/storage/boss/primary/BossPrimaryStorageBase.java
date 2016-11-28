@@ -20,8 +20,7 @@ import org.zstack.header.storage.backup.*;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.snapshot.VolumeSnapshotConstant;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
-import org.zstack.header.vm.APICreateVmInstanceMsg;
-import org.zstack.header.vm.VmInstanceSpec;
+import org.zstack.header.vm.*;
 import org.zstack.header.volume.*;
 import org.zstack.kvm.*;
 import org.zstack.storage.backup.sftp.SftpBackupStorageConstant;
@@ -765,7 +764,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
         DeleteImageCacheOnPrimaryStorageReply reply = new DeleteImageCacheOnPrimaryStorageReply();
 
         DeleteImageCacheCmd cmd = new DeleteImageCacheCmd();
-        DeleteSnapshotRsp rsp = new DeleteSnapshotRsp();
+        ShellResponse rsp = new ShellResponse();
         cmd.setClusterName(getSelf().getClusterName());
         cmd.setUuid(self.getUuid());
         cmd.imagePath = msg.getInstallPath().split("@")[0];
@@ -797,13 +796,13 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             deleteImageCacheCompletion.success(rsp);
             return;
         }
-
+        /*
         ShellResult deleteSnapShot = ShellUtils.runAndReturn(String.format("snap_delete -p %s -s %s",cmd.snapShotPoolName,cmd.snapShotName));
         if(deleteSnapShot.getRetCode() != 0){
             deleteImageCacheCompletion.fail(errf.stringToOperationError(String.format("the image cache[%s] is still in used.",cmd.imagePath)));
             return;
         }
-
+        */
         ShellResult deleteImageCache = ShellUtils.runAndReturn(String.format("volume_delete -p %s -v %s",cmd.imagePoolName,cmd.imageName));
 
         if(deleteImageCache.getRetCode() == 0){
@@ -932,19 +931,109 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     public void handle(DeleteSnapshotOnPrimaryStorageMsg msg) {
+        DeleteSnapshotCmd cmd = new DeleteSnapshotCmd();
+        DeleteSnapshotRsp rsp = new DeleteSnapshotRsp();
+
+        cmd.snapshotPath = msg.getSnapshot().getPrimaryStorageInstallPath();
+        cmd.snapShotName = getBossVolumeNameFromPath(cmd.snapshotPath);
+        cmd.snapShotPoolName = getBossPoolNameFromPath(cmd.snapshotPath);
+        final DeleteSnapshotOnPrimaryStorageReply reply = new DeleteSnapshotOnPrimaryStorageReply();
+        ReturnValueCompletion<DeleteSnapshotRsp> deleteSnapshotCompletion = new ReturnValueCompletion<DeleteSnapshotRsp>(msg){
+            @Override
+            public void success(DeleteSnapshotRsp returnValue) {
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        };
+        ShellResult deleteSnapShot = ShellUtils.runAndReturn(String.format("snap_delete -p %s -s %s",cmd.snapShotPoolName,cmd.snapShotName));
+
+        if(deleteSnapShot.getRetCode() == 0){
+            rsp.availableCapacity = getAvailableCapacity(getSelf());
+            rsp.totalCapacity = getTotalCapacity(getSelf());
+            updateCapacity(rsp);
+            deleteSnapshotCompletion.success(rsp);
+        } else {
+            deleteSnapshotCompletion.fail(errf.stringToOperationError(String.format("delete snapshot[%s] failed , errors :%s",
+                    cmd.snapshotPath,deleteSnapShot.getStderr())));
+        }
+
 
     }
 
     public void handle(RevertVolumeFromSnapshotOnPrimaryStorageMsg msg) {
+        final RevertVolumeFromSnapshotOnPrimaryStorageReply reply  = new RevertVolumeFromSnapshotOnPrimaryStorageReply();
+
+        if (msg.getVolume().getVmInstanceUuid() != null) {
+            SimpleQuery<VmInstanceVO> q = dbf.createQuery(VmInstanceVO.class);
+            q.select(VmInstanceVO_.state);
+            q.add(VmInstanceVO_.uuid, SimpleQuery.Op.EQ, msg.getVolume().getVmInstanceUuid());
+            VmInstanceState state = q.findValue();
+            if (state != VmInstanceState.Stopped) {
+                reply.setError(errf.stringToOperationError(
+                        String.format("unable to revert volume[uuid:%s] to snapshot[uuid:%s], the vm[uuid:%s] volume attached to is not in Stopped state, current state is %s",
+                                msg.getVolume().getUuid(), msg.getSnapshot().getUuid(), msg.getVolume().getVmInstanceUuid(), state)
+                ));
+
+                bus.reply(msg, reply);
+                return;
+            }
+        }
+
+        RollbackSnapshotCmd cmd = new RollbackSnapshotCmd();
+        RollbackSnapshotRsp rsp = new RollbackSnapshotRsp();
+        cmd.snapshotPath = msg.getSnapshot().getPrimaryStorageInstallPath();
+        String snapshotName = getBossVolumeNameFromPath(cmd.snapshotPath);
+        String snapshotPoolName = getBossPoolNameFromPath(cmd.snapshotPath);
+        String currentVolumeName = getBossVolumeNameFromPath(msg.getVolume().getInstallPath());
+        String currentVolumePoolName = getBossPoolNameFromPath(msg.getVolume().getInstallPath());
+        ReturnValueCompletion<RollbackSnapshotRsp> rollbackCompletion = new ReturnValueCompletion<RollbackSnapshotRsp>(msg) {
+            @Override
+            public void success(RollbackSnapshotRsp returnValue) {
+                reply.setNewVolumeInstallPath(msg.getVolume().getInstallPath());
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        };
+        if(snapshotName != currentVolumePoolName){
+            rollbackCompletion.fail(errf.stringToOperationError("roll back failed!"));
+            return;
+        }
+
+        ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("volume_delete -p %s -v %s",currentVolumePoolName,currentVolumeName));
+
+        ShellResult rollback = ShellUtils.runAndReturn(String.format("snap_clone -p %s -v %s -s %s",currentVolumePoolName,currentVolumeName,snapshotName));
+
+        if(rollback.getRetCode() == 0){
+            rsp.availableCapacity = getAvailableCapacity(getSelf());
+            rsp.totalCapacity = getTotalCapacity(getSelf());
+            updateCapacity(rsp);
+            rollbackCompletion.success(rsp);
+        } else {
+            rollbackCompletion.fail(errf.stringToOperationError(String.format("rollback volume[%s] failed!,causes[%s]",currentVolumeName,rollback.getStderr())));
+        }
+
 
     }
 
     public void handle(CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg msg) {
 
+
     }
 
     public void handle(BackupVolumeSnapshotFromPrimaryStorageToBackupStorageMsg msg) {
-
+        BackupVolumeSnapshotFromPrimaryStorageToBackupStorageReply reply = new BackupVolumeSnapshotFromPrimaryStorageToBackupStorageReply();
+        reply.setError(errf.stringToOperationError("backing up snapshots to backup storage is a depreciated feature, which will be removed in future version"));
+        bus.reply(msg, reply);
     }
 
     private void createEmptyVolume(final InstantiateVolumeOnPrimaryStorageMsg msg) {
@@ -1416,27 +1505,148 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
     @Override
     protected void handle(DeleteVolumeOnPrimaryStorageMsg msg) {
+        DeleteCmd cmd = new DeleteCmd();
+        DeleteRsp rsp = new DeleteRsp();
+        cmd.installPath = msg.getVolume().getInstallPath();
+        cmd.volumeName = getBossVolumeNameFromPath(cmd.installPath);
+        cmd.poolName = getBossPoolNameFromPath(cmd.installPath);
+
+        final DeleteVolumeOnPrimaryStorageReply reply = new DeleteVolumeOnPrimaryStorageReply();
+
+        ReturnValueCompletion<DeleteRsp> deleteCompletion = new ReturnValueCompletion<DeleteRsp>(msg) {
+            @Override
+            public void fail(ErrorCode err) {
+                reply.setError(err);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void success(DeleteRsp ret) {
+                bus.reply(msg, reply);
+            }
+        };
+
+        ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("volume_delete -p %s -v %s",cmd.poolName,cmd.volumeName));
+
+        if(deleteVolume.getRetCode() == 0){
+            rsp.availableCapacity = getAvailableCapacity(getSelf());
+            rsp.totalCapacity = getTotalCapacity(getSelf());
+            updateCapacity(rsp);
+            deleteCompletion.success(rsp);
+        } else {
+            deleteCompletion.fail(errf.stringToOperationError(String.format("delete volume[%s] failed , errors :%s",
+                    cmd.installPath,deleteVolume.getStderr())));
+        }
 
     }
 
     @Override
     protected void handle(CreateTemplateFromVolumeOnPrimaryStorageMsg msg) {
+        final CreateTemplateFromVolumeOnPrimaryStorageReply reply = new CreateTemplateFromVolumeOnPrimaryStorageReply();
+        BackupStorageMediator mediator = getBackupStorageMediator(msg.getBackupStorageUuid());
 
+        UploadParam param = new UploadParam();
+        param.image = msg.getImageInventory();
+        param.primaryStorageInstallPath = msg.getVolumeInventory().getInstallPath();
+        mediator.param = param;
+        mediator.upload(new ReturnValueCompletion<String>(msg) {
+            @Override
+            public void success(String returnValue) {
+                reply.setTemplateBackupStorageInstallPath(returnValue);
+                reply.setFormat(VolumeConstant.VOLUME_FORMAT_RAW);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     @Override
     protected void handle(DownloadDataVolumeToPrimaryStorageMsg msg) {
+        final DownloadDataVolumeToPrimaryStorageReply reply = new DownloadDataVolumeToPrimaryStorageReply();
 
+        BackupStorageMediator mediator = getBackupStorageMediator(msg.getBackupStorageRef().getBackupStorageUuid());
+        VmInstanceSpec.ImageSpec spec = new VmInstanceSpec.ImageSpec();
+        spec.setInventory(msg.getImage());
+        spec.setSelectedBackupStorage(msg.getBackupStorageRef());
+        DownloadParam param = new DownloadParam();
+        param.image = spec;
+        param.installPath = makeDataVolumeInstallPath(msg.getVolumeUuid());
+        mediator.param = param;
+        mediator.download(new ReturnValueCompletion<String>(msg) {
+            @Override
+            public void success(String returnValue) {
+                reply.setInstallPath(returnValue);
+                reply.setFormat(VolumeConstant.VOLUME_FORMAT_RAW);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     @Override
     protected void handle(DeleteBitsOnPrimaryStorageMsg msg) {
+        DeleteCmd cmd = new DeleteCmd();
+        DeleteRsp rsp = new DeleteRsp();
+        cmd.installPath = msg.getInstallPath();
+        cmd.volumeName = getBossVolumeNameFromPath(cmd.installPath);
+        cmd.poolName = getBossPoolNameFromPath(cmd.installPath);
 
+        final DeleteVolumeOnPrimaryStorageReply reply = new DeleteVolumeOnPrimaryStorageReply();
+
+        ReturnValueCompletion<DeleteRsp> deleteCompletion = new ReturnValueCompletion<DeleteRsp>(msg) {
+            @Override
+            public void fail(ErrorCode err) {
+                reply.setError(err);
+                bus.reply(msg, reply);
+            }
+
+            @Override
+            public void success(DeleteRsp ret) {
+                bus.reply(msg, reply);
+            }
+        };
+
+        ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("volume_delete -p %s -v %s",cmd.poolName,cmd.volumeName));
+
+        if(deleteVolume.getRetCode() == 0){
+            rsp.availableCapacity = getAvailableCapacity(getSelf());
+            rsp.totalCapacity = getTotalCapacity(getSelf());
+            updateCapacity(rsp);
+            deleteCompletion.success(rsp);
+        } else {
+            deleteCompletion.fail(errf.stringToOperationError(String.format("delete volume[%s] failed , errors :%s",
+                    cmd.installPath,deleteVolume.getStderr())));
+        }
     }
 
     @Override
     protected void handle(DownloadIsoToPrimaryStorageMsg msg) {
+        final DownloadIsoToPrimaryStorageReply reply = new DownloadIsoToPrimaryStorageReply();
+        DownloadToCache downloadToCache = new DownloadToCache();
+        downloadToCache.image = msg.getIsoSpec();
+        downloadToCache.download(new ReturnValueCompletion<ImageCacheVO>(msg) {
+            @Override
+            public void success(ImageCacheVO returnValue) {
+                reply.setInstallPath(returnValue.getInstallUrl());
+                bus.reply(msg, reply);
+            }
 
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        });
     }
 
     @Override
@@ -1612,6 +1822,10 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
     @Override
     protected void syncPhysicalCapacity(ReturnValueCompletion<PhysicalCapacityUsage> completion) {
-
+        PrimaryStorageCapacityVO cap = dbf.findByUuid(self.getUuid(), PrimaryStorageCapacityVO.class);
+        PhysicalCapacityUsage usage = new PhysicalCapacityUsage();
+        usage.availablePhysicalSize = cap.getAvailablePhysicalCapacity();
+        usage.totalPhysicalSize =  cap.getTotalPhysicalCapacity();
+        completion.success(usage);
     }
 }

@@ -11,4 +11,7 @@ import org.zstack.core.config.GlobalConfigValidation;
 public class BossGlobalConfig {
     public static final String CATEGORY = "bossStorage";
 
+    @GlobalConfigValidation(numberGreaterThan = 0)
+    public static GlobalConfig IMAGE_CACHE_CLEANUP_INTERVAL = new GlobalConfig(CATEGORY, "imageCache.cleanup.interval");
+
 }
