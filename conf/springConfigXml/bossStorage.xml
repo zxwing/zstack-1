@@ -38,4 +38,16 @@
             <zstack:extension interface="org.zstack.header.apimediator.ApiMessageInterceptor" />
         </zstack:plugin>
     </bean>
+    <bean id="BossKvmExtension" class="org.zstack.storage.boss.primary.BossKvmExtension">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.kvm.KVMHostConnectExtensionPoint" />
+            <zstack:extension interface="org.zstack.header.host.HostConnectionReestablishExtensionPoint" />
+        </zstack:plugin>
+    </bean>
+
+    <bean id="BossImageCacheCleaner" class="org.zstack.storage.boss.primary.BossImageCacheCleaner">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.header.managementnode.ManagementNodeReadyExtensionPoint" />
+        </zstack:plugin>
+    </bean>
 </beans>
