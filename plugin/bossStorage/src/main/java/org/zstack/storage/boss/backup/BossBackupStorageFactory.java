@@ -8,6 +8,7 @@ import org.zstack.core.ansible.AnsibleFacade;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.header.Component;
+import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.storage.backup.*;
 import org.zstack.storage.boss.BossCapacityUpdateExtensionPoint;
 import org.zstack.storage.boss.BossConstants;
@@ -43,7 +44,9 @@ public class BossBackupStorageFactory implements BackupStorageFactory, BossCapac
                         " and b.uuid = :buuid";
                 TypedQuery<String> q = dbf.getEntityManager().createQuery(sql, String.class);
                 q.setParameter("buuid", backupStorageUuid);
-                errf.stringToOperationError("for test 11111 " + q.getSingleResult());
+                if(backupStorageUuid != null) {
+                    throw new OperationFailureException(errf.stringToOperationError("for test 11111 " + q.getSingleResult()));
+                }
                 return q.getResultList();
             }
         });
