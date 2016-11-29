@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.Platform;
 import org.zstack.core.ansible.AnsibleFacade;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.header.Component;
 import org.zstack.header.storage.backup.*;
 import org.zstack.storage.boss.BossCapacityUpdateExtensionPoint;
@@ -24,6 +25,8 @@ public class BossBackupStorageFactory implements BackupStorageFactory, BossCapac
     private DatabaseFacade dbf;
     @Autowired
     private AnsibleFacade asf;
+    @Autowired
+    private ErrorFacade errf;
 
     public static final BackupStorageType type = new BackupStorageType(BossConstants.BOSS_BACKUP_STORAGE_TYPE);
 
@@ -40,6 +43,7 @@ public class BossBackupStorageFactory implements BackupStorageFactory, BossCapac
                         " and b.uuid = :buuid";
                 TypedQuery<String> q = dbf.getEntityManager().createQuery(sql, String.class);
                 q.setParameter("buuid", backupStorageUuid);
+                errf.stringToOperationError("for test 11111 " + q.getSingleResult());
                 return q.getResultList();
             }
         });
