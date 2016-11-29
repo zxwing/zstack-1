@@ -13,6 +13,8 @@ import org.zstack.header.storage.backup.*;
 import org.zstack.storage.boss.BossCapacityUpdateExtensionPoint;
 import org.zstack.storage.boss.BossConstants;
 import org.zstack.storage.boss.BossSystemTags;
+import org.zstack.utils.Utils;
+import org.zstack.utils.logging.CLogger;
 
 import javax.persistence.LockModeType;
 import javax.persistence.TypedQuery;
@@ -22,6 +24,8 @@ import java.util.List;
  * Created by XXPS-PC1 on 2016/11/9.
  */
 public class BossBackupStorageFactory implements BackupStorageFactory, BossCapacityUpdateExtensionPoint, Component {
+
+    private static final CLogger logger = Utils.getLogger(BossBackupStorageFactory.class);
     @Autowired
     private DatabaseFacade dbf;
     @Autowired
@@ -44,6 +48,7 @@ public class BossBackupStorageFactory implements BackupStorageFactory, BossCapac
                         " and b.uuid = :buuid";
                 TypedQuery<String> q = dbf.getEntityManager().createQuery(sql, String.class);
                 q.setParameter("buuid", backupStorageUuid);
+                logger.info(String.format("the size of the list is %s",q.getResultList().size()));
                 return q.getResultList();
             }
         });
