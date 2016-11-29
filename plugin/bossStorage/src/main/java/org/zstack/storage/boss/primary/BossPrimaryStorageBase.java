@@ -1253,7 +1253,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                                 String[] snaplist = ShellUtils.runAndReturn(
                                         String.format("snap_list -p %s | grep %s | awk '{print $7}'", cmd.snapShotPoolName, volumeName)).getStdout().split("\n");
                                 for (String s : snaplist) {
-                                    if (cmd.snapShotName == s) {
+                                    if (cmd.snapShotName.equals(s)) {
                                         doCreate = false;
                                     }
                                 }
@@ -1355,7 +1355,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             thdf.chainSubmit(new ChainTask(completion) {
                 @Override
                 public String getSyncSignature() {
-                    return String.format("ceph-p-%s-download-image-%s", self.getUuid(), image.getInventory().getUuid());
+                    return String.format("boss-p-%s-download-image-%s", self.getUuid(), image.getInventory().getUuid());
                 }
 
                 @Override
@@ -1447,7 +1447,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                             }
                         };
 
-                        if(cmd.dstPoolName == cmd.srcPoolName){
+                        if(cmd.dstPoolName.equals(cmd.srcPoolName)){
                             clonePoolName = cmd.dstPoolName;
                         } else {
                             cloneCompletion.fail(errf.stringToOperationError("can't clone between different pools!"));
