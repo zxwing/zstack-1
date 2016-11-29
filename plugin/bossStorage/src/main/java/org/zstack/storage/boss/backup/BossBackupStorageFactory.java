@@ -44,9 +44,6 @@ public class BossBackupStorageFactory implements BackupStorageFactory, BossCapac
                         " and b.uuid = :buuid";
                 TypedQuery<String> q = dbf.getEntityManager().createQuery(sql, String.class);
                 q.setParameter("buuid", backupStorageUuid);
-                if(backupStorageUuid != null) {
-                    throw new OperationFailureException(errf.stringToOperationError("for test 11111 " + q.getSingleResult()));
-                }
                 return q.getResultList();
             }
         });
