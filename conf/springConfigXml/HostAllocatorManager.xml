@@ -40,6 +40,10 @@
         <value>Ceph</value>
     </util:list>
 
+    <util:list id="BossMetric">
+        <value>Boss</value>
+    </util:list>
+
     <util:list id="FusionstorMetric">
         <value>Fusionstor</value>
     </util:list>
@@ -52,6 +56,7 @@
         <entry key="SftpBackupStorage" value-ref="SftpBackupStorageMetric"/>
         <entry key="Fusionstor" value-ref="FusionstorMetric"/>
         <entry key="Ceph" value-ref="CephMetric"/>
+        <entry key="Boss" value-ref="BossMetric"/>
         <entry key="ImageStoreBackupStorage" value-ref="ImageStoreBackupStorageMetric"/>
         <entry key="SimulatorBackupStorage" value-ref="SimulatorBackupStorageMetric"/>
         <entry key="VCenter" value-ref="VCenterMetric"/>
