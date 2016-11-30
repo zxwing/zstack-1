@@ -50,6 +50,7 @@ import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
 import java.util.*;
 
+import static org.zstack.utils.CollectionDSL.e;
 import static org.zstack.utils.CollectionDSL.list;
 
 /**
@@ -300,8 +301,9 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
         VipInventory vipInventory = VipInventory.valueOf(vipvo);
 
         if (vo.getVmNicUuid() == null) {
-            UnlockVipMsg umsg = new UnlockVipMsg();
+            ModifyVipAttributesMsg umsg = new ModifyVipAttributesMsg();
             umsg.setVipUuid(vipInventory.getUuid());
+            umsg.setUseFor(null);
             bus.makeTargetServiceIdByResourceUuid(umsg, VipConstant.SERVICE_ID, vipInventory.getUuid());
             bus.send(umsg, new CloudBusCallBack(msg) {
                 @Override
@@ -382,21 +384,19 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
         final VipInventory vipInventory = VipInventory.valueOf(vipvo);
 
         if (vo.getVmNicUuid() == null) {
-            LockVipForNetworkServiceMsg lmsg = new LockVipForNetworkServiceMsg();
-            lmsg.setNetworkServiceType(EipConstant.EIP_NETWORK_SERVICE_TYPE);
-            lmsg.setVipUuid(vipvo.getUuid());
-            bus.makeTargetServiceIdByResourceUuid(lmsg, EipConstant.SERVICE_ID, vipInventory.getUuid());
             EipVO finalVo = vo;
-            bus.send(lmsg, new CloudBusCallBack(msg) {
+            lockVipToEip(vipvo.getUuid(), new Completion(msg) {
                 @Override
-                public void run(MessageReply reply) {
-                    if (!reply.isSuccess()) {
-                        throw new OperationFailureException(reply.getError());
-                    }
-
+                public void success() {
                     evt.setInventory(EipInventory.valueOf(finalVo));
                     logger.debug(String.format("successfully created eip[uuid:%s, name:%s] on vip[uuid:%s, ip:%s]",
                             finalVo.getUuid(), finalVo.getName(), vipInventory.getUuid(), vipInventory.getIp()));
+                    bus.publish(evt);
+                }
+
+                @Override
+                public void fail(ErrorCode errorCode) {
+                    evt.setErrorCode(errorCode);
                     bus.publish(evt);
                 }
             });
@@ -418,21 +418,19 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
         q.add(VmInstanceVO_.uuid, SimpleQuery.Op.EQ, nicvo.getVmInstanceUuid());
         VmInstanceState state = q.findValue();
         if (state != VmInstanceState.Running) {
-            LockVipForNetworkServiceMsg lmsg = new LockVipForNetworkServiceMsg();
-            lmsg.setNetworkServiceType(EipConstant.EIP_NETWORK_SERVICE_TYPE);
-            lmsg.setVipUuid(vipvo.getUuid());
-            bus.makeTargetServiceIdByResourceUuid(lmsg, EipConstant.SERVICE_ID, vipInventory.getUuid());
             EipVO finalVo = vo;
-            bus.send(lmsg, new CloudBusCallBack(msg) {
+            lockVipToEip(vipvo.getUuid(), new Completion(msg) {
                 @Override
-                public void run(MessageReply reply) {
-                    if (!reply.isSuccess()) {
-                        throw new OperationFailureException(reply.getError());
-                    }
-
+                public void success() {
                     evt.setInventory(EipInventory.valueOf(finalVo));
                     logger.debug(String.format("successfully created eip[uuid:%s, name:%s] on vip[uuid:%s, ip:%s]",
                             finalVo.getUuid(), finalVo.getName(), vipInventory.getUuid(), vipInventory.getIp()));
+                    bus.publish(evt);
+                }
+
+                @Override
+                public void fail(ErrorCode errorCode) {
+                    evt.setErrorCode(errorCode);
                     bus.publish(evt);
                 }
             });
@@ -473,6 +471,24 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
                 bus.publish(evt);
             }
         }).start();
+    }
+
+    private void lockVipToEip(String vipUuid, Completion completion) {
+        ModifyVipAttributesMsg mmsg = new ModifyVipAttributesMsg();
+        mmsg.setUseFor(EipConstant.EIP_NETWORK_SERVICE_TYPE);
+        mmsg.setVipUuid(vipUuid);
+        bus.makeTargetServiceIdByResourceUuid(mmsg, EipConstant.SERVICE_ID, vipUuid);
+
+        bus.send(mmsg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (!reply.isSuccess()) {
+                    throw new OperationFailureException(reply.getError());
+                }
+
+                completion.success();
+            }
+        });
     }
 
     @Override

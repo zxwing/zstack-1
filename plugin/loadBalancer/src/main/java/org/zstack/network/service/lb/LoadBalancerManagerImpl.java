@@ -8,7 +8,6 @@ import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.MessageSafe;
 import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.db.DatabaseFacade;
-import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.workflow.FlowChainBuilder;
 import org.zstack.core.workflow.ShareFlow;
@@ -121,9 +120,9 @@ public class LoadBalancerManagerImpl extends AbstractService implements LoadBala
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
-                        LockVipForNetworkServiceMsg msg = new LockVipForNetworkServiceMsg();
+                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
                         msg.setVipUuid(vip.getUuid());
-                        msg.setNetworkServiceType(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
+                        msg.setUseFor(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
                         bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
                         bus.send(msg, new CloudBusCallBack(trigger) {
                             @Override
@@ -145,8 +144,9 @@ public class LoadBalancerManagerImpl extends AbstractService implements LoadBala
                             return;
                         }
 
-                        UnlockVipMsg msg = new UnlockVipMsg();
+                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
                         msg.setVipUuid(vip.getUuid());
+                        msg.setUseFor(null);
                         bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
                         bus.send(msg, new CloudBusCallBack(trigger) {
                             @Override

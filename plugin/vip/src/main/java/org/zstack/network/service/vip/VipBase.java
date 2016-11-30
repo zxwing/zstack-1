@@ -106,47 +106,66 @@ public class VipBase implements Vip {
     protected void handleLocalMessage(Message msg) {
         if (msg instanceof VipDeletionMsg) {
             handle((VipDeletionMsg) msg);
-        } else if (msg instanceof AcquireAndLockVipMsg) {
-            handle((AcquireAndLockVipMsg) msg);
         } else if (msg instanceof AcquireVipMsg) {
             handle((AcquireVipMsg) msg);
-        } else if (msg instanceof ReleaseAndUnlockVipMsg) {
-            handle((ReleaseAndUnlockVipMsg) msg);
         } else if (msg instanceof ReleaseVipMsg) {
             handle((ReleaseVipMsg) msg);
-        } else if (msg instanceof LockVipForNetworkServiceMsg) {
-            handle((LockVipForNetworkServiceMsg) msg);
-        } else if (msg instanceof UnlockVipMsg) {
-            handle((UnlockVipMsg) msg);
+        } else if (msg instanceof ModifyVipAttributesMsg) {
+            handle((ModifyVipAttributesMsg) msg);
         } else {
             passToBackend(msg);
         }
     }
 
-    private void handle(UnlockVipMsg msg) {
-        thdf.chainSubmit(new ChainTask(msg) {
-            @Override
-            public String getSyncSignature() {
-                return getThreadSyncSignature();
-            }
-
-            @Override
-            public void run(SyncTaskChain chain) {
-                unlock();
-
-                UnlockVipReply reply = new UnlockVipReply();
-                bus.reply(msg, reply);
-                chain.next();
-            }
-
-            @Override
-            public String getName() {
-                return "unlock-vip";
-            }
-        });
+    private interface Recover {
+        void recover();
     }
 
-    private void handle(LockVipForNetworkServiceMsg msg) {
+    protected Recover modifyAttributes(ModifyVipAttributesStruct s) {
+        VipVO origin = dbf.findByUuid(self.getUuid(), VipVO.class);
+
+        if (s.isServiceProvider()) {
+            if (self.getServiceProvider() != null && s.getServiceProvider() != null
+                    && !s.getServiceProvider().equals(self.getServiceProvider())) {
+                throw new OperationFailureException(errf.stringToOperationError(
+                        String.format("service provider of the vip[uuid:%s, name:%s, ip: %s] has been set to %s",
+                                self.getUuid(), self.getName(), self.getIp(), self.getServiceProvider())
+                ));
+            }
+
+            self.setServiceProvider(s.getServiceProvider());
+        }
+
+        if (s.isUserFor()) {
+            if (self.getUseFor() != null && s.getUseFor() != null
+                    && !self.getUseFor().equals(s.getUseFor())) {
+                throw new OperationFailureException(errf.stringToOperationError(
+                        String.format("the field 'useFor' of the vip[uuid:%s, name:%s, ip: %s] has been set to %s",
+                                self.getUuid(), self.getName(), self.getIp(), self.getUseFor())
+                ));
+            }
+
+            self.setUseFor(s.getUseFor());
+        }
+
+        if (s.isPeerL3NetworkUuid()) {
+            if (self.getPeerL3NetworkUuid() != null && s.getPeerL3NetworkUuid() != null
+                    && !self.getPeerL3NetworkUuid().equals(s.getPeerL3NetworkUuid())) {
+                throw new OperationFailureException(errf.stringToOperationError(
+                        String.format("the field 'peerL3NetworkUuid' of the vip[uuid:%s, name:%s, ip: %s] has been set to %s",
+                                self.getUuid(), self.getName(), self.getIp(), self.getPeerL3NetworkUuid())
+                ));
+            }
+
+            self.setPeerL3NetworkUuid(s.getPeerL3NetworkUuid());
+        }
+
+        dbf.update(self);
+
+        return () -> dbf.update(origin);
+    }
+
+    private void handle(ModifyVipAttributesMsg msg) {
         thdf.chainSubmit(new ChainTask(msg) {
             @Override
             public String getSyncSignature() {
@@ -155,16 +174,16 @@ public class VipBase implements Vip {
 
             @Override
             public void run(SyncTaskChain chain) {
-                lock(msg.getNetworkServiceType());
+                refresh();
 
-                LockVipForNetworkServiceReply reply = new LockVipForNetworkServiceReply();
-                bus.reply(msg, reply);
+                modifyAttributes(msg.getStruct());
+                bus.reply(msg, new ModifyVipAttributesReply());
                 chain.next();
             }
 
             @Override
             public String getName() {
-                return "lock-vip";
+                return "modify-vip-attributes";
             }
         });
     }
@@ -180,7 +199,7 @@ public class VipBase implements Vip {
 
             @Override
             public void run(SyncTaskChain chain) {
-                releaseVip(msg.toReleaseAndUnlockVipStruct(), new Completion(msg, chain) {
+                releaseVip(msg.getStruct(), new Completion(msg, chain) {
                     @Override
                     public void success() {
                         bus.reply(msg, reply);
@@ -203,85 +222,26 @@ public class VipBase implements Vip {
         });
     }
 
-    protected void handle(ReleaseAndUnlockVipMsg msg) {
-        ReleaseAndUnlockVipReply reply = new ReleaseAndUnlockVipReply();
-
-        thdf.chainSubmit(new ChainTask(msg) {
-            @Override
-            public String getSyncSignature() {
-                return getThreadSyncSignature();
-            }
-
-            @Override
-            public void run(SyncTaskChain chain) {
-                releaseAndUnlock(msg.toReleaseAndUnlockVipStruct(), new Completion(msg, chain) {
-                    @Override
-                    public void success() {
-                        bus.reply(msg, reply);
-                        chain.next();
-                    }
-
-                    @Override
-                    public void fail(ErrorCode errorCode) {
-                        reply.setError(errorCode);
-                        bus.reply(msg, reply);
-                        chain.next();
-                    }
-                });
-            }
-
-            @Override
-            public String getName() {
-                return "release-and-unlock-vip";
-            }
-        });
-    }
-
-    protected void unlock() {
-        self.setUseFor(null);
-        self = dbf.updateAndRefresh(self);
-        logger.debug(String.format("successfully unlocked vip[uuid:%s, name:%s, ip:%s]",
-                self.getUuid(), self.getName(), self.getIp()));
-    }
-
-    protected void releaseAndUnlock(ReleaseVipStruct s, Completion completion) {
-        releaseVip(s, new Completion(completion) {
-            @Override
-            public void success() {
-                unlock();
-                completion.success();
-            }
-
-            @Override
-            public void fail(ErrorCode errorCode) {
-                completion.fail(errorCode);
-            }
-        });
-    }
-
-    protected void releaseVip(ReleaseVipStruct s, Completion completion) {
+    protected void releaseVip(ModifyVipAttributesStruct s, Completion completion) {
         if (self.getServiceProvider() == null) {
             // the vip has been released by other descendant network service
             logger.debug(String.format("the serviceProvider field is null, the vip[uuid:%s, name:%s, ip:%s] has been released" +
                     " by other service", self.getUuid(), self.getName(), self.getIp()));
+            modifyAttributes(s);
             completion.success();
             return;
         }
 
         VipFactory f = vipMgr.getVipFactory(self.getServiceProvider());
         VipBaseBackend vip = f.getVip(getSelf());
-        vip.releaseVipOnBackend(s, new Completion(completion) {
+        vip.releaseVipOnBackend(new Completion(completion) {
             @Override
             public void success() {
                 logger.debug(String.format("successfully released vip[uuid:%s, name:%s, ip:%s] on service[%s]",
                         self.getUuid(), self.getName(), self.getIp(), self.getServiceProvider()));
 
-                self = dbf.reload(self);
-                self.setServiceProvider(null);
-                if (s.isReleasePeerL3Network()) {
-                    self.setPeerL3NetworkUuid(null);
-                }
-                self = dbf.updateAndRefresh(self);
+                modifyAttributes(s);
+
                 completion.success();
             }
 
@@ -306,7 +266,7 @@ public class VipBase implements Vip {
             @Override
             public void run(SyncTaskChain chain) {
                 refresh();
-                acquireVip(msg.toAcquireVipStruct(), new Completion(msg, chain) {
+                acquireVip(msg.getStruct(), new Completion(msg, chain) {
                     @Override
                     public void success() {
                         bus.reply(msg, reply);
@@ -329,100 +289,25 @@ public class VipBase implements Vip {
         });
     }
 
-    protected void handle(AcquireAndLockVipMsg msg) {
-        AcquireAndLockVipReply reply = new AcquireAndLockVipReply();
+    protected void acquireVip(ModifyVipAttributesStruct s, Completion completion) {
+        Recover recover = modifyAttributes(s);
 
-        thdf.chainSubmit(new ChainTask(msg) {
-            @Override
-            public String getSyncSignature() {
-                return getThreadSyncSignature();
-            }
-
-            @Override
-            public void run(SyncTaskChain chain) {
-                acquireAndLock(msg.toAcquireAndLockVipStruct(), new Completion(msg, chain) {
-                    @Override
-                    public void success() {
-                        self = dbf.reload(self);
-                        reply.setVip(getSelfInventory());
-                        bus.reply(msg, reply);
-                        chain.next();
-                    }
-
-                    @Override
-                    public void fail(ErrorCode errorCode) {
-                        reply.setError(errorCode);
-                        bus.reply(msg, reply);
-                        chain.next();
-                    }
-                });
-            }
-
-            @Override
-            public String getName() {
-                return null;
-            }
-        });
-    }
-
-    protected void lock(String networkServiceType) {
-        refresh();
-
-        if ((self.getUseFor() != null && !self.getUseFor().equals(networkServiceType))) {
-            throw new OperationFailureException(
-                    errf.stringToOperationError(String.format("vip[uuid:%s, name:%s, ip:%s] has been occupied by usage[%s]",
-                            self.getUuid(), self.getName(), self.getIp(), self.getUseFor()))
-            );
-        }
-
-        if (networkServiceType.equals(self.getUseFor())) {
-            return;
-        }
-
-        self.setUseFor(networkServiceType);
-        self = dbf.updateAndRefresh(self);
-
-        logger.debug(String.format("successfully locked vip[uuid:%s, name:%s, ip:%s] for %s",
-                self.getUuid(), self.getName(), self.getIp(), networkServiceType));
-    }
-
-    protected void saveVipInfo(String vipUuid, String networkServiceType, String peerL3NetworkUuid) {
-        VipVO vo = dbf.findByUuid(vipUuid, VipVO.class);
-        vo.setServiceProvider(networkServiceType);
-        if (vo.getPeerL3NetworkUuid() == null) {
-            vo.setPeerL3NetworkUuid(peerL3NetworkUuid);
-        }
-        dbf.update(vo);
-    }
-
-    protected void acquireVip(AcquireVipStruct s, Completion completion) {
-        if (self.getPeerL3NetworkUuid() != null && !self.getPeerL3NetworkUuid().equals(s.getPeerL3Network().getUuid())) {
-            throw new OperationFailureException(errf.stringToOperationError(String.format("vip[uuid:%s, name:%s] has been serving l3Network[uuid:%s], can't serve l3Network[name:%s, uuid:%s]",
-                    self.getUuid(), self.getName(), self.getPeerL3NetworkUuid(), s.getPeerL3Network().getName(), s.getPeerL3Network().getUuid())));
-        }
-
-        VipFactory f = vipMgr.getVipFactory(s.getNetworkServiceProviderType());
+        VipFactory f = vipMgr.getVipFactory(s.getServiceProvider());
         VipBaseBackend vip = f.getVip(getSelf());
-        vip.acquireVipOnBackend(s, new Completion(completion) {
+        vip.acquireVipOnBackend(new Completion(completion) {
             @Override
             public void success() {
-                saveVipInfo(self.getUuid(), s.getNetworkServiceProviderType(), s.getPeerL3Network().getUuid());
-
                 logger.debug(String.format("successfully acquired vip[uuid:%s, name:%s, ip:%s] on service[%s]",
-                        self.getUuid(), self.getName(), self.getIp(), s.getNetworkServiceProviderType()));
+                        self.getUuid(), self.getName(), self.getIp(), s.getServiceProvider()));
                 completion.success();
             }
 
             @Override
             public void fail(ErrorCode errorCode) {
+                recover.recover();
                 completion.fail(errorCode);
             }
         });
-    }
-
-    protected void acquireAndLock(AcquireAndLockVipStruct s, Completion completion) {
-        lock(s.getNetworkServiceType());
-        acquireVip(s, completion);
     }
 
     protected void handle(VipDeletionMsg msg) {

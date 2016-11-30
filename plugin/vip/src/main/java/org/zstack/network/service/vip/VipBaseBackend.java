@@ -11,7 +11,7 @@ public abstract class VipBaseBackend extends VipBase {
         super(self);
     }
 
-    protected abstract void releaseVipOnBackend(ReleaseVipStruct s, Completion completion);
-    protected abstract void acquireVipOnBackend(AcquireVipStruct s, Completion completion);
+    protected abstract void releaseVipOnBackend(Completion completion);
+    protected abstract void acquireVipOnBackend(Completion completion);
     protected abstract void handleBackendSpecificMessage(Message msg);
 }

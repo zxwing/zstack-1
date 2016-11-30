@@ -42,7 +42,7 @@ public class VirtualRouterVipBaseBackend extends VipBaseBackend {
     }
 
     @Override
-    protected void releaseVipOnBackend(ReleaseVipStruct s, Completion completion) {
+    protected void releaseVipOnBackend(Completion completion) {
         final VirtualRouterVipVO vrvip = dbf.findByUuid(self.getUuid(), VirtualRouterVipVO.class);
         if (vrvip == null) {
             completion.success();
@@ -131,7 +131,7 @@ public class VirtualRouterVipBaseBackend extends VipBaseBackend {
     }
 
     @Override
-    protected void acquireVipOnBackend(AcquireVipStruct s, Completion completion) {
+    protected void acquireVipOnBackend(Completion completion) {
         VirtualRouterVipVO vipvo = dbf.findByUuid(self.getUuid(), VirtualRouterVipVO.class);
 
         if (vipvo != null) {

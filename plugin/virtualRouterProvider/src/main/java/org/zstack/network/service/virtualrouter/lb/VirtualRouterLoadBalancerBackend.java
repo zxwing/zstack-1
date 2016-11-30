@@ -402,9 +402,9 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
-                        LockVipForNetworkServiceMsg msg = new LockVipForNetworkServiceMsg();
+                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
                         msg.setVipUuid(vip.getUuid());
-                        msg.setNetworkServiceType(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
+                        msg.setUseFor(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
                         bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
                         bus.send(msg, new CloudBusCallBack(trigger) {
                             @Override
@@ -426,8 +426,9 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
                             return;
                         }
 
-                        UnlockVipMsg msg = new UnlockVipMsg();
+                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
                         msg.setVipUuid(vip.getUuid());
+                        msg.setUseFor(null);
                         bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
                         bus.send(msg, new CloudBusCallBack(trigger) {
                             @Override
@@ -743,8 +744,8 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
                     @Override
                     public void run(final FlowTrigger trigger, Map data) {
                         VipInventory vip = VipInventory.valueOf(dbf.findByUuid(struct.getLb().getVipUuid(), VipVO.class));
-                        ReleaseAndUnlockVipMsg msg = new ReleaseAndUnlockVipMsg();
-                        msg.setReleasePeerL3Network(true);
+                        ReleaseVipMsg msg = new ReleaseVipMsg();
+                        msg.setPeerL3NetworkUuid(null);
                         msg.setVipUuid(vip.getUuid());
                         bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
                         bus.send(msg, new CloudBusCallBack(trigger) {

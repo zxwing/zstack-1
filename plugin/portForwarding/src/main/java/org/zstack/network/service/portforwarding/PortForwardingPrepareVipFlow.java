@@ -37,12 +37,12 @@ public class PortForwardingPrepareVipFlow implements Flow {
         final L3NetworkInventory peerL3 = (L3NetworkInventory) data.get(VipConstant.Params.GUEST_L3NETWORK_VIP_FOR.toString());
         boolean needLockVip = data.containsKey(Params.NEED_LOCK_VIP.toString());
 
-        AcquireVipMsg msg = needLockVip ? new AcquireAndLockVipMsg() : new AcquireVipMsg();
-        msg.setPeerL3Network(peerL3);
-        msg.setNetworkServiceProviderType(serviceProviderType);
+        AcquireVipMsg msg = new AcquireVipMsg();
+        msg.setPeerL3NetworkUuid(peerL3.getUuid());
+        msg.setServiceProvider(serviceProviderType);
         msg.setVipUuid(vip.getUuid());
-        if (msg instanceof AcquireAndLockVipMsg) {
-            ((AcquireAndLockVipMsg)msg).setNetworkServiceType(PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE);
+        if (needLockVip) {
+            msg.setUseFor(PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE);
         }
         bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
         bus.send(msg, new CloudBusCallBack(trigger) {
@@ -66,9 +66,12 @@ public class PortForwardingPrepareVipFlow implements Flow {
         }
 
         boolean needLockVip = data.containsKey(Params.NEED_LOCK_VIP.toString());
-        ReleaseVipMsg msg = needLockVip ? new ReleaseAndUnlockVipMsg() : new ReleaseVipMsg();
+        ReleaseVipMsg msg = new ReleaseVipMsg();
         msg.setVipUuid(vip.getUuid());
-        msg.setReleasePeerL3Network(true);
+        msg.setPeerL3NetworkUuid(null);
+        if (needLockVip) {
+            msg.setUseFor(null);
+        }
         bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
         bus.send(msg, new CloudBusCallBack(trigger) {
             @Override

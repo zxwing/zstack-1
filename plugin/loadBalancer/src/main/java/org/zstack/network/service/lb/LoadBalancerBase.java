@@ -569,8 +569,9 @@ public class LoadBalancerBase {
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
                         VipInventory vip = VipInventory.valueOf(dbf.findByUuid(self.getVipUuid(), VipVO.class));
-                        UnlockVipMsg msg = new UnlockVipMsg();
+                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
                         msg.setVipUuid(vip.getUuid());
+                        msg.setUseFor(null);
                         bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
                         bus.send(msg, new CloudBusCallBack(trigger) {
                             @Override
