@@ -24,19 +24,18 @@ public class ReleaseAndUnlockVipFlow extends NoRollbackFlow {
 
     @Override
     public void run(final FlowTrigger trigger, Map data) {
-        final VipInventory vip = (VipInventory) data.get(VipConstant.Params.VIP.toString());
-        ReleaseVipMsg msg = new ReleaseVipMsg();
-        msg.setPeerL3NetworkUuid(null);
-        msg.setVipUuid(vip.getUuid());
-        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-        bus.send(msg, new CloudBusCallBack(trigger) {
+        final VipInventory v = (VipInventory) data.get(VipConstant.Params.VIP.toString());
+        Vip vip = new Vip(v.getUuid());
+        vip.setPeerL3NetworkUuid(null);
+        vip.release(true, new Completion(trigger) {
             @Override
-            public void run(MessageReply reply) {
-                if (!reply.isSuccess()) {
-                    throw new OperationFailureException(reply.getError());
-                }
-
+            public void success() {
                 trigger.next();
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                trigger.fail(errorCode);
             }
         });
     }

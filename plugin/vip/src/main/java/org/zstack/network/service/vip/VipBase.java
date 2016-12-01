@@ -36,7 +36,7 @@ import java.util.Map;
  * Created by xing5 on 2016/11/19.
  */
 @Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
-public class VipBase implements Vip {
+public class VipBase {
     protected static final CLogger logger = Utils.getLogger(VipBase.class);
 
     protected VipVO self;
@@ -82,7 +82,6 @@ public class VipBase implements Vip {
         self = vo;
     }
 
-    @Override
     @MessageSafe
     public void handleMessage(Message msg) {
         if (msg instanceof APIMessage) {

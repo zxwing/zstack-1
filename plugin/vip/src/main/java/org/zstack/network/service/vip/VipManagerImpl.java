@@ -150,7 +150,7 @@ public class VipManagerImpl extends AbstractService implements VipManager, Repor
             ));
         }
 
-        Vip v = new VipBase(vip);
+        VipBase v = new VipBase(vip);
         v.handleMessage((Message) msg);
     }
 

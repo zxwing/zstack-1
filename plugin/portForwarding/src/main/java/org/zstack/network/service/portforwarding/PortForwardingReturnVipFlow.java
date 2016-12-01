@@ -20,32 +20,25 @@ import java.util.Map;
  */
 @Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
 public class PortForwardingReturnVipFlow extends NoRollbackFlow {
-    @Autowired
-    private CloudBus bus;
-
     @Override
     public void run(final FlowTrigger trigger, Map data) {
-        VipInventory vip = (VipInventory) data.get(VipConstant.Params.VIP.toString());
+        VipInventory v = (VipInventory) data.get(VipConstant.Params.VIP.toString());
         boolean needUnlock = data.containsKey(Params.NEED_UNLOCK_VIP.toString());
         boolean needReleasePeerL3 = data.containsKey(VipConstant.Params.RELEASE_PEER_L3NETWORK.toString());
 
-        ReleaseVipMsg msg = new ReleaseVipMsg();
+        Vip vip = new Vip(v.getUuid());
         if (needReleasePeerL3) {
-            msg.setPeerL3NetworkUuid(null);
+            vip.setPeerL3NetworkUuid(null);
         }
-        if (needUnlock) {
-            msg.setUseFor(null);
-        }
-        msg.setVipUuid(vip.getUuid());
-        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-        bus.send(msg, new CloudBusCallBack(trigger) {
+        vip.release(needUnlock, new Completion(trigger) {
             @Override
-            public void run(MessageReply reply) {
-                if (!reply.isSuccess()) {
-                    throw new OperationFailureException(reply.getError());
-                }
-
+            public void success() {
                 trigger.next();
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                trigger.fail(errorCode);
             }
         });
     }

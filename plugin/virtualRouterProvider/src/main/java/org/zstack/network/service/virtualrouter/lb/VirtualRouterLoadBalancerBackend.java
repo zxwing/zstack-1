@@ -743,19 +743,17 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
 
                     @Override
                     public void run(final FlowTrigger trigger, Map data) {
-                        VipInventory vip = VipInventory.valueOf(dbf.findByUuid(struct.getLb().getVipUuid(), VipVO.class));
-                        ReleaseVipMsg msg = new ReleaseVipMsg();
-                        msg.setPeerL3NetworkUuid(null);
-                        msg.setVipUuid(vip.getUuid());
-                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-                        bus.send(msg, new CloudBusCallBack(trigger) {
+                        Vip vip = new Vip(struct.getLb().getVipUuid());
+                        vip.setPeerL3NetworkUuid(null);
+                        vip.release(true, new Completion(trigger) {
                             @Override
-                            public void run(MessageReply reply) {
-                                if (!reply.isSuccess()) {
-                                    throw new OperationFailureException(reply.getError());
-                                }
-
+                            public void success() {
                                 trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
                             }
                         });
                     }

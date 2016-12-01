@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.CloudBusCallBack;
+import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.core.workflow.Flow;
 import org.zstack.header.core.workflow.FlowRollback;
 import org.zstack.header.core.workflow.FlowTrigger;
@@ -32,57 +33,48 @@ public class EipPrepareVipFlow implements Flow {
     private static final String SUCCESS = EipPrepareVipFlow.class.getName();
 
     public void run(final FlowTrigger trigger, final Map data) {
-        final VipInventory vip = (VipInventory) data.get(VipConstant.Params.VIP.toString());
+        final VipInventory v = (VipInventory) data.get(VipConstant.Params.VIP.toString());
         final String serviceProviderType = (String) data.get(VipConstant.Params.VIP_SERVICE_PROVIDER_TYPE.toString());
         final L3NetworkInventory peerL3 = (L3NetworkInventory) data.get(VipConstant.Params.GUEST_L3NETWORK_VIP_FOR.toString());
         boolean needLockVip = data.containsKey(Params.NEED_LOCK_VIP.toString());
 
-        AcquireVipMsg msg = new AcquireVipMsg();
-        msg.setVipUuid(vip.getUuid());
-        msg.setServiceProvider(serviceProviderType);
-        msg.setPeerL3NetworkUuid(peerL3.getUuid());
-        if (needLockVip) {
-            msg.setUseFor(EipConstant.EIP_NETWORK_SERVICE_TYPE);
-        }
-
-        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-        bus.send(msg, new CloudBusCallBack(trigger) {
+        Vip vip = new Vip(v.getUuid());
+        vip.setServiceProvider(serviceProviderType);
+        vip.setUseFor(needLockVip ? EipConstant.EIP_NETWORK_SERVICE_TYPE : null);
+        vip.setPeerL3NetworkUuid(peerL3.getUuid());
+        vip.acquire(new ReturnValueCompletion<VipInventory>(trigger) {
             @Override
-            public void run(MessageReply reply) {
-                if (!reply.isSuccess()) {
-                    throw new OperationFailureException(reply.getError());
-                }
-
+            public void success(VipInventory ret) {
                 data.put(SUCCESS, true);
                 trigger.next();
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                trigger.fail(errorCode);
             }
         });
     }
 
     @Override
     public void rollback(final FlowRollback trigger, Map data) {
-        final VipInventory vip = (VipInventory) data.get(VipConstant.Params.VIP.toString());
+        final VipInventory v = (VipInventory) data.get(VipConstant.Params.VIP.toString());
         if (!data.containsKey(SUCCESS)) {
             trigger.rollback();
             return;
         }
 
-        boolean needLockVip = data.containsKey(Params.NEED_LOCK_VIP.toString());
-        ReleaseVipMsg msg = new ReleaseVipMsg();
-        msg.setVipUuid(vip.getUuid());
-        msg.setPeerL3NetworkUuid(null);
-        if (needLockVip) {
-            msg.setUseFor(null);
-        }
-        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-        bus.send(msg, new CloudBusCallBack(trigger) {
+        boolean unlock = data.containsKey(Params.NEED_LOCK_VIP.toString());
+        Vip vip = new Vip(v.getUuid());
+        vip.release(unlock, new Completion(trigger) {
             @Override
-            public void run(MessageReply reply) {
-                if (!reply.isSuccess()) {
-                    //TODO
-                    logger.warn(reply.getError().toString());
-                }
+            public void success() {
+                trigger.rollback();
+            }
 
+            @Override
+            public void fail(ErrorCode errorCode) {
+                logger.warn(errorCode.toString());
                 trigger.rollback();
             }
         });
