@@ -1250,9 +1250,11 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
                             if (cmd.skipOnExisting) {
                                 String volumeName = getBossVolumeNameFromPath(cachePath);
+                                logger.info("create snapshot by boss!");
                                 String[] snaplist = ShellUtils.runAndReturn(
                                         String.format("snap_list -p %s | grep %s | awk '{print $7}'", cmd.snapShotPoolName, volumeName)).getStdout().split("\n");
                                 for (String s : snaplist) {
+                                    logger.info(String.format("snapshot name is %s in boss!",s));
                                     if (cmd.snapShotName.equals(s)) {
                                         doCreate = false;
                                     }
@@ -1460,6 +1462,8 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                             BossCapacityUpdater updater = new BossCapacityUpdater();
                             updater.update(getSelf().getClusterName(), rsp.totalCapacity, rsp.availableCapacity);
                             cloneCompletion.success(rsp);
+                        } else {
+                            cloneCompletion.fail(errf.stringToOperationError(String.format("clone %s failed ,causes[%s]",cmd.srcVolumeName,cloneShellResult.getStderr())));
                         }
 
                     }
