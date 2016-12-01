@@ -1453,7 +1453,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                             cloneCompletion.fail(errf.stringToOperationError("can't clone between different pools!"));
                         }
 
-                        ShellResult cloneShellResult = ShellUtils.runAndReturn(String.format("snap_clone -p %s -v %s -s %s",clonePoolName,cmd.srcVolumeName,cmd.dstVolumeName));
+                        ShellResult cloneShellResult = ShellUtils.runAndReturn(String.format("snap_clone -p %s -v %s -s %s",clonePoolName,cmd.dstVolumeName,cmd.srcVolumeName));
                         if(cloneShellResult.getRetCode() == 0){
                             rsp.totalCapacity = getTotalCapacity(getSelf());
                             rsp.availableCapacity = getAvailableCapacity(getSelf());
