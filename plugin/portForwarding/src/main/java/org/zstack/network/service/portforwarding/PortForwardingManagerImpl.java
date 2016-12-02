@@ -12,12 +12,11 @@ import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.workflow.FlowChainBuilder;
+import org.zstack.core.workflow.ShareFlow;
 import org.zstack.header.AbstractService;
 import org.zstack.header.apimediator.ApiMessageInterceptionException;
 import org.zstack.header.core.Completion;
-import org.zstack.header.core.workflow.FlowChain;
-import org.zstack.header.core.workflow.FlowDoneHandler;
-import org.zstack.header.core.workflow.FlowErrorHandler;
+import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.errorcode.SysErrors;
@@ -381,45 +380,102 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
             }
         });
 
-        FlowChain chain;
-        if (isNeedRemoveVip(inv)) {
-            chain = removePortForwardingAndVipBuidler.build();
-            chain.getData().put(VipConstant.Params.VIP_SERVICE_PROVIDER_TYPE.toString(), providerType.toString());
-            chain.getData().put(VipConstant.Params.VIP.toString(), struct.getVip());
-            chain.getData().put(PortForwardingConstant.Params.NEED_UNLOCK_VIP.toString(), true);
-        } else {
-            chain = removePortForwardingBuidler.build();
-        }
-        chain.setName(String.format("delete-portforwarding-%s-vm-nic-%s", inv.getUuid(), inv.getVmNicUuid()));
-        chain.getData().put(PortForwardingConstant.Params.PORTFORWARDING_STRUCT.toString(), struct);
-        chain.getData().put(PortForwardingConstant.Params.PORTFORWARDING_SERVICE_PROVIDER_TYPE.toString(), providerType.toString());
-        chain.done(new FlowDoneHandler(complete) {
+        FlowChain chain = FlowChainBuilder.newShareFlowChain();
+        chain.then(new ShareFlow() {
             @Override
-            public void handle(Map data) {
-                CollectionUtils.safeForEach(revokeRuleExts, new ForEachFunction<RevokePortForwardingRuleExtensionPoint>() {
+            public void setup() {
+                flow(new NoRollbackFlow() {
+                    String __name__ = "delete-portforwarding-rule";
+
                     @Override
-                    public void run(RevokePortForwardingRuleExtensionPoint extp) {
-                        extp.afterRevokePortForwardingRule(inv, providerType);
+                    public void run(FlowTrigger trigger, Map data) {
+                        PortForwardingBackend bkd = getPortForwardingBackend(providerType);
+                        bkd.revokePortForwardingRule(struct, new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                logger.debug(String.format("successfully detached %s", struct.toString()));
+                                trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
+                            }
+                        });
                     }
                 });
 
-                dbf.remove(vo);
+                if (isNeedRemoveVip(inv)) {
+                    flow(new NoRollbackFlow() {
+                        String __name__ = "release-vip";
 
-                logger.debug(String.format("successfully revoked port forwarding rule[uuid:%s]", inv.getUuid()));
-                complete.success();
-            }
-        }).error(new FlowErrorHandler(complete) {
-            @Override
-            public void handle(ErrorCode errCode, Map data) {
-                CollectionUtils.safeForEach(revokeRuleExts, new ForEachFunction<RevokePortForwardingRuleExtensionPoint>() {
+                        @Override
+                        public void run(FlowTrigger trigger, Map data) {
+                            new Vip(vo.getVipUuid()).release(new Completion(trigger) {
+                                @Override
+                                public void success() {
+                                    trigger.next();
+                                }
+
+                                @Override
+                                public void fail(ErrorCode errorCode) {
+                                    trigger.fail(errorCode);
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    flow(new NoRollbackFlow() {
+                        String __name__ = "delete-vip-from-backend";
+
+                        @Override
+                        public void run(FlowTrigger trigger, Map data) {
+                            new Vip(vo.getVipUuid()).deleteFromBackend(new Completion(trigger) {
+                                @Override
+                                public void success() {
+                                    trigger.next();
+                                }
+
+                                @Override
+                                public void fail(ErrorCode errorCode) {
+                                    trigger.fail(errorCode);
+                                }
+                            });
+                        }
+                    });
+                }
+
+                done(new FlowDoneHandler(complete) {
                     @Override
-                    public void run(RevokePortForwardingRuleExtensionPoint extp) {
-                        extp.failToRevokePortForwardingRule(inv, providerType);
+                    public void handle(Map data) {
+                        CollectionUtils.safeForEach(revokeRuleExts, new ForEachFunction<RevokePortForwardingRuleExtensionPoint>() {
+                            @Override
+                            public void run(RevokePortForwardingRuleExtensionPoint extp) {
+                                extp.afterRevokePortForwardingRule(inv, providerType);
+                            }
+                        });
+
+                        dbf.remove(vo);
+
+                        logger.debug(String.format("successfully revoked port forwarding rule[uuid:%s]", inv.getUuid()));
+                        complete.success();
                     }
                 });
 
-                logger.warn(String.format("failed to revoke port forwarding rule[uuid:%s] because %s", inv.getUuid(), errCode));
-                complete.fail(errCode);
+                error(new FlowErrorHandler(complete) {
+                    @Override
+                    public void handle(ErrorCode errCode, Map data) {
+                        CollectionUtils.safeForEach(revokeRuleExts, new ForEachFunction<RevokePortForwardingRuleExtensionPoint>() {
+                            @Override
+                            public void run(RevokePortForwardingRuleExtensionPoint extp) {
+                                extp.failToRevokePortForwardingRule(inv, providerType);
+                            }
+                        });
+
+                        logger.warn(String.format("failed to revoke port forwarding rule[uuid:%s] because %s", inv.getUuid(), errCode));
+                        complete.fail(errCode);
+                    }
+                });
             }
         }).start();
     }
@@ -716,37 +772,73 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
 
     @Override
     public void detachPortForwardingRule(final PortForwardingStruct struct, String providerType, final Completion completion) {
-        FlowChain chain;
-        if (isNeedRemoveVip(struct.getRule())) {
-            chain = detachPortForwardingAndReleaseVipBuidler.build();
-            chain.getData().put(VipConstant.Params.VIP_SERVICE_PROVIDER_TYPE.toString(), providerType);
-            chain.getData().put(VipConstant.Params.VIP.toString(), struct.getVip());
-        } else {
-            chain = detachPortForwardingBuidler.build();
-        }
+        FlowChain chain = FlowChainBuilder.newShareFlowChain();
         chain.setName(String.format("detach-portforwarding-%s-vm-nic-%s", struct.getRule().getUuid(), struct.getRule().getVmNicUuid()));
-        chain.getData().put(PortForwardingConstant.Params.PORTFORWARDING_STRUCT.toString(), struct);
-        chain.getData().put(PortForwardingConstant.Params.PORTFORWARDING_SERVICE_PROVIDER_TYPE.toString(), providerType);
-        chain.done(new FlowDoneHandler(completion) {
+        chain.then(new ShareFlow() {
             @Override
-            public void handle(Map data) {
-                if (struct.isReleaseVmNicInfoWhenDetaching()) {
-                    PortForwardingRuleVO vo = dbf.findByUuid(struct.getRule().getUuid(), PortForwardingRuleVO.class);
-                    vo.setVmNicUuid(null);
-                    vo.setGuestIp(null);
-                    dbf.updateAndRefresh(vo);
-                }
+            public void setup() {
+                flow(new NoRollbackFlow() {
+                    String __name__ = "detach-portforwarding-rule";
 
-                completion.success();
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        PortForwardingBackend bkd = getPortForwardingBackend(providerType);
+                        bkd.revokePortForwardingRule(struct, new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                logger.debug(String.format("successfully detached %s", struct.toString()));
+                                trigger.next();
+                            }
 
-            }
-        }).error(new FlowErrorHandler(completion) {
-            @Override
-            public void handle(ErrorCode errCode, Map data) {
-                completion.fail(errCode);
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
+                            }
+                        });
+                    }
+                });
+
+                flow(new NoRollbackFlow() {
+                    String __name__ = "delete-vip-from-backend";
+
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        new Vip(struct.getVip().getUuid()).deleteFromBackend(new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
+                            }
+                        });
+                    }
+                });
+
+                done(new FlowDoneHandler(completion) {
+                    @Override
+                    public void handle(Map data) {
+                        if (struct.isReleaseVmNicInfoWhenDetaching()) {
+                            PortForwardingRuleVO vo = dbf.findByUuid(struct.getRule().getUuid(), PortForwardingRuleVO.class);
+                            vo.setVmNicUuid(null);
+                            vo.setGuestIp(null);
+                            dbf.updateAndRefresh(vo);
+                        }
+
+                        completion.success();
+                    }
+                });
+
+                error(new FlowErrorHandler(completion) {
+                    @Override
+                    public void handle(ErrorCode errCode, Map data) {
+                        completion.fail(errCode);
+                    }
+                });
             }
         }).start();
-
     }
 
     public void setCreatePortForwardingFlowNames(List<String> createPortForwardingFlowNames) {

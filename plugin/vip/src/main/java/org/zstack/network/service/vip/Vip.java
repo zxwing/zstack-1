@@ -110,6 +110,22 @@ public class Vip {
         });
     }
 
+    public void deleteFromBackend(Completion completion) {
+        DeleteVipFromBackendMsg msg = new DeleteVipFromBackendMsg();
+        msg.setVipUuid(uuid);
+        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, uuid);
+        bus.send(msg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (!reply.isSuccess()) {
+                    completion.fail(reply.getError());
+                } else {
+                    completion.success();
+                }
+            }
+        });
+    }
+
     public void modify(ModifyVipAttributesStruct s, ReturnValueCompletion<UnmodifyVip> completion) {
         ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
         msg.setStruct(s);

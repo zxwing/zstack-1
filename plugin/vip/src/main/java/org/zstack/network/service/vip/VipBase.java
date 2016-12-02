@@ -111,9 +111,65 @@ public class VipBase {
             handle((ReleaseVipMsg) msg);
         } else if (msg instanceof ModifyVipAttributesMsg) {
             handle((ModifyVipAttributesMsg) msg);
+        } else if (msg instanceof DeleteVipFromBackendMsg) {
+            handle((DeleteVipFromBackendMsg) msg);
         } else {
             passToBackend(msg);
         }
+    }
+
+    private void handle(DeleteVipFromBackendMsg msg) {
+        thdf.chainSubmit(new ChainTask(msg) {
+            @Override
+            public String getSyncSignature() {
+                return getThreadSyncSignature();
+            }
+
+            @Override
+            public void run(SyncTaskChain chain) {
+                DeleteVipFromBackendReply reply = new DeleteVipFromBackendReply();
+                deleteFromBackend(new Completion(msg, chain) {
+                    @Override
+                    public void success() {
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+
+                    @Override
+                    public void fail(ErrorCode errorCode) {
+                        reply.setError(errorCode);
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+                });
+            }
+
+            @Override
+            public String getName() {
+                return "delete-vip-from-backend";
+            }
+        });
+    }
+
+    private void deleteFromBackend(Completion completion) {
+        VipFactory f = vipMgr.getVipFactory(self.getServiceProvider());
+        VipBaseBackend vip = f.getVip(getSelf());
+        vip.releaseVipOnBackend(new Completion(completion) {
+            @Override
+            public void success() {
+                logger.debug(String.format("successfully released vip[uuid:%s, name:%s, ip:%s] on service[%s]",
+                        self.getUuid(), self.getName(), self.getIp(), self.getServiceProvider()));
+
+                completion.success();
+            }
+
+            @Override
+            public void fail(ErrorCode errorCode) {
+                logger.warn(String.format("failed to release vip[uuid:%s, name:%s, ip:%s] on service[%s], its garbage collector should" +
+                        " handle this", self.getUuid(), self.getName(), self.getIp(), self.getServiceProvider()));
+                completion.fail(errorCode);
+            }
+        });
     }
 
     private interface Recover {
