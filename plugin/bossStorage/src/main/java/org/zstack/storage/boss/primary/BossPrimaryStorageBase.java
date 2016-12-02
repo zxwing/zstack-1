@@ -1004,7 +1004,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                 bus.reply(msg, reply);
             }
         };
-        if(snapshotName != currentVolumePoolName){
+        if(!snapshotPoolName.equals(currentVolumePoolName)){
             rollbackCompletion.fail(errf.stringToOperationError("roll back failed!"));
             return;
         }
