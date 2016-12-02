@@ -1042,12 +1042,12 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
         String poolName = null;
         String volumeName = null;
         if(VolumeType.Root.toString().equals(msg.getVolume().getType())){
-            volumeName = "RV-"+msg.getVolume().getUuid();
+            volumeName = String.format("RV-%s",msg.getVolume().getUuid());
             poolName = getSelfInventory().getRootVolumePoolName();
             cmd.installPath = makeRootVolumeInstallPath(msg.getVolume().getUuid());
         } else {
             poolName = getSelfInventory().getDataVolumePoolName();
-            volumeName = "DV-"+msg.getVolume().getUuid();
+            volumeName = String.format("DV-%s",msg.getVolume().getUuid());
             cmd.installPath = makeDataVolumeInstallPath(msg.getVolume().getUuid());
         }
         cmd.size = msg.getVolume().getSize();
