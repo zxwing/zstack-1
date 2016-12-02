@@ -1026,6 +1026,11 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     public void handle(CreateVolumeFromVolumeSnapshotOnPrimaryStorageMsg msg) {
+        final CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply reply = new CreateVolumeFromVolumeSnapshotOnPrimaryStorageReply();
+
+        final String volPath = makeDataVolumeInstallPath(msg.getVolumeUuid());
+        VolumeSnapshotInventory sp = msg.getSnapshot();
+
 
 
     }
