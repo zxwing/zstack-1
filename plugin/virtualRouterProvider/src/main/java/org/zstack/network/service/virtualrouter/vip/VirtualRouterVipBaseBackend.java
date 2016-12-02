@@ -15,9 +15,13 @@ import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
+import org.zstack.header.network.l3.L3Network;
+import org.zstack.header.network.l3.L3NetworkInventory;
+import org.zstack.header.network.l3.L3NetworkVO;
 import org.zstack.header.vm.*;
 import org.zstack.network.service.vip.*;
 import org.zstack.network.service.virtualrouter.*;
+import org.zstack.utils.DebugUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
 
@@ -198,8 +202,10 @@ public class VirtualRouterVipBaseBackend extends VipBaseBackend {
         chain.then(new NoRollbackFlow() {
             @Override
             public void run(final FlowTrigger trigger, final Map data) {
+                DebugUtils.Assert(self.getPeerL3NetworkUuid() != null, "peerL3NetworkUuid cannot be null");
+
                 VirtualRouterStruct s = new VirtualRouterStruct();
-                s.setL3Network(s.getL3Network());
+                s.setL3Network(L3NetworkInventory.valueOf(dbf.findByUuid(self.getPeerL3NetworkUuid(), L3NetworkVO.class)));
                 s.setOfferingValidator(offering -> {
                     if (!offering.getPublicNetworkUuid().equals(self.getL3NetworkUuid())) {
                         throw new OperationFailureException(errf.stringToOperationError(
