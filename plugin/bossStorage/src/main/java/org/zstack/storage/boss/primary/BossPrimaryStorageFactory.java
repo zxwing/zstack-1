@@ -52,7 +52,9 @@ import java.util.concurrent.Future;
 public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapacityUpdateExtensionPoint, KVMStartVmExtensionPoint,
         KVMAttachVolumeExtensionPoint, KVMDetachVolumeExtensionPoint, CreateTemplateFromVolumeSnapshotExtensionPoint,
         KvmSetupSelfFencerExtensionPoint, KVMPreAttachIsoExtensionPoint, Component {
+
     private static final CLogger logger = Utils.getLogger(BossPrimaryStorageFactory.class);
+
     public static final PrimaryStorageType type = new PrimaryStorageType(BossConstants.BOSS_PRIMARY_STORAGE_TYPE);
 
     @Autowired

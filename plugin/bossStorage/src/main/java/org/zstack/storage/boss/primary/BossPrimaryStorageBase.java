@@ -27,12 +27,10 @@ import org.zstack.storage.backup.sftp.SftpBackupStorageConstant;
 import org.zstack.storage.boss.BossCapacityUpdater;
 import org.zstack.storage.boss.BossConstants;
 import org.zstack.storage.boss.BossSystemTags;
-import org.zstack.storage.boss.ExecuteShellCommand;
 import org.zstack.storage.boss.backup.BossBackupStorageVO;
 import org.zstack.storage.boss.backup.BossBackupStorageVO_;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.utils.*;
-import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
 import java.util.*;
@@ -1255,11 +1253,9 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
                             if (cmd.skipOnExisting) {
                                 String volumeName = getBossVolumeNameFromPath(cachePath);
-                                logger.info("create snapshot by boss!");
                                 String[] snaplist = ShellUtils.runAndReturn(
                                         String.format("snap_list -p %s | grep %s | awk '{print $7}'", cmd.snapShotPoolName, volumeName)).getStdout().split("\n");
                                 for (String s : snaplist) {
-                                    logger.info(String.format("snapshot name is %s in boss!",s));
                                     if (cmd.snapShotName.equals(s)) {
                                         doCreate = false;
                                     }
@@ -1762,18 +1758,14 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
 
     protected Long getPoolTotalSize(String poolName){
-        ExecuteShellCommand esc;
-        esc = new ExecuteShellCommand();
-        String totalSize = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $3}'" , poolName),errf);
-        String unit = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $4}'" , poolName),errf);
+        String totalSize = ShellUtils.runAndReturn(String.format("pool_list -l | grep %s | awk '{print $3}'" , poolName)).getStdout();
+        String unit = ShellUtils.runAndReturn(String.format("pool_list -l | grep %s | awk '{print $4}'" , poolName)).getStdout();
         return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
     }
 
     protected Long getPoolAvailableSize(String poolName){
-        ExecuteShellCommand esc;
-        esc = new ExecuteShellCommand();
-        String totalSize = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $5}'" , poolName),errf);
-        String unit = esc.executeCommand(String.format("pool_list -l | grep %s | awk '{print $6}'" , poolName),errf);
+        String totalSize = ShellUtils.runAndReturn(String.format("pool_list -l | grep %s | awk '{print $5}'" , poolName)).getStdout();
+        String unit = ShellUtils.runAndReturn(String.format("pool_list -l | grep %s | awk '{print $6}'" , poolName)).getStdout();
         return Math.round(Double.valueOf(totalSize.trim()) * unitConvert(unit.trim()));
     }
 

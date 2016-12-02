@@ -1,6 +1,5 @@
 package org.zstack.storage.boss.backup;
 
-import jdk.nashorn.tools.Shell;
 import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,13 +17,10 @@ import org.zstack.header.storage.backup.*;
 import org.zstack.storage.backup.BackupStorageBase;
 import org.zstack.storage.boss.BossCapacityUpdater;
 import org.zstack.storage.boss.BossSystemTags;
-import org.zstack.storage.boss.ExecuteShellCommand;
-import org.zstack.storage.boss.primary.BossPrimaryStorageBase;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.ShellResult;
 import org.zstack.utils.ShellUtils;
 import org.zstack.utils.Utils;
-import org.zstack.utils.filelocater.FileLocatorImpl;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
@@ -36,8 +32,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.zstack.utils.CollectionDSL.list;
 
 /**
  * Created by XXPS-PC1 on 2016/11/9.
