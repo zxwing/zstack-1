@@ -803,7 +803,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             return;
         }
         */
-        ShellResult deleteImageCache = ShellUtils.runAndReturn(String.format("volume_delete -p %s -v %s",cmd.imagePoolName,cmd.imageName));
+        ShellResult deleteImageCache = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",cmd.imagePoolName,cmd.imageName));
 
         if(deleteImageCache.getRetCode() == 0){
             rsp.availableCapacity = getAvailableCapacity(getSelf());
@@ -950,7 +950,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                 bus.reply(msg, reply);
             }
         };
-        ShellResult deleteSnapShot = ShellUtils.runAndReturn(String.format("snap_delete -p %s -s %s",cmd.snapShotPoolName,cmd.snapShotName));
+        ShellResult deleteSnapShot = ShellUtils.runAndReturn(String.format("yes | snap_delete -p %s -s %s",cmd.snapShotPoolName,cmd.snapShotName));
 
         if(deleteSnapShot.getRetCode() == 0){
             rsp.availableCapacity = getAvailableCapacity(getSelf());
@@ -1299,7 +1299,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                                     }
                                 };
 
-                                ShellResult deleteSnapShotResult = ShellUtils.runAndReturn(String.format("snap_delete -p %s -s %s",cmd.snapShotPoolName,cmd.snapShotName));
+                                ShellResult deleteSnapShotResult = ShellUtils.runAndReturn(String.format("yes | snap_delete -p %s -s %s",cmd.snapShotPoolName,cmd.snapShotName));
                                 if(deleteSnapShotResult.getRetCode() == 0){
                                     rsp.availableCapacity = getAvailableCapacity(getSelf());
                                     rsp.totalCapacity = getTotalCapacity(getSelf());
@@ -1530,7 +1530,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             }
         };
 
-        ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("volume_delete -p %s -v %s",cmd.poolName,cmd.volumeName));
+        ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",cmd.poolName,cmd.volumeName));
 
         if(deleteVolume.getRetCode() == 0){
             rsp.availableCapacity = getAvailableCapacity(getSelf());
@@ -1620,7 +1620,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             }
         };
 
-        ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("volume_delete -p %s -v %s",cmd.poolName,cmd.volumeName));
+        ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",cmd.poolName,cmd.volumeName));
 
         if(deleteVolume.getRetCode() == 0){
             rsp.availableCapacity = getAvailableCapacity(getSelf());
