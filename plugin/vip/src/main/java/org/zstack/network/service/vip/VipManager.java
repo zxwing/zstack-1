@@ -8,8 +8,6 @@ import org.zstack.header.network.l3.L3NetworkInventory;
 /**
  */
 public interface VipManager extends Service {
-    void saveVipInfo(String vipUuid, String networkServiceType, String peerL3NetworkUuid);
-
     VipReleaseExtensionPoint getVipReleaseExtensionPoint(String useFor);
 
     FlowChain getReleaseVipChain();

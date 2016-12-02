@@ -175,8 +175,16 @@ public class VipBase {
             public void run(SyncTaskChain chain) {
                 refresh();
 
+                ModifyVipAttributesStruct current = new ModifyVipAttributesStruct();
+                current.setPeerL3NetworkUuid(self.getPeerL3NetworkUuid());
+                current.setUseFor(self.getUseFor());
+                current.setServiceProvider(self.getServiceProvider());
+
+                ModifyVipAttributesReply reply = new ModifyVipAttributesReply();
+                reply.setStruct(current);
+
                 modifyAttributes(msg.getStruct());
-                bus.reply(msg, new ModifyVipAttributesReply());
+                bus.reply(msg, reply);
                 chain.next();
             }
 

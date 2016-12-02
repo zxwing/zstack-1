@@ -24,12 +24,8 @@ public class PortForwardingReturnVipFlow extends NoRollbackFlow {
     public void run(final FlowTrigger trigger, Map data) {
         VipInventory v = (VipInventory) data.get(VipConstant.Params.VIP.toString());
         boolean needUnlock = data.containsKey(Params.NEED_UNLOCK_VIP.toString());
-        boolean needReleasePeerL3 = data.containsKey(VipConstant.Params.RELEASE_PEER_L3NETWORK.toString());
 
         Vip vip = new Vip(v.getUuid());
-        if (needReleasePeerL3) {
-            vip.setPeerL3NetworkUuid(null);
-        }
         vip.release(needUnlock, new Completion(trigger) {
             @Override
             public void success() {

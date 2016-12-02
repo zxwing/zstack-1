@@ -103,4 +103,45 @@ public class Vip {
             }
         });
     }
+
+    public void modify(ModifyVipAttributesStruct s, ReturnValueCompletion<UnmodifyVip> completion) {
+        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
+        msg.setStruct(s);
+        msg.setVipUuid(uuid);
+        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, uuid);
+        bus.send(msg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (!reply.isSuccess()) {
+                    throw new OperationFailureException(reply.getError());
+                }
+
+                ModifyVipAttributesReply r = reply.castReply();
+
+                UnmodifyVip ret = new UnmodifyVip() {
+                    @Override
+                    public void unmodify(Completion completion) {
+                        ModifyVipAttributesMsg  umsg = new ModifyVipAttributesMsg();
+                        umsg.setStruct(r.getStruct());
+                        umsg.setVipUuid(uuid);
+                        bus.makeTargetServiceIdByResourceUuid(umsg, VipConstant.SERVICE_ID, uuid);
+
+                        bus.send(umsg, new CloudBusCallBack(completion) {
+                            @Override
+                            public void run(MessageReply reply) {
+                                if (!reply.isSuccess()) {
+                                    completion.fail(reply.getError());
+                                    return;
+                                }
+
+                                completion.success();
+                            }
+                        });
+                    }
+                };
+
+                completion.success(ret);
+            }
+        });
+    }
 }

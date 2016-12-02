@@ -738,7 +738,6 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
             chain = detachPortForwardingAndReleaseVipBuidler.build();
             chain.getData().put(VipConstant.Params.VIP_SERVICE_PROVIDER_TYPE.toString(), providerType);
             chain.getData().put(VipConstant.Params.VIP.toString(), struct.getVip());
-            chain.getData().put(Params.RELEASE_PEER_L3NETWORK.toString(), true);
         } else {
             chain = detachPortForwardingBuidler.build();
         }

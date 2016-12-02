@@ -299,42 +299,91 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
                         q.add(VirtualRouterVipVO_.virtualRouterVmUuid, Op.EQ, vr.getUuid());
                         if (q.isExists()) {
                             trigger.next();
-                        } else {
-                            vipVrBkd.acquireVipOnVirtualRouterVm(vr, vip, new Completion(trigger) {
-                                @Override
-                                public void success() {
-                                    vipMgr.saveVipInfo(struct.getLb().getVipUuid(), VirtualRouterConstant.VIRTUAL_ROUTER_PROVIDER_TYPE, vr.getGuestNic().getL3NetworkUuid());
-                                    success = true;
-                                    trigger.next();
-                                }
-
-                                @Override
-                                public void fail(ErrorCode errorCode) {
-                                    trigger.fail(errorCode);
-                                }
-                            });
+                            return;
                         }
+
+                        vipVrBkd.acquireVipOnVirtualRouterVm(vr, vip, new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                success = true;
+                                trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
+                            }
+                        });
                     }
 
                     @Override
                     public void rollback(final FlowRollback trigger, Map data) {
-                        if (success) {
-                            vipVrBkd.releaseVipOnVirtualRouterVm(vr, vip, new Completion(trigger) {
-                                @Override
-                                public void success() {
-                                    trigger.rollback();
-                                }
-
-                                @Override
-                                public void fail(ErrorCode errorCode) {
-                                    logger.warn(String.format("failed to release vip[uuid:%s, ip:%s] on vr[uuid:%s], continue to rollback",
-                                            vip.getUuid(), vip.getIp(), vr.getUuid()));
-                                    trigger.rollback();
-                                }
-                            });
-                        } else {
+                        if (!success) {
                             trigger.rollback();
+                            return;
                         }
+
+                        vipVrBkd.releaseVipOnVirtualRouterVm(vr, vip, new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                trigger.rollback();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                logger.warn(String.format("failed to release vip[uuid:%s, ip:%s] on vr[uuid:%s], continue to rollback",
+                                        vip.getUuid(), vip.getIp(), vr.getUuid()));
+                                trigger.rollback();
+                            }
+                        });
+                    }
+                });
+
+                flow(new Flow() {
+                    String __name__ = "lock-vip";
+
+                    UnmodifyVip rollback;
+
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        ModifyVipAttributesStruct s = new ModifyVipAttributesStruct();
+                        s.setServiceProvider(VirtualRouterConstant.VIRTUAL_ROUTER_PROVIDER_TYPE);
+                        s.setPeerL3NetworkUuid(vr.getGuestNic().getL3NetworkUuid());
+
+                        new Vip(struct.getLb().getVipUuid()).modify(s, new ReturnValueCompletion<UnmodifyVip>(trigger) {
+                            @Override
+                            public void success(UnmodifyVip ret) {
+                                rollback = ret;
+                                trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void rollback(FlowRollback trigger, Map data) {
+                        if (rollback == null) {
+                            trigger.rollback();
+                            return;
+                        }
+
+                        rollback.unmodify(new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                trigger.rollback();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                //TODO
+                                logger.warn(errorCode.toString());
+                                trigger.rollback();
+                            }
+                        });
                     }
                 });
 
@@ -399,22 +448,25 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
                     String __name__ = "lock-vip";
 
                     boolean success = false;
+                    UnmodifyVip rollback;
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
-                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
-                        msg.setVipUuid(vip.getUuid());
-                        msg.setUseFor(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
-                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-                        bus.send(msg, new CloudBusCallBack(trigger) {
-                            @Override
-                            public void run(MessageReply reply) {
-                                if (!reply.isSuccess()) {
-                                    throw new OperationFailureException(reply.getError());
-                                }
+                        ModifyVipAttributesStruct s = new ModifyVipAttributesStruct();
+                        s.setPeerL3NetworkUuid(l3.getUuid());
+                        s.setServiceProvider(VirtualRouterConstant.VIRTUAL_ROUTER_PROVIDER_TYPE);
+                        s.setUseFor(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
 
-                                success = true;
+                        new Vip(vip.getUuid()).modify(s, new ReturnValueCompletion<UnmodifyVip>(trigger) {
+                            @Override
+                            public void success(UnmodifyVip ret) {
+                                rollback = ret;
                                 trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
                             }
                         });
                     }
@@ -426,17 +478,16 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
                             return;
                         }
 
-                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
-                        msg.setVipUuid(vip.getUuid());
-                        msg.setUseFor(null);
-                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-                        bus.send(msg, new CloudBusCallBack(trigger) {
+                        rollback.unmodify(new Completion(trigger) {
                             @Override
-                            public void run(MessageReply reply) {
-                                if (!reply.isSuccess()) {
-                                    logger.warn(reply.getError().toString());
-                                }
+                            public void success() {
+                                trigger.rollback();
+                            }
 
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                //TODO
+                                logger.warn(errorCode.toString());
                                 trigger.rollback();
                             }
                         });
@@ -533,7 +584,6 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
                         vipVrBkd.acquireVipOnVirtualRouterVm(vr, vip, new Completion(trigger) {
                             @Override
                             public void success() {
-                                vipMgr.saveVipInfo(struct.getLb().getVipUuid(), VirtualRouterConstant.VIRTUAL_ROUTER_PROVIDER_TYPE, vr.getGuestNic().getL3NetworkUuid());
                                 success = true;
                                 trigger.next();
                             }
@@ -547,25 +597,27 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
 
                     @Override
                     public void rollback(final FlowRollback trigger, Map data) {
-                        if (success) {
-                            vipVrBkd.releaseVipOnVirtualRouterVm(vr, vip, new Completion(trigger) {
-                                @Override
-                                public void success() {
-                                    trigger.rollback();
-                                }
-
-                                @Override
-                                public void fail(ErrorCode errorCode) {
-                                    logger.warn(String.format("failed to release vip[uuid:%s, ip:%s] on vr[uuid:%s], continue to rollback",
-                                            vip.getUuid(), vip.getIp(), vr.getUuid()));
-                                    trigger.rollback();
-                                }
-                            });
-                        } else {
+                        if (!success) {
                             trigger.rollback();
+                            return;
                         }
+
+                        vipVrBkd.releaseVipOnVirtualRouterVm(vr, vip, new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                trigger.rollback();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                logger.warn(String.format("failed to release vip[uuid:%s, ip:%s] on vr[uuid:%s], continue to rollback",
+                                        vip.getUuid(), vip.getIp(), vr.getUuid()));
+                                trigger.rollback();
+                            }
+                        });
                     }
                 });
+
 
                 flow(new NoRollbackFlow() {
                     String __name__ = "refresh-lb-on-vr";
