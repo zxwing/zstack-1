@@ -13,6 +13,7 @@ import org.zstack.core.workflow.FlowChainBuilder;
 import org.zstack.core.workflow.ShareFlow;
 import org.zstack.header.AbstractService;
 import org.zstack.header.apimediator.ApiMessageInterceptionException;
+import org.zstack.header.core.Completion;
 import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
@@ -114,25 +115,24 @@ public class LoadBalancerManagerImpl extends AbstractService implements LoadBala
             @Override
             public void setup() {
                 flow(new Flow() {
-                    String __name__ = "lock-vip";
+                    String __name__ = "acquire-vip";
 
                     boolean s = false;
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
-                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
-                        msg.setVipUuid(vip.getUuid());
-                        msg.setUseFor(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
-                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-                        bus.send(msg, new CloudBusCallBack(trigger) {
+                        Vip v = new Vip(vip.getUuid());
+                        v.setUseFor(LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
+                        v.acquire(false, new Completion(trigger) {
                             @Override
-                            public void run(MessageReply reply) {
-                                if (!reply.isSuccess()) {
-                                    throw new OperationFailureException(reply.getError());
-                                }
-
+                            public void success() {
                                 s = true;
                                 trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
                             }
                         });
                     }
@@ -144,17 +144,16 @@ public class LoadBalancerManagerImpl extends AbstractService implements LoadBala
                             return;
                         }
 
-                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
-                        msg.setVipUuid(vip.getUuid());
-                        msg.setUseFor(null);
-                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-                        bus.send(msg, new CloudBusCallBack(trigger) {
+                        new Vip(vip.getUuid()).release(false, new Completion(trigger) {
                             @Override
-                            public void run(MessageReply reply) {
-                                if (!reply.isSuccess()) {
-                                    logger.warn(reply.getError().toString());
-                                }
+                            public void success() {
+                                trigger.rollback();
+                            }
 
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                //TODO
+                                logger.warn(errorCode.toString());
                                 trigger.rollback();
                             }
                         });

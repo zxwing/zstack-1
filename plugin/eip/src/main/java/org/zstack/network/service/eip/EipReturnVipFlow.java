@@ -24,9 +24,8 @@ public class EipReturnVipFlow extends NoRollbackFlow {
     @Override
     public void run(final FlowTrigger trigger, Map data) {
         VipInventory v = (VipInventory) data.get(VipConstant.Params.VIP.toString());
-        boolean needUnlock = data.containsKey(Params.NEED_UNLOCK_VIP.toString());
-        Vip vip = new Vip(v.getUuid());
-        vip.release(needUnlock, new Completion(trigger) {
+
+        new Vip(v.getUuid()).release(new Completion(trigger) {
             @Override
             public void success() {
                 trigger.next();

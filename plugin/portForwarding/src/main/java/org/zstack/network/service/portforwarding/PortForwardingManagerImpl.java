@@ -341,20 +341,16 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
     private void removePortforwardingRule(String ruleUuid, final Completion complete) {
         final PortForwardingRuleVO vo = dbf.findByUuid(ruleUuid, PortForwardingRuleVO.class);
         if (vo.getVmNicUuid() == null) {
-            VipVO vipvo = dbf.findByUuid(vo.getVipUuid(), VipVO.class);
-            ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
-            msg.setUseFor(null);
-            msg.setVipUuid(vipvo.getUuid());
-            bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vipvo.getUuid());
-            bus.send(msg, new CloudBusCallBack(complete) {
+            new Vip(vo.getVipUuid()).release(false, new Completion(complete) {
                 @Override
-                public void run(MessageReply reply) {
-                    if (!reply.isSuccess()) {
-                        throw new OperationFailureException(reply.getError());
-                    }
-
+                public void success() {
                     dbf.remove(vo);
                     complete.success();
+                }
+
+                @Override
+                public void fail(ErrorCode errorCode) {
+                    complete.fail(errorCode);
                 }
             });
 
@@ -477,7 +473,9 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
 
         VipInventory vipInventory = VipInventory.valueOf(vip);
         if (msg.getVmNicUuid() == null) {
-            lockVipToPortForwarding(vipInventory.getUuid(), new Completion(msg) {
+            Vip v = new Vip(vipInventory.getUuid());
+            v.setUseFor(PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE);
+            v.acquire(false, new Completion(msg) {
                 @Override
                 public void success() {
                     evt.setInventory(PortForwardingRuleInventory.valueOf(vo));
@@ -500,7 +498,9 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
         q.add(VmInstanceVO_.uuid, Op.EQ, vmNic.getVmInstanceUuid());
         VmInstanceState vmState = q.findValue();
         if (VmInstanceState.Running != vmState) {
-            lockVipToPortForwarding(vipInventory.getUuid(), new Completion(msg) {
+            Vip v = new Vip(vipInventory.getUuid());
+            v.setUseFor(PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE);
+            v.acquire(false, new Completion(msg) {
                 @Override
                 public void success() {
                     evt.setInventory(PortForwardingRuleInventory.valueOf(vo));
@@ -583,23 +583,6 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
                 bus.publish(evt);
             }
         }).start();
-    }
-
-    private void lockVipToPortForwarding(String vipUuid, Completion completion) {
-        ModifyVipAttributesMsg mmsg = new ModifyVipAttributesMsg();
-        mmsg.setVipUuid(vipUuid);
-        mmsg.setUseFor(PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE);
-        bus.makeTargetServiceIdByResourceUuid(mmsg, VipConstant.SERVICE_ID, vipUuid);
-        bus.send(mmsg, new CloudBusCallBack(completion) {
-            @Override
-            public void run(MessageReply reply) {
-                if (!reply.isSuccess()) {
-                    throw new OperationFailureException(reply.getError());
-                }
-
-                completion.success();
-            }
-        });
     }
 
     private void populateExtensions() {

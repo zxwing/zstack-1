@@ -5,7 +5,7 @@ import org.zstack.header.message.NeedReplyMessage;
 /**
  * Created by xing5 on 2016/11/30.
  */
-public class ModifyVipAttributesMsg extends NeedReplyMessage implements VipMessage {
+class ModifyVipAttributesMsg extends NeedReplyMessage implements VipMessage {
     private String vipUuid;
     private ModifyVipAttributesStruct struct;
 

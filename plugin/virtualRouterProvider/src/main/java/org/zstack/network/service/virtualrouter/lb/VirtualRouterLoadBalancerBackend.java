@@ -791,13 +791,11 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
                 });
 
                 flow(new NoRollbackFlow() {
-                    String __name__ = "unlock-vip";
+                    String __name__ = "release-vip";
 
                     @Override
                     public void run(final FlowTrigger trigger, Map data) {
-                        Vip vip = new Vip(struct.getLb().getVipUuid());
-                        vip.setPeerL3NetworkUuid(null);
-                        vip.release(true, new Completion(trigger) {
+                        new Vip(struct.getLb().getUuid()).release(new Completion(trigger) {
                             @Override
                             public void success() {
                                 trigger.next();

@@ -14,6 +14,7 @@ import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.workflow.FlowChainBuilder;
 import org.zstack.header.AbstractService;
 import org.zstack.header.core.Completion;
+import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.core.workflow.FlowChain;
 import org.zstack.header.core.workflow.FlowChainProcessor;
 import org.zstack.header.core.workflow.FlowDoneHandler;
@@ -301,18 +302,16 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
         VipInventory vipInventory = VipInventory.valueOf(vipvo);
 
         if (vo.getVmNicUuid() == null) {
-            ModifyVipAttributesMsg umsg = new ModifyVipAttributesMsg();
-            umsg.setVipUuid(vipInventory.getUuid());
-            umsg.setUseFor(null);
-            bus.makeTargetServiceIdByResourceUuid(umsg, VipConstant.SERVICE_ID, vipInventory.getUuid());
-            bus.send(umsg, new CloudBusCallBack(msg) {
+            new Vip(vipvo.getUuid()).release(new Completion(msg) {
                 @Override
-                public void run(MessageReply reply) {
-                    if (!reply.isSuccess()) {
-                        throw new OperationFailureException(reply.getError());
-                    }
-
+                public void success() {
                     dbf.remove(vo);
+                    bus.publish(evt);
+                }
+
+                @Override
+                public void fail(ErrorCode errorCode) {
+                    evt.setErrorCode(errorCode);
                     bus.publish(evt);
                 }
             });
@@ -385,7 +384,7 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
 
         if (vo.getVmNicUuid() == null) {
             EipVO finalVo = vo;
-            lockVipToEip(vipvo.getUuid(), new Completion(msg) {
+            new Vip(vipvo.getUuid()).acquire(false, new Completion(msg) {
                 @Override
                 public void success() {
                     evt.setInventory(EipInventory.valueOf(finalVo));
@@ -417,9 +416,10 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
         q.select(VmInstanceVO_.state);
         q.add(VmInstanceVO_.uuid, SimpleQuery.Op.EQ, nicvo.getVmInstanceUuid());
         VmInstanceState state = q.findValue();
+
         if (state != VmInstanceState.Running) {
             EipVO finalVo = vo;
-            lockVipToEip(vipvo.getUuid(), new Completion(msg) {
+            new Vip(vipvo.getUuid()).acquire(false, new Completion(msg) {
                 @Override
                 public void success() {
                     evt.setInventory(EipInventory.valueOf(finalVo));
@@ -471,24 +471,6 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
                 bus.publish(evt);
             }
         }).start();
-    }
-
-    private void lockVipToEip(String vipUuid, Completion completion) {
-        ModifyVipAttributesMsg mmsg = new ModifyVipAttributesMsg();
-        mmsg.setUseFor(EipConstant.EIP_NETWORK_SERVICE_TYPE);
-        mmsg.setVipUuid(vipUuid);
-        bus.makeTargetServiceIdByResourceUuid(mmsg, EipConstant.SERVICE_ID, vipUuid);
-
-        bus.send(mmsg, new CloudBusCallBack(completion) {
-            @Override
-            public void run(MessageReply reply) {
-                if (!reply.isSuccess()) {
-                    throw new OperationFailureException(reply.getError());
-                }
-
-                completion.success();
-            }
-        });
     }
 
     @Override

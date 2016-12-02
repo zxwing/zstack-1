@@ -299,24 +299,6 @@ public class VipManagerImpl extends AbstractService implements VipManager, Repor
         return true;
     }
 
-    @Override
-    public VipBackend getVipBackend(String providerType) {
-        VipBackend backend = vipBackends.get(providerType);
-        DebugUtils.Assert(backend != null, String.format("cannot find VipBackend for provider type[%s]", providerType));
-        return backend;
-    }
-
-    @Override
-    public void saveVipInfo(String vipUuid, String networkServiceType, String peerL3NetworkUuid) {
-        VipVO vo = dbf.findByUuid(vipUuid, VipVO.class);
-        vo.setServiceProvider(networkServiceType);
-        if (vo.getPeerL3NetworkUuid() == null) {
-            vo.setPeerL3NetworkUuid(peerL3NetworkUuid);
-        }
-        dbf.update(vo);
-    }
-
-
     public void setReleaseVipByApiFlowNames(List<String> releaseVipByApiFlowNames) {
         this.releaseVipByApiFlowNames = releaseVipByApiFlowNames;
     }

@@ -568,19 +568,15 @@ public class LoadBalancerBase {
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
-                        VipInventory vip = VipInventory.valueOf(dbf.findByUuid(self.getVipUuid(), VipVO.class));
-                        ModifyVipAttributesMsg msg = new ModifyVipAttributesMsg();
-                        msg.setVipUuid(vip.getUuid());
-                        msg.setUseFor(null);
-                        bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, vip.getUuid());
-                        bus.send(msg, new CloudBusCallBack(trigger) {
+                        new Vip(self.getVipUuid()).release(new Completion(trigger) {
                             @Override
-                            public void run(MessageReply reply) {
-                                if (!reply.isSuccess()) {
-                                    logger.warn(reply.getError().toString());
-                                }
-
+                            public void success() {
                                 trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
                             }
                         });
                     }

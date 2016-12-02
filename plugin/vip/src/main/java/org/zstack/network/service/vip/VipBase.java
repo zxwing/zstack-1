@@ -206,6 +206,13 @@ public class VipBase {
 
             @Override
             public void run(SyncTaskChain chain) {
+                if (!msg.isDeleteOnBackend()) {
+                    modifyAttributes(msg.getStruct());
+                    bus.reply(msg, reply);
+                    chain.next();
+                    return;
+                }
+
                 releaseVip(msg.getStruct(), new Completion(msg, chain) {
                     @Override
                     public void success() {
@@ -273,6 +280,15 @@ public class VipBase {
             @Override
             public void run(SyncTaskChain chain) {
                 refresh();
+                if (!msg.isCreateOnBackend()) {
+                    // no need to really create the VIP on network devices,
+                    // just mark it in database
+                    modifyAttributes(msg.getStruct());
+                    bus.reply(msg, reply);
+                    chain.next();
+                    return;
+                }
+
                 acquireVip(msg.getStruct(), new Completion(msg, chain) {
                     @Override
                     public void success() {

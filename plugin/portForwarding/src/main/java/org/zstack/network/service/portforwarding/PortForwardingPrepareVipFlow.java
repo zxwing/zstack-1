@@ -39,9 +39,9 @@ public class PortForwardingPrepareVipFlow implements Flow {
         vip.setPeerL3NetworkUuid(peerL3.getUuid());
         vip.setServiceProvider(serviceProviderType);
         vip.setUseFor(needLockVip ? PortForwardingConstant.PORTFORWARDING_NETWORK_SERVICE_TYPE : null);
-        vip.acquire(new ReturnValueCompletion<VipInventory>(trigger) {
+        vip.acquire(new Completion(trigger) {
             @Override
-            public void success(VipInventory returnValue) {
+            public void success() {
                 trigger.next();
             }
 
@@ -54,17 +54,13 @@ public class PortForwardingPrepareVipFlow implements Flow {
 
     @Override
     public void rollback(final FlowRollback trigger, Map data) {
-        final VipInventory v = (VipInventory) data.get(VipConstant.Params.VIP.toString());
         if (!data.containsKey(SUCCESS)) {
             trigger.rollback();
             return;
         }
 
-        boolean needLockVip = data.containsKey(Params.NEED_LOCK_VIP.toString());
-
-        Vip vip = new Vip(v.getUuid());
-        vip.setPeerL3NetworkUuid(null);
-        vip.release(needLockVip, new Completion(trigger) {
+        VipInventory v = (VipInventory) data.get(VipConstant.Params.VIP.toString());
+        new Vip(v.getUuid()).release(new Completion(trigger) {
             @Override
             public void success() {
                 trigger.rollback();

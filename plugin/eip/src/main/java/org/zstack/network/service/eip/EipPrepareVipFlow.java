@@ -42,9 +42,9 @@ public class EipPrepareVipFlow implements Flow {
         vip.setServiceProvider(serviceProviderType);
         vip.setUseFor(needLockVip ? EipConstant.EIP_NETWORK_SERVICE_TYPE : null);
         vip.setPeerL3NetworkUuid(peerL3.getUuid());
-        vip.acquire(new ReturnValueCompletion<VipInventory>(trigger) {
+        vip.acquire(new Completion(trigger) {
             @Override
-            public void success(VipInventory ret) {
+            public void success() {
                 data.put(SUCCESS, true);
                 trigger.next();
             }
@@ -64,9 +64,8 @@ public class EipPrepareVipFlow implements Flow {
             return;
         }
 
-        boolean unlock = data.containsKey(Params.NEED_LOCK_VIP.toString());
         Vip vip = new Vip(v.getUuid());
-        vip.release(unlock, new Completion(trigger) {
+        vip.release(new Completion(trigger) {
             @Override
             public void success() {
                 trigger.rollback();

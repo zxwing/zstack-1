@@ -1,6 +1,8 @@
 package org.zstack.network.service.virtualrouter.vip;
 
+import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Configurable;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.timeout.ApiTimeoutManager;
@@ -29,6 +31,7 @@ import static org.codehaus.groovy.runtime.InvokerHelper.asList;
 /**
  * Created by xing5 on 2016/11/20.
  */
+@Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
 public class VirtualRouterVipBaseBackend extends VipBaseBackend {
     private static final CLogger logger = Utils.getLogger(VirtualRouterVipBaseBackend.class);
 
@@ -130,6 +133,44 @@ public class VirtualRouterVipBaseBackend extends VipBaseBackend {
         });
     }
 
+    public void createVipOnVirtualRouterVm(final VirtualRouterVmInventory vr, List<VipInventory> vips, final Completion completion) {
+        final List<VirtualRouterCommands.VipTO> tos = new ArrayList<VirtualRouterCommands.VipTO>(vips.size());
+        for (VipInventory vip : vips) {
+            String mac = getOwnerMac(vr, vip);
+            VirtualRouterCommands.VipTO to = VirtualRouterCommands.VipTO.valueOf(vip, mac);
+            tos.add(to);
+        }
+
+        VirtualRouterCommands.CreateVipCmd cmd = new VirtualRouterCommands.CreateVipCmd();
+        cmd.setVips(tos);
+
+        VirtualRouterAsyncHttpCallMsg msg = new VirtualRouterAsyncHttpCallMsg();
+        msg.setVmInstanceUuid(vr.getUuid());
+        msg.setCommand(cmd);
+        msg.setCommandTimeout(apiTimeoutManager.getTimeout(cmd.getClass(), "5m"));
+        msg.setPath(VirtualRouterConstant.VR_CREATE_VIP);
+        bus.makeTargetServiceIdByResourceUuid(msg, VmInstanceConstant.SERVICE_ID, vr.getUuid());
+        bus.send(msg, new CloudBusCallBack(completion) {
+            @Override
+            public void run(MessageReply reply) {
+                if (!reply.isSuccess()) {
+                    completion.fail(reply.getError());
+                    return;
+                }
+
+                VirtualRouterAsyncHttpCallReply re = reply.castReply();
+                VirtualRouterCommands.CreateVipRsp ret = re.toResponse(VirtualRouterCommands.CreateVipRsp.class);
+                if (!ret.isSuccess()) {
+                    String err = String.format("failed to create vip%s on virtual router[uuid:%s], because %s", tos, vr.getUuid(), ret.getError());
+                    logger.warn(err);
+                    completion.fail(errf.stringToOperationError(err));
+                } else {
+                    completion.success();
+                }
+            }
+        });
+    }
+
     @Override
     protected void acquireVipOnBackend(Completion completion) {
         VirtualRouterVipVO vipvo = dbf.findByUuid(self.getUuid(), VirtualRouterVipVO.class);
@@ -159,19 +200,18 @@ public class VirtualRouterVipBaseBackend extends VipBaseBackend {
             public void run(final FlowTrigger trigger, final Map data) {
                 VirtualRouterStruct s = new VirtualRouterStruct();
                 s.setL3Network(s.getL3Network());
-                s.setOfferingValidator(new VirtualRouterOfferingValidator() {
-                    @Override
-                    public void validate(VirtualRouterOfferingInventory offering) throws OperationFailureException {
-                        if (!offering.getPublicNetworkUuid().equals(self.getL3NetworkUuid())) {
-                            throw new OperationFailureException(errf.stringToOperationError(
-                                    String.format("found a virtual router offering[uuid:%s] for L3Network[uuid:%s] in zone[uuid:%s]; however, the network's public network[uuid:%s] is not the same to VIP[uuid:%s]'s; you may need to use system tag" +
-                                            " guestL3Network::l3NetworkUuid to specify a particular virtual router offering for the L3Network", offering.getUuid(), guestNw.getUuid(), guestNw.getZoneUuid(), vip.getL3NetworkUuid(), vip.getUuid())
-                            ));
-                        }
+                s.setOfferingValidator(offering -> {
+                    if (!offering.getPublicNetworkUuid().equals(self.getL3NetworkUuid())) {
+                        throw new OperationFailureException(errf.stringToOperationError(
+                                String.format("found a virtual router offering[uuid:%s] for L3Network[uuid:%s] in zone[uuid:%s]; however, the network's public network[uuid:%s] is not the same to VIP[uuid:%s]'s; you may need to use system tag" +
+                                        " guestL3Network::l3NetworkUuid to specify a particular virtual router offering for the L3Network",
+                                        offering.getUuid(), s.getL3Network().getUuid(), s.getL3Network().getZoneUuid(),
+                                        self.getL3NetworkUuid(), self.getUuid())
+                        ));
                     }
                 });
 
-                acquireVirtualRouterVm(s, new ReturnValueCompletion<VirtualRouterVmInventory>(trigger){
+                vrMgr.acquireVirtualRouterVm(s, new ReturnValueCompletion<VirtualRouterVmInventory>(trigger){
                     @Override
                     public void success(VirtualRouterVmInventory returnValue) {
                         data.put(VirtualRouterConstant.Param.VR.toString(), returnValue);
@@ -188,7 +228,7 @@ public class VirtualRouterVipBaseBackend extends VipBaseBackend {
             @Override
             public void run(final FlowTrigger trigger, Map data) {
                 final VirtualRouterVmInventory vr = (VirtualRouterVmInventory) data.get(VirtualRouterConstant.Param.VR.toString());
-                createVipOnVirtualRouterVm(vr, Arrays.asList(vip), new Completion(trigger) {
+                createVipOnVirtualRouterVm(vr, Arrays.asList(getSelfInventory()), new Completion(trigger) {
                     @Override
                     public void success() {
                         trigger.next();
@@ -205,9 +245,9 @@ public class VirtualRouterVipBaseBackend extends VipBaseBackend {
             public void handle(Map data) {
                 final VirtualRouterVmInventory vr = (VirtualRouterVmInventory) data.get(VirtualRouterConstant.Param.VR.toString());
 
-                if (!dbf.isExist(vip.getUuid(), VirtualRouterVipVO.class)) {
+                if (!dbf.isExist(self.getUuid(), VirtualRouterVipVO.class)) {
                     VirtualRouterVipVO vrvip = new VirtualRouterVipVO();
-                    vrvip.setUuid(vip.getUuid());
+                    vrvip.setUuid(self.getUuid());
                     vrvip.setVirtualRouterVmUuid(vr.getUuid());
                     dbf.persist(vrvip);
                 }
