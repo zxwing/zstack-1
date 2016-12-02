@@ -1072,7 +1072,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             }
         };
 
-        ShellResult shellResult = ShellUtils.runAndReturn(String.format("volume_create -p %s -v -s %s -r 3"
+        ShellResult shellResult = ShellUtils.runAndReturn(String.format("volume_create -p %s -v %s -r 3"
                 ,poolName,volumeName,cmd.size));
 
         if(shellResult.getRetCode() == 0){
