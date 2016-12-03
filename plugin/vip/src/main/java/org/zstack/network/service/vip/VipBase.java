@@ -442,20 +442,68 @@ public class VipBase {
             return;
         }
 
-        FlowChain chain = vipMgr.getReleaseVipChain();
-        chain.setName(String.format("api-release-vip-uuid-%s-ip-%s-name-%s", self.getUuid(), self.getIp(), self.getName()));
-        chain.getData().put(VipConstant.Params.VIP.toString(), getSelfInventory());
-        chain.done(new FlowDoneHandler(completion) {
+        FlowChain chain = FlowChainBuilder.newShareFlowChain();
+        chain.setName(String.format("delete-vip-uuid-%s-ip-%s-name-%s", self.getUuid(), self.getIp(), self.getName()));
+        chain.then(new ShareFlow() {
             @Override
-            public void handle(Map data) {
-                returnVip();
-                dbf.remove(self);
-                completion.success();
-            }
-        }).error(new FlowErrorHandler(completion) {
-            @Override
-            public void handle(ErrorCode errCode, Map data) {
-                completion.fail(errCode);
+            public void setup() {
+                flow(new NoRollbackFlow() {
+                    String __name__ = "release-services-on-vip";
+
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        VipReleaseExtensionPoint ext = vipMgr.getVipReleaseExtensionPoint(self.getUseFor());
+                        ext.releaseServicesOnVip(getSelfInventory(), new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
+                            }
+                        });
+                    }
+                });
+
+                flow(new NoRollbackFlow() {
+                    String __name__ = "delete-vip";
+
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        ModifyVipAttributesStruct s = new ModifyVipAttributesStruct();
+                        s.setPeerL3NetworkUuid(null);
+                        s.setUseFor(null);
+                        releaseVip(s, new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                trigger.next();
+                            }
+
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                trigger.fail(errorCode);
+                            }
+                        });
+                    }
+                });
+
+                done(new FlowDoneHandler(completion) {
+                    @Override
+                    public void handle(Map data) {
+                        returnVip();
+                        dbf.remove(self);
+                        completion.success();
+                    }
+                });
+
+                error(new FlowErrorHandler(completion) {
+                    @Override
+                    public void handle(ErrorCode errCode, Map data) {
+                        completion.fail(errCode);
+                    }
+                });
             }
         }).start();
     }

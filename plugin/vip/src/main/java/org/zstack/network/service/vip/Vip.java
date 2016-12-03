@@ -55,9 +55,8 @@ public class Vip {
     public void acquire(boolean createOnBackend, Completion completion) {
         if (createOnBackend) {
             DebugUtils.Assert(serviceProvider != null, "serviceProvider cannot be null");
+            DebugUtils.Assert(peerL3NetworkUuid != null, "peerL3NetworkUuid cannot be null");
         }
-
-        DebugUtils.Assert(peerL3NetworkUuid != null, "peerL3NetworkUuid cannot be null");
 
         AcquireVipMsg msg = new AcquireVipMsg();
         msg.setVipUuid(uuid);
