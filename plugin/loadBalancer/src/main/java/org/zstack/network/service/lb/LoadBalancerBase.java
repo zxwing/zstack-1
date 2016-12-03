@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
-import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
@@ -24,7 +23,6 @@ import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
-import org.zstack.header.message.MessageReply;
 import org.zstack.header.network.l3.L3NetworkVO;
 import org.zstack.header.network.service.NetworkServiceL3NetworkRefVO;
 import org.zstack.header.vm.VmNicInventory;
@@ -102,9 +100,55 @@ public class LoadBalancerBase {
             handle((RefreshLoadBalancerMsg) msg);
         } else if (msg instanceof DeleteLoadBalancerMsg) {
             handle((DeleteLoadBalancerMsg) msg);
+        } else if (msg instanceof DeleteLoadBalancerOnlyMsg) {
+            handle((DeleteLoadBalancerOnlyMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
         }
+    }
+
+    private void handle(DeleteLoadBalancerOnlyMsg msg) {
+        DeleteLoadBalancerOnlyReply reply = new DeleteLoadBalancerOnlyReply();
+
+        thdf.chainSubmit(new ChainTask(msg) {
+            @Override
+            public String getSyncSignature() {
+                return getSyncId();
+            }
+
+            @Override
+            public void run(SyncTaskChain chain) {
+                if (self.getProviderType() == null) {
+                    // not initialized yet
+                    dbf.remove(self);
+                    bus.reply(msg, reply);
+                    chain.next();
+                    return;
+                }
+
+                LoadBalancerBackend bkd = getBackend();
+                bkd.destroyLoadBalancer(makeStruct(), new Completion(msg, chain) {
+                    @Override
+                    public void success() {
+                        dbf.remove(self);
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+
+                    @Override
+                    public void fail(ErrorCode errorCode) {
+                        reply.setError(errorCode);
+                        bus.reply(msg, reply);
+                        chain.next();
+                    }
+                });
+            }
+
+            @Override
+            public String getName() {
+                return "delete-load-balancer-only";
+            }
+        });
     }
 
     private void handle(final DeleteLoadBalancerMsg msg) {
@@ -324,7 +368,7 @@ public class LoadBalancerBase {
         }).start();
     }
 
-    private void deactiveVmNic(final LoadBalancerActiveVmNicMsg msg, final NoErrorCompletion completion) {
+    private void activeVmNic(final LoadBalancerActiveVmNicMsg msg, final NoErrorCompletion completion) {
         checkIfNicIsAdded(msg.getVmNicUuids());
 
         LoadBalancerListenerVO l = CollectionUtils.find(self.getListeners(), new Function<LoadBalancerListenerVO, LoadBalancerListenerVO>() {
@@ -430,7 +474,7 @@ public class LoadBalancerBase {
 
             @Override
             public void run(final SyncTaskChain chain) {
-                deactiveVmNic(msg, new NoErrorCompletion(msg, chain) {
+                activeVmNic(msg, new NoErrorCompletion(msg, chain) {
                     @Override
                     public void done() {
                         chain.next();
@@ -564,7 +608,7 @@ public class LoadBalancerBase {
                 });
 
                 flow(new NoRollbackFlow() {
-                    String __name__ = "unlock-vip";
+                    String __name__ = "release-vip";
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {

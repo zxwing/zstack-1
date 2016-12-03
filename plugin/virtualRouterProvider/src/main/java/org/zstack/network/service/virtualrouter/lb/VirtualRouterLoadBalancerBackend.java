@@ -790,25 +790,6 @@ public class VirtualRouterLoadBalancerBackend extends AbstractVirtualRouterBacke
                     }
                 });
 
-                flow(new NoRollbackFlow() {
-                    String __name__ = "release-vip";
-
-                    @Override
-                    public void run(final FlowTrigger trigger, Map data) {
-                        new Vip(struct.getLb().getUuid()).release(new Completion(trigger) {
-                            @Override
-                            public void success() {
-                                trigger.next();
-                            }
-
-                            @Override
-                            public void fail(ErrorCode errorCode) {
-                                trigger.fail(errorCode);
-                            }
-                        });
-                    }
-                });
-
                 done(new FlowDoneHandler(completion) {
                     @Override
                     public void handle(Map data) {

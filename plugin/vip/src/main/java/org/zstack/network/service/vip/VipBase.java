@@ -119,34 +119,20 @@ public class VipBase {
     }
 
     private void handle(DeleteVipFromBackendMsg msg) {
-        thdf.chainSubmit(new ChainTask(msg) {
+        // DO NOT put it in the sync queue
+        // DeleteVipMsg may cause DeleteVipFromBackendMsg, putting DeleteVipFromBackendMsg
+        // in the queue will lead to a deadlock
+        DeleteVipFromBackendReply reply = new DeleteVipFromBackendReply();
+        deleteFromBackend(new Completion(msg) {
             @Override
-            public String getSyncSignature() {
-                return getThreadSyncSignature();
+            public void success() {
+                bus.reply(msg, reply);
             }
 
             @Override
-            public void run(SyncTaskChain chain) {
-                DeleteVipFromBackendReply reply = new DeleteVipFromBackendReply();
-                deleteFromBackend(new Completion(msg, chain) {
-                    @Override
-                    public void success() {
-                        bus.reply(msg, reply);
-                        chain.next();
-                    }
-
-                    @Override
-                    public void fail(ErrorCode errorCode) {
-                        reply.setError(errorCode);
-                        bus.reply(msg, reply);
-                        chain.next();
-                    }
-                });
-            }
-
-            @Override
-            public String getName() {
-                return "delete-vip-from-backend";
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
             }
         });
     }

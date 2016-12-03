@@ -44,6 +44,7 @@ import java.util.List;
  *
  * confirm lb synced on the lb vr
  */
+@Deprecated
 public class TestVirtualRouterLb15 {
     Deployer deployer;
     Api api;
