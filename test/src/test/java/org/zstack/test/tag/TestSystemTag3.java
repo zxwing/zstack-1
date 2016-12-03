@@ -10,6 +10,7 @@ import org.zstack.header.tag.*;
 import org.zstack.header.zone.ZoneInventory;
 import org.zstack.header.zone.ZoneVO;
 import org.zstack.tag.SystemTag;
+import org.zstack.tag.SystemTagCreator;
 import org.zstack.test.Api;
 import org.zstack.test.ApiSenderException;
 import org.zstack.test.DBUtil;
@@ -66,11 +67,14 @@ public class TestSystemTag3 {
         });
 
         ZoneInventory zone1 = deployer.zones.get("Zone1");
-        SystemTagInventory inv = TestSystemTags.big.createTag(zone1.getUuid());
+        SystemTagCreator creator = TestSystemTags.big.newSystemTagCreator(zone1.getUuid());
+        SystemTagInventory inv = creator.create();
         Assert.assertTrue(createCalled);
         api.deleteTag(inv.getUuid());
         createCalled = false;
-        TestSystemTags.big.createInherentTag(zone1.getUuid());
+        creator = TestSystemTags.big.newSystemTagCreator(zone1.getUuid());
+        creator.inherent = true;
+        creator.create();
         Assert.assertTrue(createCalled);
     }
 }

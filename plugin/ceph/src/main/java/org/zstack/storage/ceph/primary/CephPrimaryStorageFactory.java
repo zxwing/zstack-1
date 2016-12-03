@@ -36,6 +36,8 @@ import org.zstack.kvm.*;
 import org.zstack.storage.ceph.*;
 import org.zstack.storage.ceph.primary.KVMCephVolumeTO.MonInfo;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
+import org.zstack.tag.SystemTag;
+import org.zstack.tag.SystemTagCreator;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
@@ -116,13 +118,19 @@ public class CephPrimaryStorageFactory implements PrimaryStorageFactory, CephCap
         dbf.getEntityManager().persist(cvo);
 
         if (cmsg.getImageCachePoolName() != null) {
-            CephSystemTags.PREDEFINED_PRIMARY_STORAGE_IMAGE_CACHE_POOL.createInherentTag(cvo.getUuid());
+            SystemTagCreator creator = CephSystemTags.PREDEFINED_PRIMARY_STORAGE_IMAGE_CACHE_POOL.newSystemTagCreator(cvo.getUuid());
+            creator.ignoreIfExisting = true;
+            creator.create();
         }
         if (cmsg.getRootVolumePoolName() != null) {
-            CephSystemTags.PREDEFINED_PRIMARY_STORAGE_ROOT_VOLUME_POOL.createInherentTag(cvo.getUuid());
+            SystemTagCreator creator = CephSystemTags.PREDEFINED_PRIMARY_STORAGE_ROOT_VOLUME_POOL.newSystemTagCreator(cvo.getUuid());
+            creator.ignoreIfExisting = true;
+            creator.create();
         }
         if (cmsg.getDataVolumePoolName() != null) {
-            CephSystemTags.PREDEFINED_PRIMARY_STORAGE_DATA_VOLUME_POOL.createInherentTag(cvo.getUuid());
+            SystemTagCreator creator = CephSystemTags.PREDEFINED_PRIMARY_STORAGE_DATA_VOLUME_POOL.newSystemTagCreator(cvo.getUuid());
+            creator.ignoreIfExisting = true;
+            creator.create();
         }
 
         for (String url : cmsg.getMonUrls()) {

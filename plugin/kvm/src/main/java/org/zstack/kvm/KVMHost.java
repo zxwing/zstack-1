@@ -46,6 +46,7 @@ import org.zstack.header.volume.VolumeInventory;
 import org.zstack.header.volume.VolumeVO;
 import org.zstack.kvm.KVMAgentCommands.*;
 import org.zstack.kvm.KVMConstant.KvmVmState;
+import org.zstack.tag.SystemTagCreator;
 import org.zstack.tag.TagManager;
 import org.zstack.utils.*;
 import org.zstack.utils.gson.JSONObjectUtil;
@@ -2405,7 +2406,10 @@ public class KVMHost extends HostBase implements Host {
                 if (liveSnapshot) {
                     logger.debug(String.format("kvm host[OS:%s, uuid:%s, name:%s, ip:%s] supports live snapshot with libvirt[version:%s], qemu[version:%s]",
                             hostOS, self.getUuid(), self.getName(), self.getManagementIp(), rsp.getLibvirtVersion(), rsp.getQemuVersion()));
-                    HostSystemTags.LIVE_SNAPSHOT.reCreateInherentTag(self.getUuid());
+
+                    SystemTagCreator creator = HostSystemTags.LIVE_SNAPSHOT.newSystemTagCreator(self.getUuid());
+                    creator.recreate = true;
+                    creator.create();
                 } else {
                     HostSystemTags.LIVE_SNAPSHOT.deleteInherentTag(self.getUuid());
                 }
@@ -2696,7 +2700,9 @@ public class KVMHost extends HostBase implements Host {
                                     KVMSystemTags.HVM_CPU_FLAG.recreateTag(self.getUuid(), map(e(KVMSystemTags.HVM_CPU_FLAG_TOKEN, ret.getHvmCpuFlag())));
 
                                     if (ret.getLibvirtVersion().compareTo(KVMConstant.MIN_LIBVIRT_VIRTIO_SCSI_VERSION) >= 0) {
-                                        KVMSystemTags.VIRTIO_SCSI.reCreateInherentTag(self.getUuid());
+                                        SystemTagCreator creator = KVMSystemTags.VIRTIO_SCSI.newSystemTagCreator(self.getUuid());
+                                        creator.recreate = true;
+                                        creator.create();
                                     }
 
                                     trigger.next();
