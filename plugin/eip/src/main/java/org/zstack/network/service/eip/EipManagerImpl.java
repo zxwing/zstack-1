@@ -384,7 +384,9 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
 
         if (vo.getVmNicUuid() == null) {
             EipVO finalVo = vo;
-            new Vip(vipvo.getUuid()).acquire(false, new Completion(msg) {
+            Vip vip = new Vip(vipvo.getUuid());
+            vip.setUseFor(EipConstant.EIP_NETWORK_SERVICE_TYPE);
+            vip.acquire(false, new Completion(msg) {
                 @Override
                 public void success() {
                     evt.setInventory(EipInventory.valueOf(finalVo));
