@@ -823,10 +823,19 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
                 });
 
                 flow(new NoRollbackFlow() {
-                    String __name__ = "delete-vip-from-backend";
+                    String __name__ = "delete-vip-from-backend-if-no-rules";
 
                     @Override
                     public void run(FlowTrigger trigger, Map data) {
+                        SimpleQuery<PortForwardingRuleVO> q = dbf.createQuery(PortForwardingRuleVO.class);
+                        q.add(PortForwardingRuleVO_.vipUuid, Op.EQ, struct.getVip().getUuid());
+                        q.add(PortForwardingRuleVO_.vmNicUuid, Op.NOT_NULL);
+                        q.add(PortForwardingRuleVO_.uuid, Op.NOT_EQ, struct.getRule().getUuid());
+                        if (q.isExists()) {
+                            trigger.next();
+                            return;
+                        }
+
                         new Vip(struct.getVip().getUuid()).deleteFromBackend(new Completion(trigger) {
                             @Override
                             public void success() {
