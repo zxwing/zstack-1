@@ -2,6 +2,8 @@ package org.zstack.tag;
 
 import org.zstack.header.tag.SystemTagInventory;
 
+import java.util.Map;
+
 /**
  * Created by xing5 on 2016/12/3.
  */
@@ -24,4 +26,5 @@ public abstract class SystemTagCreator {
     public boolean unique = true;
 
     public abstract SystemTagInventory create();
+    public abstract void setTagByTokens(Map tokens);
 }

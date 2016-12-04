@@ -148,9 +148,11 @@ public class CephPrimaryStorageFactory implements PrimaryStorageFactory, CephCap
             dbf.getEntityManager().persist(mvo);
         }
 
-        CephSystemTags.KVM_SECRET_UUID.recreateInherentTag(vo.getUuid(), PrimaryStorageVO.class,
-                map(e(CephSystemTags.KVM_SECRET_UUID_TOKEN, UUID.randomUUID().toString()))
-        );
+        SystemTagCreator creator = CephSystemTags.KVM_SECRET_UUID.newSystemTagCreator(vo.getUuid());
+        creator.setTagByTokens(map(e(CephSystemTags.KVM_SECRET_UUID_TOKEN, UUID.randomUUID().toString())));
+        creator.inherent = true;
+        creator.recreate = true;
+        creator.create();
 
         return PrimaryStorageInventory.valueOf(cvo);
     }

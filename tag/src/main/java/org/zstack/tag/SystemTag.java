@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.Callable;
 
 import static java.util.Arrays.asList;
+import static org.zstack.utils.StringDSL.s;
 
 /**
  */
@@ -213,6 +214,10 @@ public class SystemTag {
         tagMgr.deleteSystemTag(tagFormat, resourceUuid, resourceClass.getSimpleName(), true);
     }
 
+    public String instantiateTag(Map tokens) {
+        return tagFormat;
+    }
+
     public SystemTagCreator newSystemTagCreator(String resUuid) {
         SystemTag self = this;
 
@@ -230,6 +235,11 @@ public class SystemTag {
                         throw e;
                     }
                 }
+            }
+
+            @Override
+            public void setTagByTokens(Map tokens) {
+                tag = instantiateTag(tokens);
             }
 
             @Transactional

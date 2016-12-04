@@ -139,41 +139,4 @@ public class PatternedSystemTag extends SystemTag {
         SystemTagVO vo = q.find();
         return  vo == null ? null : SystemTagInventory.valueOf(vo);
     }
-
-    public SystemTagInventory recreateTag(String resourceUuid, Class resourceClass, Map tokens) {
-        return createTag(resourceUuid, resourceClass, tokens, false, true);
-    }
-
-    public SystemTagInventory recreateTag(String resourceUuid, Map tokens) {
-        return createTag(resourceUuid, resourceClass, tokens, false, true);
-    }
-
-    public SystemTagInventory recreateInherentTag(String resourceUuid, Class resourceClass, Map tokens) {
-        return createTag(resourceUuid, resourceClass, tokens, true, true);
-    }
-
-    public SystemTagInventory recreateInherentTag(String resourceUuid, Map tokens) {
-        return createTag(resourceUuid, resourceClass, tokens, true, true);
-    }
-
-    public SystemTagInventory createTag(String resourceUuid, Class resourceClass, Map tokens) {
-        return createTag(resourceUuid, resourceClass, tokens, false, false);
-    }
-
-    public SystemTagInventory createTag(String resourceUuid, Map tokens) {
-        return createTag(resourceUuid, resourceClass, tokens, false, false);
-    }
-
-    public SystemTagInventory createTag(String resourceUuid, String tag) {
-        return createTag(resourceUuid, getTokensByTag(tag));
-    }
-
-    public SystemTagInventory createInherentTag(String resourceUuid, Class resourceClass, Map tokens) {
-        return createTag(resourceUuid, resourceClass, tokens, true, false);
-    }
-
-    public SystemTagInventory createInherentTag(String resourceUuid, Map tokens) {
-        return createTag(resourceUuid, resourceClass, tokens, true, false);
-    }
 }
-

@@ -149,9 +149,11 @@ public class FusionstorPrimaryStorageFactory implements PrimaryStorageFactory, F
             dbf.getEntityManager().persist(mvo);
         }
 
-        FusionstorSystemTags.KVM_SECRET_UUID.recreateInherentTag(vo.getUuid(), PrimaryStorageVO.class,
-                map(e(FusionstorSystemTags.KVM_SECRET_UUID_TOKEN, UUID.randomUUID().toString()))
-        );
+        SystemTagCreator creator = FusionstorSystemTags.KVM_SECRET_UUID.newSystemTagCreator(vo.getUuid());
+        creator.inherent = true;
+        creator.recreate = true;
+        creator.setTagByTokens(map(e(FusionstorSystemTags.KVM_SECRET_UUID_TOKEN, UUID.randomUUID().toString())));
+        creator.create();
 
         return PrimaryStorageInventory.valueOf(cvo);
     }
