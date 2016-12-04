@@ -76,7 +76,7 @@ public class VirtualRouterVipBaseBackend extends VipBaseBackend {
             public void success() {
                 logger.debug(String.format("successfully released vip[uuid:%s, name:%s, ip:%s] on virtual router vm[uuid:%s]",
                         self.getUuid(), self.getName(), self.getIp(), vrvo.getUuid()));
-                dbf.remove(vrvip);
+                dbf.removeByPrimaryKey(vrvip.getUuid(), vrvip.getClass());
                 completion.success();
             }
 

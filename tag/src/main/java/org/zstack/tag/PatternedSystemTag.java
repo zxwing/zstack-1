@@ -119,18 +119,6 @@ public class PatternedSystemTag extends SystemTag {
         return s(tagFormat).formatByMap(tokens);
     }
 
-    private SystemTagInventory createTag(String resourceUuid, Class resourceClass, Map tokens, boolean inherent, boolean recreate) {
-        if (recreate) {
-            tagMgr.deleteSystemTagUseLike(useTagFormat(), resourceUuid, resourceClass.getSimpleName(), inherent);
-        }
-
-        if (inherent) {
-            return (SystemTagInventory) tagMgr.createSysTag(resourceUuid, instantiateTag(tokens), resourceClass.getSimpleName());
-        } else {
-            return tagMgr.createNonInherentSystemTag(resourceUuid, instantiateTag(tokens), resourceClass.getSimpleName());
-        }
-    }
-
     public SystemTagInventory getTagInventory(String resourceUuid) {
         SimpleQuery<SystemTagVO> q = dbf.createQuery(SystemTagVO.class);
         q.add(SystemTagVO_.resourceUuid, Op.EQ, resourceUuid);

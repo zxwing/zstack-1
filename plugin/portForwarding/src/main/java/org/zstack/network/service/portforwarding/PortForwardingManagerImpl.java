@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
-import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.MessageSafe;
 import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.db.DatabaseFacade;
@@ -18,15 +17,15 @@ import org.zstack.header.apimediator.ApiMessageInterceptionException;
 import org.zstack.header.core.Completion;
 import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
-import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.errorcode.SysErrors;
 import org.zstack.header.exception.CloudRuntimeException;
-import org.zstack.header.identity.*;
+import org.zstack.header.identity.IdentityErrors;
+import org.zstack.header.identity.Quota;
 import org.zstack.header.identity.Quota.QuotaOperator;
 import org.zstack.header.identity.Quota.QuotaPair;
+import org.zstack.header.identity.ReportQuotaExtensionPoint;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.message.Message;
-import org.zstack.header.message.MessageReply;
 import org.zstack.header.message.NeedQuotaCheckMessage;
 import org.zstack.header.network.l3.L3NetworkInventory;
 import org.zstack.header.network.l3.L3NetworkVO;
@@ -40,7 +39,6 @@ import org.zstack.identity.AccountManager;
 import org.zstack.identity.QuotaUtil;
 import org.zstack.network.service.NetworkServiceManager;
 import org.zstack.network.service.vip.*;
-import org.zstack.network.service.vip.VipConstant.Params;
 import org.zstack.tag.TagManager;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.DebugUtils;
@@ -380,6 +378,7 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
                             @Override
                             public void success() {
                                 logger.debug(String.format("successfully detached %s", struct.toString()));
+                                dbf.remove(vo);
                                 trigger.next();
                             }
 
@@ -391,45 +390,35 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
                     }
                 });
 
-                if (isNeedRemoveVip(inv)) {
-                    flow(new NoRollbackFlow() {
-                        String __name__ = "release-vip";
+                flow(new NoRollbackFlow() {
+                    String __name__ = "release-vip-if-no-rules";
 
-                        @Override
-                        public void run(FlowTrigger trigger, Map data) {
-                            new Vip(vo.getVipUuid()).release(new Completion(trigger) {
-                                @Override
-                                public void success() {
-                                    trigger.next();
-                                }
-
-                                @Override
-                                public void fail(ErrorCode errorCode) {
-                                    trigger.fail(errorCode);
-                                }
-                            });
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        SimpleQuery q = dbf.createQuery(PortForwardingRuleVO.class);
+                        q.add(PortForwardingRuleVO_.vipUuid, Op.EQ, inv.getVipUuid());
+                        if (q.isExists()) {
+                            trigger.next();
+                            return;
                         }
-                    });
-                } else {
-                    flow(new NoRollbackFlow() {
-                        String __name__ = "delete-vip-from-backend";
 
-                        @Override
-                        public void run(FlowTrigger trigger, Map data) {
-                            new Vip(vo.getVipUuid()).deleteFromBackend(new Completion(trigger) {
-                                @Override
-                                public void success() {
-                                    trigger.next();
-                                }
+                        // no port forwarding rules use this VIP, release it
+                        new Vip(vo.getVipUuid()).release(new Completion(trigger) {
+                            @Override
+                            public void success() {
+                                logger.debug(String.format("released VIP[uuid:%s] from port forwarding", vo.getVipUuid()));
+                                trigger.next();
+                            }
 
-                                @Override
-                                public void fail(ErrorCode errorCode) {
-                                    trigger.fail(errorCode);
-                                }
-                            });
-                        }
-                    });
-                }
+                            @Override
+                            public void fail(ErrorCode errorCode) {
+                                //TODO: GC this VIP
+                                logger.warn(errorCode.toString());
+                                trigger.next();
+                            }
+                        });
+                    }
+                });
 
                 done(new FlowDoneHandler(complete) {
                     @Override
@@ -440,8 +429,6 @@ public class PortForwardingManagerImpl extends AbstractService implements PortFo
                                 extp.afterRevokePortForwardingRule(inv, providerType);
                             }
                         });
-
-                        dbf.remove(vo);
 
                         logger.debug(String.format("successfully revoked port forwarding rule[uuid:%s]", inv.getUuid()));
                         complete.success();

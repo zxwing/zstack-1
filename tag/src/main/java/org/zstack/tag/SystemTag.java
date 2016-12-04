@@ -331,10 +331,6 @@ public class SystemTag {
                 }
 
                 if (tag == null) {
-                    if (self instanceof PatternedSystemTag) {
-                        throw new CloudRuntimeException("tag must be set for PatternedSystemTag");
-                    }
-
                     tag = getTagFormat();
                 }
             }

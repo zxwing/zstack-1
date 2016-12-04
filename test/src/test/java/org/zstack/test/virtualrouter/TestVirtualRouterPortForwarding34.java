@@ -137,7 +137,10 @@ public class TestVirtualRouterPortForwarding34 {
 
         long count = dbf.count(PortForwardingRuleVO.class);
         Assert.assertEquals(0, count);
-        count = dbf.count(VipVO.class);
-        Assert.assertEquals(0, count);
+        VipVO vipvo = dbf.findByUuid(vip.getUuid(), VipVO.class);
+        Assert.assertNotNull(vipvo);
+        Assert.assertNull(vipvo.getUseFor());
+        Assert.assertNull(vipvo.getPeerL3NetworkUuid());
+        Assert.assertNull(vipvo.getServiceProvider());
     }
 }

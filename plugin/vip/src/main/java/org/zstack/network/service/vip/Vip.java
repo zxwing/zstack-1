@@ -94,6 +94,9 @@ public class Vip {
         msg.setVipUuid(uuid);
         msg.setPeerL3NetworkUuid(null);
         msg.setUseFor(null);
+        if (!deleteOnBackend) {
+            msg.setServiceProvider(null);
+        }
         msg.setDeleteOnBackend(deleteOnBackend);
 
         bus.makeTargetServiceIdByResourceUuid(msg, VipConstant.SERVICE_ID, uuid);
