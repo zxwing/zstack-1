@@ -1007,7 +1007,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             return;
         }
 
-        ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("volume_delete -p %s -v %s",currentVolumePoolName,currentVolumeName));
+        ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",currentVolumePoolName,currentVolumeName));
 
         ShellResult rollback = ShellUtils.runAndReturn(String.format("snap_clone -p %s -v %s -s %s",currentVolumePoolName,currentVolumeName,snapshotName));
 
@@ -1205,7 +1205,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                                     return;
                                 } else {
                                     ShellResult deleteResult = ShellUtils.runAndReturn(
-                                            String.format("volume_delete -p %s -v %s",cmd.poolName,cmd.volumeName));
+                                            String.format("yes | volume_delete -p %s -v %s",cmd.poolName,cmd.volumeName));
                                     if(deleteResult.getRetCode() == 0){
                                         rsp.availableCapacity = getAvailableCapacity(getSelf());
                                         rsp.totalCapacity = getTotalCapacity(getSelf());
