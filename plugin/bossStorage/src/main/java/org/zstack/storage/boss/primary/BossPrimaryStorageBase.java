@@ -1,9 +1,12 @@
 package org.zstack.storage.boss.primary;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.thread.ChainTask;
 import org.zstack.core.thread.SyncTaskChain;
+import org.zstack.core.thread.ThreadFacade;
+import org.zstack.core.timeout.ApiTimeoutManager;
 import org.zstack.core.workflow.FlowChainBuilder;
 import org.zstack.core.workflow.ShareFlow;
 import org.zstack.header.core.ApiTimeout;
@@ -41,7 +44,10 @@ import java.util.*;
 public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
     private static final CLogger logger = Utils.getLogger(BossPrimaryStorageBase.class);
-
+    @Autowired
+    private ThreadFacade thdf;
+    @Autowired
+    private BossImageCacheCleaner imageCacheCleaner;
     public static class ShellCommand {
         String clusterName;
         String uuid;
@@ -756,6 +762,13 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
         } else {
             super.handleLocalMessage(msg);
         }
+    }
+
+    @Override
+    protected void handle(APICleanUpImageCacheOnPrimaryStorageMsg msg) {
+        APICleanUpImageCacheOnPrimaryStorageEvent evt = new APICleanUpImageCacheOnPrimaryStorageEvent(msg.getId());
+        imageCacheCleaner.cleanup(msg.getUuid());
+        bus.publish(evt);
     }
 
     private void handle(DeleteImageCacheOnPrimaryStorageMsg msg) {
