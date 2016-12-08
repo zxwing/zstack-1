@@ -220,7 +220,8 @@ public class BossBackupStorageBase extends BackupStorageBase {
 
     private void updateCapacityIfNeeded(ShellResponse rsp) {
         if (rsp.getTotalCapacity() != null && rsp.getAvailableCapacity() != null) {
-            new BossCapacityUpdater().update(getSelf().getClusterName(), rsp.totalCapacity, rsp.availableCapacity);
+            //new BossCapacityUpdater().update(getSelf().getClusterName(), rsp.totalCapacity, rsp.availableCapacity);
+            updateCapacity(rsp.totalCapacity,rsp.availableCapacity);
         }
     }
 
@@ -364,11 +365,11 @@ public class BossBackupStorageBase extends BackupStorageBase {
         cmd.installPath = makeImageInstallPath(msg.getImageInventory().getUuid());
         cmd.imageUuid = msg.getImageInventory().getUuid();
 
-        ImageBackupStorageRefVO ref = new ImageBackupStorageRefVO();
+        /*ImageBackupStorageRefVO ref = new ImageBackupStorageRefVO();
         ref.setInstallPath(cmd.installPath);
         ref.setBackupStorageUuid(msg.getBackupStorageUuid());
         ref.setImageUuid(msg.getImageInventory().getUuid());
-        dbf.update(ref);
+        dbf.update(ref);*/
 
         final DownloadImageReply reply = new DownloadImageReply();
         handleDownload(cmd, rsp, msg, new ReturnValueCompletion<DownloadRsp>(msg) {
@@ -606,8 +607,9 @@ public class BossBackupStorageBase extends BackupStorageBase {
         rsp.availableCapacity = getPoolAvailableSize(p.name);
 
         rsp.setClusterName(getSelf().getClusterName());
-        BossCapacityUpdater updater = new BossCapacityUpdater();
-        updater.update(rsp.clusterName, rsp.totalCapacity, rsp.availableCapacity, true);
+        //BossCapacityUpdater updater = new BossCapacityUpdater();
+        //updater.update(rsp.clusterName, rsp.totalCapacity, rsp.availableCapacity, true);
+        updateCapacity(rsp.totalCapacity,rsp.availableCapacity);
         completion.success();
 
 
