@@ -110,13 +110,13 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
         dbf.getEntityManager().persist(bvo);
 
         if (bmsg.getImageCachePoolName() != null) {
-            BossSystemTags.PREDEFINED_PRIMARY_STORAGE_IMAGE_CACHE_POOL.createInherentTag(bvo.getUuid());
+            BossSystemTags.PREDEFINED_PRIMARY_STORAGE_IMAGE_CACHE_POOL.newSystemTagCreator(bvo.getUuid());
         }
         if (bmsg.getRootVolumePoolName() != null) {
-            BossSystemTags.PREDEFINED_PRIMARY_STORAGE_ROOT_VOLUME_POOL.createInherentTag(bvo.getUuid());
+            BossSystemTags.PREDEFINED_PRIMARY_STORAGE_ROOT_VOLUME_POOL.newSystemTagCreator(bvo.getUuid());
         }
         if (bmsg.getDataVolumePoolName() != null) {
-            BossSystemTags.PREDEFINED_PRIMARY_STORAGE_DATA_VOLUME_POOL.createInherentTag(bvo.getUuid());
+            BossSystemTags.PREDEFINED_PRIMARY_STORAGE_DATA_VOLUME_POOL.newSystemTagCreator(bvo.getUuid());
         }
 
 

@@ -84,7 +84,7 @@ public class BossBackupStorageFactory implements BackupStorageFactory, BossCapac
         dbf.getEntityManager().persist(bvo);
 
         if (bmsg.getPoolName() != null) {
-            BossSystemTags.PREDEFINED_BACKUP_STORAGE_POOL.createInherentTag(bvo.getUuid());
+            BossSystemTags.PREDEFINED_BACKUP_STORAGE_POOL.newSystemTagCreator(bvo.getUuid());
         }
 
 

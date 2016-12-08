@@ -25,6 +25,7 @@ import org.zstack.utils.function.Function;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 
+import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import java.io.File;
 import java.io.IOException;
@@ -361,7 +362,15 @@ public class BossBackupStorageBase extends BackupStorageBase {
         cmd.url = msg.getImageInventory().getUrl();
         cmd.installPath = makeImageInstallPath(msg.getImageInventory().getUuid());
         cmd.imageUuid = msg.getImageInventory().getUuid();
-        cmd.inject = msg.isInject();
+
+        String sql = "update ImageBackupStorageRefVO set installPath = :installPath " +
+                "where backupStorageUuid = :bsUuid and imageUuid = :imageUuid";
+        Query q = dbf.getEntityManager().createQuery(sql);
+        q.setParameter("installPath", cmd.installPath);
+        q.setParameter("bsUuid", msg.getBackupStorageUuid());
+        q.setParameter("imageUuid", msg.getImageInventory().getUuid());
+        q.executeUpdate();
+
         final DownloadImageReply reply = new DownloadImageReply();
         handleDownload(cmd, rsp, msg, new ReturnValueCompletion<DownloadRsp>(msg) {
             @Override
