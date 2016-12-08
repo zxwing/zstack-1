@@ -29,7 +29,6 @@ import org.zstack.header.volume.SyncVolumeSizeReply;
 import org.zstack.header.volume.VolumeConstant;
 import org.zstack.header.volume.VolumeInventory;
 import org.zstack.kvm.*;
-import org.zstack.storage.boss.BossCapacityUpdateExtensionPoint;
 import org.zstack.storage.boss.BossConstants;
 import org.zstack.storage.boss.BossSystemTags;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
@@ -49,7 +48,7 @@ import java.util.concurrent.Future;
 /**
  * Created by XXPS-PC1 on 2016/10/28.
  */
-public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapacityUpdateExtensionPoint, KVMStartVmExtensionPoint,
+public class BossPrimaryStorageFactory implements PrimaryStorageFactory, KVMStartVmExtensionPoint,
         KVMAttachVolumeExtensionPoint, KVMDetachVolumeExtensionPoint, CreateTemplateFromVolumeSnapshotExtensionPoint,
         KvmSetupSelfFencerExtensionPoint, KVMPreAttachIsoExtensionPoint, Component {
 
@@ -130,28 +129,6 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory,BossCapa
     @Override
     public PrimaryStorageInventory getInventory(String uuid) {
         return BossPrimaryStorageInventory.valueOf(dbf.findByUuid(uuid, BossPrimaryStorageVO.class));
-    }
-    @Override
-    public void update(String clusterName, final long total, final long avail) {
-        String sql = "select cap from PrimaryStorageCapacityVO cap, BossPrimaryStorageVO pri where pri.uuid = cap.uuid and pri.clusterName = :clusterName";
-        TypedQuery<PrimaryStorageCapacityVO> q = dbf.getEntityManager().createQuery(sql, PrimaryStorageCapacityVO.class);
-        q.setParameter("clusterName", clusterName);
-        PrimaryStorageCapacityUpdater updater = new PrimaryStorageCapacityUpdater(q);
-        updater.run(new PrimaryStorageCapacityUpdaterRunnable() {
-            @Override
-            public PrimaryStorageCapacityVO call(PrimaryStorageCapacityVO cap) {
-                if (cap.getTotalCapacity() == 0 && cap.getAvailableCapacity() == 0) {
-                    // init
-                    cap.setTotalCapacity(total);
-                    cap.setAvailableCapacity(avail);
-                }
-
-                cap.setTotalPhysicalCapacity(total);
-                cap.setAvailablePhysicalCapacity(avail);
-
-                return cap;
-            }
-        });
     }
 
     private KVMAgentCommands.VolumeTO convertVolumeToBossIfNeeded(VolumeInventory vol, KVMAgentCommands.VolumeTO to) {
