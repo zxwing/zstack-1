@@ -27,12 +27,12 @@ import org.zstack.header.vm.*;
 import org.zstack.header.volume.*;
 import org.zstack.kvm.*;
 import org.zstack.storage.backup.sftp.SftpBackupStorageConstant;
-import org.zstack.storage.boss.BossCapacityUpdater;
 import org.zstack.storage.boss.BossConstants;
 import org.zstack.storage.boss.BossSystemTags;
 import org.zstack.storage.boss.backup.BossBackupStorageVO;
 import org.zstack.storage.boss.backup.BossBackupStorageVO_;
 import org.zstack.storage.primary.PrimaryStorageBase;
+import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.utils.*;
 import org.zstack.utils.logging.CLogger;
 
@@ -538,8 +538,9 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
     }
 
     private void updateCapacity(ShellResponse rsp){
-        BossCapacityUpdater updater = new BossCapacityUpdater();
-        updater.update(getSelf().getClusterName(),rsp.totalCapacity,rsp.availableCapacity);
+        PrimaryStorageCapacityUpdater updater = new PrimaryStorageCapacityUpdater(getSelf().getUuid());
+        //BossCapacityUpdater updater = new BossCapacityUpdater();
+        updater.update(rsp.totalCapacity,rsp.availableCapacity,rsp.totalCapacity,rsp.availableCapacity);
     }
 
 
@@ -1222,8 +1223,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                                     if(deleteResult.getRetCode() == 0){
                                         rsp.availableCapacity = getAvailableCapacity(getSelf());
                                         rsp.totalCapacity = getTotalCapacity(getSelf());
-                                        BossCapacityUpdater updater = new BossCapacityUpdater();
-                                        updater.update(getSelf().getClusterName(),rsp.totalCapacity,rsp.availableCapacity);
+                                        updateCapacity(rsp);
                                         deleteCompletion.success(rsp);
                                     } else {
                                         deleteCompletion.fail(errf.stringToOperationError(String.format("causes[%s]",deleteResult.getStderr())));
@@ -1317,8 +1317,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                                 if(deleteSnapShotResult.getRetCode() == 0){
                                     rsp.availableCapacity = getAvailableCapacity(getSelf());
                                     rsp.totalCapacity = getTotalCapacity(getSelf());
-                                    BossCapacityUpdater updater = new BossCapacityUpdater();
-                                    updater.update(getSelf().getClusterName(), rsp.totalCapacity, rsp.availableCapacity);
+                                    updateCapacity(rsp);
                                     deleteSnapShotCompletion.success(rsp);
 
                                 } else {
@@ -1473,8 +1472,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                         if(cloneShellResult.getRetCode() == 0){
                             rsp.totalCapacity = getTotalCapacity(getSelf());
                             rsp.availableCapacity = getAvailableCapacity(getSelf());
-                            BossCapacityUpdater updater = new BossCapacityUpdater();
-                            updater.update(getSelf().getClusterName(), rsp.totalCapacity, rsp.availableCapacity);
+                            updateCapacity(rsp);
                             cloneCompletion.success(rsp);
                         } else {
                             cloneCompletion.fail(errf.stringToOperationError(String.format("clone %s failed ,causes[%s]",cmd.srcVolumeName,cloneShellResult.getStderr())));
@@ -1760,8 +1758,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             rsp.size = getVolumeSizeFromPathInBoss(cmd.dstPath);
             rsp.availableCapacity = getAvailableCapacity(getSelf());
             rsp.totalCapacity = getTotalCapacity(getSelf());
-            BossCapacityUpdater updater = new BossCapacityUpdater();
-            updater.update(getSelf().getClusterName(),rsp.totalCapacity,rsp.availableCapacity);
+            updateCapacity(rsp);
             CpCompletion.success(rsp);
         } else {
             CpCompletion.fail(errf.stringToOperationError(String.format("upload bits to backupStorage failed," +
@@ -1816,8 +1813,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
 
             rsp.setClusterName(getSelf().getClusterName());
-            BossCapacityUpdater updater = new BossCapacityUpdater();
-            updater.update(rsp.clusterName, rsp.totalCapacity, rsp.availableCapacity, true);
+            updateCapacity(rsp);
 
             completion.success();
         } catch (Exception e){

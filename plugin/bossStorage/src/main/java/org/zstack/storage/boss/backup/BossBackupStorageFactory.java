@@ -10,7 +10,6 @@ import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.header.Component;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.storage.backup.*;
-import org.zstack.storage.boss.BossCapacityUpdateExtensionPoint;
 import org.zstack.storage.boss.BossConstants;
 import org.zstack.storage.boss.BossSystemTags;
 import org.zstack.utils.Utils;
@@ -23,7 +22,7 @@ import java.util.List;
 /**
  * Created by XXPS-PC1 on 2016/11/9.
  */
-public class BossBackupStorageFactory implements BackupStorageFactory, BossCapacityUpdateExtensionPoint, Component {
+public class BossBackupStorageFactory implements BackupStorageFactory, Component {
 
     private static final CLogger logger = Utils.getLogger(BossBackupStorageFactory.class);
     @Autowired
@@ -101,21 +100,5 @@ public class BossBackupStorageFactory implements BackupStorageFactory, BossCapac
     public BackupStorageInventory reload(String uuid) {
         return BossBackupStorageInventory.valueOf(dbf.findByUuid(uuid, BossBackupStorageVO.class));
     }
-
-    @Override
-    public void update(String clusterName, long total, long avail) {
-        String sql = "select c from BossBackupStorageVO c where c.clusterName = :clusterName";
-        TypedQuery<BossBackupStorageVO> q = dbf.getEntityManager().createQuery(sql, BossBackupStorageVO.class);
-        q.setParameter("clusterName", clusterName);
-        q.setLockMode(LockModeType.PESSIMISTIC_WRITE);
-        try {
-            BossBackupStorageVO vo = q.getSingleResult();
-            vo.setTotalCapacity(total);
-            vo.setAvailableCapacity(avail);
-            dbf.getEntityManager().merge(vo);
-        } catch (EmptyResultDataAccessException e) {
-            return;
-        }
-
-    }
 }
+
