@@ -11,6 +11,7 @@ import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.image.APIAddImageMsg;
 import org.zstack.header.image.ImageBackupStorageRefInventory;
+import org.zstack.header.image.ImageBackupStorageRefVO;
 import org.zstack.header.image.ImageInventory;
 import org.zstack.header.message.Message;
 import org.zstack.header.storage.backup.*;
@@ -363,13 +364,11 @@ public class BossBackupStorageBase extends BackupStorageBase {
         cmd.installPath = makeImageInstallPath(msg.getImageInventory().getUuid());
         cmd.imageUuid = msg.getImageInventory().getUuid();
 
-        String sql = "update ImageBackupStorageRefVO set installPath = :installPath " +
-                "where backupStorageUuid = :bsUuid and imageUuid = :imageUuid";
-        Query q = dbf.getEntityManager().createQuery(sql);
-        q.setParameter("installPath", cmd.installPath);
-        q.setParameter("bsUuid", msg.getBackupStorageUuid());
-        q.setParameter("imageUuid", msg.getImageInventory().getUuid());
-        q.executeUpdate();
+        ImageBackupStorageRefVO ref = new ImageBackupStorageRefVO();
+        ref.setInstallPath(cmd.installPath);
+        ref.setBackupStorageUuid(msg.getBackupStorageUuid());
+        ref.setImageUuid(msg.getImageInventory().getUuid());
+        dbf.update(ref);
 
         final DownloadImageReply reply = new DownloadImageReply();
         handleDownload(cmd, rsp, msg, new ReturnValueCompletion<DownloadRsp>(msg) {
@@ -503,10 +502,6 @@ public class BossBackupStorageBase extends BackupStorageBase {
         }else{
             completion.fail(errf.stringToOperationError(String.format("Delete image[%s] failed",imageName)));
         }
-
-
-
-
     }
 
     @Override
