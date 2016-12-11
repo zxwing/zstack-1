@@ -782,6 +782,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
         cmd.imagePath = msg.getInstallPath().split("@")[0];
         cmd.snapshotPath = msg.getInstallPath();
         cmd.imagePoolName = getBossPoolNameFromPath(cmd.imagePath);
+        cmd.imageName = getBossVolumeNameFromPath(cmd.imagePath);
         cmd.snapShotPoolName = getBossPoolNameFromPath(cmd.snapshotPath);
         cmd.snapShotName = getBossVolumeNameFromPath(cmd.snapshotPath);
 
@@ -815,16 +816,17 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             return;
         }
         */
-        ShellResult deleteImageCache = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",cmd.imagePoolName,cmd.imageName));
+        ShellResult deleteImageCache = ShellUtils.runAndReturn(String.format("yes | snap_delete -p %s -s %s",cmd.snapShotPoolName,cmd.snapShotName));
+        ShellResult deleteImage = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",cmd.imagePoolName,cmd.imageName));
 
-        if(deleteImageCache.getRetCode() == 0){
+        if(deleteImageCache.getRetCode() != 0 || deleteImage.getRetCode() != 0){
+            deleteImageCacheCompletion.fail(errf.stringToOperationError(String.format("delete image cache[%s] failed , errors :%s",
+                    cmd.imagePath,deleteImageCache.getStderr())));
+        } else {
             rsp.availableCapacity = getAvailableCapacity(getSelf());
             rsp.totalCapacity = getTotalCapacity(getSelf());
             updateCapacity(rsp);
             deleteImageCacheCompletion.success(rsp);
-        } else {
-            deleteImageCacheCompletion.fail(errf.stringToOperationError(String.format("delete image cache[%s] failed , errors :%s",
-                    cmd.imagePath,deleteImageCache.getStderr())));
         }
     }
 
