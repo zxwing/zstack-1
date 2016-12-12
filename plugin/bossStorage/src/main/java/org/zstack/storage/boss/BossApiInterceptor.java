@@ -34,11 +34,29 @@ public class BossApiInterceptor implements ApiMessageInterceptor {
     }
 
     public void validate(APIAddBossBackupStorageMsg msg){
-
+        if (msg.getPoolName() != null && msg.getPoolName().isEmpty()) {
+            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
+                    "poolName can be null but cannot be an empty string"
+            ));
+        }
     }
 
     public  void validate(APIAddBossPrimaryStorageMsg msg){
-
+        if (msg.getDataVolumePoolName() != null && msg.getDataVolumePoolName().isEmpty()) {
+            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
+                    "dataVolumePoolName can be null but cannot be an empty string"
+            ));
+        }
+        if (msg.getRootVolumePoolName() != null && msg.getRootVolumePoolName().isEmpty()) {
+            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
+                    "rootVolumePoolName can be null but cannot be an empty string"
+            ));
+        }
+        if (msg.getImageCachePoolName() != null && msg.getImageCachePoolName().isEmpty()) {
+            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
+                    "imageCachePoolName can be null but cannot be an empty string"
+            ));
+        }
     }
 
 
