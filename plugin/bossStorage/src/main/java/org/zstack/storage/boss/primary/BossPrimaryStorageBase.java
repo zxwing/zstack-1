@@ -600,7 +600,9 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             final DownloadParam dparam = (DownloadParam) param;
             logger.info(String.format("srcPool:%s  dstPool:%s",
                     getBossPoolNameFromPath(dparam.image.getSelectedBackupStorage().getInstallPath()),getBossPoolNameFromPath(dparam.installPath)));
-            if (ImageConstant.ImageMediaType.DataVolumeTemplate.toString().equals(dparam.image.getInventory().getMediaType())) {
+            String srcPool = getBossPoolNameFromPath(dparam.image.getSelectedBackupStorage().getInstallPath());
+            String dstPool = getBossPoolNameFromPath(dparam.installPath);
+            if (ImageConstant.ImageMediaType.DataVolumeTemplate.toString().equals(dparam.image.getInventory().getMediaType()) || !srcPool.equals(dstPool)) {
                 CpCmd cmd = new CpCmd();
                 CpRsp rsp = new CpRsp();
                 cmd.srcPath = dparam.image.getSelectedBackupStorage().getInstallPath();
@@ -634,7 +636,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                     CpCompletion.fail(errf.stringToOperationError(String.format("download volume from backupStorage failed," +
                             "causes[%s]",shellResult.getStderr())));
                 }
-            } else {
+            }else{
                 completion.success(dparam.image.getSelectedBackupStorage().getInstallPath());
             }
         }
@@ -1463,6 +1465,12 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                                     createSnapshotCompletion.fail(errf.stringToOperationError(
                                             String.format("create snapshot %s failed,causes[%s]", cmd.snapshotPath, snapCreateResult.getStderr())));
                                 }
+                            }else {
+                                rsp.size = getVolumeSizeFromPathInBoss(cmd.snapshotPath);
+                                rsp.availableCapacity = getAvailableCapacity(getSelf());
+                                rsp.totalCapacity = getTotalCapacity(getSelf());
+                                updateCapacity(rsp);
+                                createSnapshotCompletion.success(rsp);
                             }
                         }
 
