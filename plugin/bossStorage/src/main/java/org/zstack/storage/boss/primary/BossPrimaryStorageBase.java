@@ -1649,7 +1649,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
                         }
                         clonePoolName = cmd.dstPoolName;
-
+                        logger.info("clone image start!!!!!");
                         ShellResult cloneShellResult = ShellUtils.runAndReturn(String.format("snap_clone -p %s -v %s -s %s",clonePoolName,cmd.dstVolumeName,cmd.srcVolumeName));
                         if(cloneShellResult.getRetCode() == 0){
                             rsp.totalCapacity = getTotalCapacity(getSelf());
