@@ -23,6 +23,8 @@ import org.zstack.header.storage.backup.*;
 import org.zstack.header.storage.primary.*;
 import org.zstack.header.storage.snapshot.VolumeSnapshotConstant;
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
+import org.zstack.header.storage.snapshot.VolumeSnapshotVO;
+import org.zstack.header.storage.snapshot.VolumeSnapshotVO_;
 import org.zstack.header.vm.*;
 import org.zstack.header.volume.*;
 import org.zstack.kvm.*;
@@ -460,6 +462,10 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
     private String makeRootVolumeInstallPath(String volUuid) {
         return String.format("boss://%s/RV-%s", getSelf().getRootVolumePoolName(), volUuid);
     }
+    private String makeResetImageRootVolumeInstallPath(String volUuid) {
+        return String.format("boss://%s/reset-image-%s-%s", getSelf().getRootVolumePoolName(), volUuid,
+                System.currentTimeMillis());
+    }
 
     private String makeDataVolumeInstallPath(String volUuid) {
         return String.format("boss://%s/DV-%s", getSelf().getDataVolumePoolName(), volUuid);
@@ -760,7 +766,9 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             handle((CancelSelfFencerOnKvmHostMsg) msg);
         } else if (msg instanceof DeleteImageCacheOnPrimaryStorageMsg) {
             handle((DeleteImageCacheOnPrimaryStorageMsg) msg);
-        } else {
+        } else if (msg instanceof ReInitRootVolumeFromTemplateOnPrimaryStorageMsg) {
+            handle((ReInitRootVolumeFromTemplateOnPrimaryStorageMsg) msg);
+        }else {
             super.handleLocalMessage(msg);
         }
     }
@@ -1044,9 +1052,172 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
         final String volPath = makeDataVolumeInstallPath(msg.getVolumeUuid());
         VolumeSnapshotInventory sp = msg.getSnapshot();
+        CpCmd cmd = new CpCmd();
+        CpRsp rsp = new CpRsp();
+        cmd.resourceUuid = msg.getSnapshot().getVolumeUuid();
+        cmd.srcPath = sp.getPrimaryStorageInstallPath();
+        cmd.dstPath = volPath;
+        cmd.srcPoolName = getBossPoolNameFromPath(cmd.srcPath);
+        cmd.srcVolumeName = getBossVolumeNameFromPath(cmd.srcPath);
+        cmd.dstPoolName = getBossPoolNameFromPath(cmd.dstPath);
+        cmd.dstVolumeName = getBossVolumeNameFromPath(cmd.dstPath);
 
+        ReturnValueCompletion<CpRsp> CpCompletion = new ReturnValueCompletion<CpRsp>(msg) {
+            @Override
+            public void success(CpRsp rsp) {
+                reply.setInstallPath(volPath);
+                reply.setSize(rsp.size);
 
+                // current ceph has no way to get the actual size
+                long asize = rsp.actualSize == null ? 1 : rsp.actualSize;
+                reply.setActualSize(asize);
+                bus.reply(msg, reply);
+            }
 
+            @Override
+            public void fail(ErrorCode errorCode) {
+                reply.setError(errorCode);
+                bus.reply(msg, reply);
+            }
+        };
+
+        ShellResult shellResult = ShellUtils.runAndReturn(String.format("volume_copy -sp %s -sv %s -dp %s -dv %s",
+                cmd.srcPoolName,cmd.srcVolumeName,cmd.dstPoolName,cmd.dstVolumeName));
+        if (shellResult.getRetCode() == 0){
+            rsp.size = getVolumeSizeFromPathInBoss(cmd.dstPath);
+            rsp.availableCapacity = getAvailableCapacity(getSelf());
+            rsp.totalCapacity = getTotalCapacity(getSelf());
+            updateCapacity(rsp);
+            CpCompletion.success(rsp);
+        } else {
+            CpCompletion.fail(errf.stringToOperationError(String.format("create volume from snapshot on primaryStorage failed," +
+                    "causes[%s]",shellResult.getStderr())));
+        }
+    }
+
+    private void handle(final ReInitRootVolumeFromTemplateOnPrimaryStorageMsg msg) {
+        final ReInitRootVolumeFromTemplateOnPrimaryStorageReply reply = new ReInitRootVolumeFromTemplateOnPrimaryStorageReply();
+
+        final FlowChain chain = FlowChainBuilder.newShareFlowChain();
+        chain.setName(String.format("reimage-vm-root-volume-%s", msg.getVolume().getUuid()));
+        chain.then(new ShareFlow() {
+            String cloneInstallPath;
+            String originalVolumePath = msg.getVolume().getInstallPath();
+            String volumePath = makeResetImageRootVolumeInstallPath(msg.getVolume().getUuid());
+            ImageCacheVO cache;
+
+            @Override
+            public void setup() {
+                flow(new NoRollbackFlow() {
+                    String __name__ = "clone-image";
+
+                    @Override
+                    public void run(final FlowTrigger trigger, Map data) {
+                        SimpleQuery<ImageCacheVO> sq = dbf.createQuery(ImageCacheVO.class);
+                        sq.add(ImageCacheVO_.imageUuid, SimpleQuery.Op.EQ, msg.getVolume().getRootImageUuid());
+                        sq.add(ImageCacheVO_.primaryStorageUuid, SimpleQuery.Op.EQ, msg.getPrimaryStorageUuid());
+                        ImageCacheVO ivo = sq.find();
+
+                        CloneCmd cmd = new CloneCmd();
+                        CloneRsp rsp = new CloneRsp();
+                        cmd.srcPath = cloneInstallPath;
+                        cmd.dstPath = volumePath;
+                        cmd.dstPoolName = getBossPoolNameFromPath(cmd.dstPath);
+                        cmd.dstVolumeName = getBossVolumeNameFromPath(cmd.dstPath);
+                        cmd.srcPoolName = getBossPoolNameFromPath(cmd.srcPath);
+                        cmd.srcVolumeName = getBossVolumeNameFromPath(cmd.srcPath);
+                        String clonePoolName = null;
+                        ReturnValueCompletion<CloneRsp> cloneCompletion = new ReturnValueCompletion<CloneRsp>(trigger) {
+                            @Override
+                            public void fail(ErrorCode err) {
+                                trigger.fail(err);
+                            }
+
+                            @Override
+                            public void success(CloneRsp ret) {
+                                trigger.next();
+                            }
+                        };
+
+                        if(cmd.dstPoolName.equals(cmd.srcPoolName)){
+                            clonePoolName = cmd.dstPoolName;
+                        } else {
+                            cloneCompletion.fail(errf.stringToOperationError("can't clone between different pools!"));
+                        }
+
+                        ShellResult cloneShellResult = ShellUtils.runAndReturn(String.format("snap_clone -p %s -v %s -s %s",clonePoolName,cmd.dstVolumeName,cmd.srcVolumeName));
+                        if(cloneShellResult.getRetCode() == 0){
+                            rsp.totalCapacity = getTotalCapacity(getSelf());
+                            rsp.availableCapacity = getAvailableCapacity(getSelf());
+                            updateCapacity(rsp);
+                            cloneCompletion.success(rsp);
+                        } else {
+                            cloneCompletion.fail(errf.stringToOperationError(String.format("clone %s failed ,causes[%s]",cmd.srcVolumeName,cloneShellResult.getStderr())));
+                        }
+                    }
+                });
+
+                flow(new NoRollbackFlow() {
+                    String __name__ = "delete-origin-root-volume-which-has-no-snapshot";
+
+                    @Override
+                    public void run(FlowTrigger trigger, Map data) {
+                        SimpleQuery<VolumeSnapshotVO> sq = dbf.createQuery(VolumeSnapshotVO.class);
+                        sq.add(VolumeSnapshotVO_.primaryStorageInstallPath, SimpleQuery.Op.LIKE,
+                                String.format("%s%%", originalVolumePath));
+                        sq.count();
+                        if (sq.count() == 0) {
+                            DeleteCmd cmd = new DeleteCmd();
+                            DeleteRsp rsp = new DeleteRsp();
+                            cmd.installPath = originalVolumePath;
+                            cmd.poolName = getBossPoolNameFromPath(cmd.installPath);
+                            cmd.volumeName = getBossVolumeNameFromPath(cmd.installPath);
+                            ReturnValueCompletion<DeleteRsp> deleteCompletion = new ReturnValueCompletion<DeleteRsp>() {
+                                @Override
+                                public void success(DeleteRsp returnValue) {
+                                    logger.debug(String.format("successfully deleted %s", originalVolumePath));
+                                }
+
+                                @Override
+                                public void fail(ErrorCode errorCode) {
+                                    //TODO
+                                    logger.warn(String.format("unable to delete %s, %s. Need a cleanup",
+                                            originalVolumePath, errorCode));
+                                }
+                            };
+                            ShellResult deleteVolume = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",cmd.poolName,cmd.volumeName));
+
+                            if(deleteVolume.getRetCode() == 0){
+                                rsp.availableCapacity = getAvailableCapacity(getSelf());
+                                rsp.totalCapacity = getTotalCapacity(getSelf());
+                                updateCapacity(rsp);
+                                deleteCompletion.success(rsp);
+                            } else {
+                                deleteCompletion.fail(errf.stringToOperationError(String.format("delete volume[%s] failed , errors :%s",
+                                        cmd.installPath,deleteVolume.getStderr())));
+                            }
+                        }
+                        trigger.next();
+                    }
+                });
+
+                done(new FlowDoneHandler(msg) {
+                    @Override
+                    public void handle(Map data) {
+                        reply.setNewVolumeInstallPath(volumePath);
+                        bus.reply(msg, reply);
+                    }
+                });
+
+                error(new FlowErrorHandler(msg) {
+                    @Override
+                    public void handle(ErrorCode errCode, Map data) {
+                        reply.setError(errCode);
+                        bus.reply(msg, reply);
+                    }
+                });
+            }
+        }).start();
     }
 
     public void handle(BackupVolumeSnapshotFromPrimaryStorageToBackupStorageMsg msg) {
@@ -1464,11 +1635,18 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                             }
                         };
 
-                        if(cmd.dstPoolName.equals(cmd.srcPoolName)){
-                            clonePoolName = cmd.dstPoolName;
-                        } else {
-                            cloneCompletion.fail(errf.stringToOperationError("can't clone between different pools!"));
+                        if(!cmd.dstPoolName.equals(cmd.srcPoolName)){
+                            /*
+                            ShellResult CpVolume = ShellUtils.runAndReturn(String.format(
+                                    "volume_copy -sp %s -sv %s -dp %s -dv %s",cmd.srcPoolName,cmd.srcVolumeName,cmd.dstPoolName,cmd.srcVolumeName));
+                            if(CpVolume.getRetCode() != 0){
+                                cloneCompletion.fail(errf.stringToOperationError(String.format(
+                                        "error happens when copy from different pools!,causes[%s]",CpVolume.getStderr())));
+                            }*/
+                            cloneCompletion.fail(errf.stringToOperationError("can not clone between different pools"));
+
                         }
+                        clonePoolName = cmd.dstPoolName;
 
                         ShellResult cloneShellResult = ShellUtils.runAndReturn(String.format("snap_clone -p %s -v %s -s %s",clonePoolName,cmd.dstVolumeName,cmd.srcVolumeName));
                         if(cloneShellResult.getRetCode() == 0){
