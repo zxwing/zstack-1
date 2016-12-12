@@ -598,6 +598,8 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             checkParam();
 
             final DownloadParam dparam = (DownloadParam) param;
+            logger.info(String.format("srcPool:%s  dstPool:%s",
+                    getBossPoolNameFromPath(dparam.image.getSelectedBackupStorage().getInstallPath()),getBossPoolNameFromPath(dparam.installPath)));
             if (ImageConstant.ImageMediaType.DataVolumeTemplate.toString().equals(dparam.image.getInventory().getMediaType())) {
                 CpCmd cmd = new CpCmd();
                 CpRsp rsp = new CpRsp();
