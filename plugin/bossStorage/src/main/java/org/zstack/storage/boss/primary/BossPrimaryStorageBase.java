@@ -2,6 +2,7 @@ package org.zstack.storage.boss.primary;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.zstack.core.cloudbus.CloudBusCallBack;
+import org.zstack.core.cloudbus.CloudBusListCallBack;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.thread.ChainTask;
 import org.zstack.core.thread.SyncTaskChain;
@@ -16,6 +17,10 @@ import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.exception.CloudRuntimeException;
+import org.zstack.header.host.HostConstant;
+import org.zstack.header.host.HostStatus;
+import org.zstack.header.host.HostVO;
+import org.zstack.header.host.HostVO_;
 import org.zstack.header.image.*;
 import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
@@ -36,6 +41,7 @@ import org.zstack.storage.boss.backup.BossBackupStorageVO_;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.utils.*;
+import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
 import java.util.*;
@@ -342,67 +348,16 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
     public static class RollbackSnapshotRsp extends ShellResponse {
     }
 
-    public static class CreateKvmSecretCmd extends KVMAgentCommands.AgentCommand {
-        String userKey;
-        String uuid;
-
-        public String getUserKey() {
-            return userKey;
-        }
-
-        public void setUserKey(String userKey) {
-            this.userKey = userKey;
-        }
-
-        public String getUuid() {
-            return uuid;
-        }
-
-        public void setUuid(String uuid) {
-            this.uuid = uuid;
-        }
-    }
-
-    public static class CreateKvmSecretRsp extends ShellResponse {
-
-    }
-
-    public static class DeletePoolCmd extends ShellCommand {
-        List<String> poolNames;
-
-        public List<String> getPoolNames() {
-            return poolNames;
-        }
-
-        public void setPoolNames(List<String> poolNames) {
-            this.poolNames = poolNames;
-        }
-    }
-
-    public static class DeletePoolRsp extends ShellResponse {
-    }
-
     public static class KvmSetupSelfFencerCmd extends ShellCommand {
         public String heartbeatImagePath;
         public String hostUuid;
         public long interval;
         public int maxAttempts;
         public int storageCheckerTimeout;
-        public String userKey;
-        public List<String> monUrls;
     }
 
     public static class KvmCancelSelfFencerCmd extends ShellCommand {
         public String hostUuid;
-    }
-
-    public static class GetFactsCmd extends ShellCommand {
-        public String monUuid;
-    }
-
-    public static class GetFactsRsp extends ShellResponse {
-        public String fsid;
-        public String monAddr;
     }
 
     public static class DeleteImageCacheCmd extends ShellCommand {
@@ -2014,10 +1969,6 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
         }
     }
 
-    private void connect(final boolean newAdded, final Completion completion) {
-
-    }
-
     @Override
     protected void pingHook(Completion completion) {
         completion.success();
@@ -2031,4 +1982,5 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
         usage.totalPhysicalSize =  cap.getTotalPhysicalCapacity();
         completion.success(usage);
     }
+
 }

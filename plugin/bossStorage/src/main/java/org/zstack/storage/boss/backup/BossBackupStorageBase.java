@@ -608,8 +608,6 @@ public class BossBackupStorageBase extends BackupStorageBase {
         //updater.update(rsp.clusterName, rsp.totalCapacity, rsp.availableCapacity, true);
         updateCapacity(rsp.totalCapacity,rsp.availableCapacity);
         completion.success();
-
-
     }
 
     @Override
