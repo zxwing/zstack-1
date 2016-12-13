@@ -142,7 +142,7 @@ public class BossPrimaryStorageFactory implements PrimaryStorageFactory, KVMStar
     }
 
     private KVMAgentCommands.IsoTO convertIsoToBossIfNeeded(final KVMAgentCommands.IsoTO to) {
-        if (to == null || !to.getPath().startsWith(KVMAgentCommands.VolumeTO.CEPH)) {
+        if (to == null || !to.getPath().startsWith(KVMAgentCommands.VolumeTO.BOSS)) {
             return to;
         }
 
