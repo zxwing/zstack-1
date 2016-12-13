@@ -598,10 +598,13 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             checkParam();
 
             final DownloadParam dparam = (DownloadParam) param;
-            logger.info(String.format("srcPool:%s  dstPool:%s",
-                    getBossPoolNameFromPath(dparam.image.getSelectedBackupStorage().getInstallPath()),getBossPoolNameFromPath(dparam.installPath)));
             String srcPool = getBossPoolNameFromPath(dparam.image.getSelectedBackupStorage().getInstallPath());
             String dstPool = getBossPoolNameFromPath(dparam.installPath);
+            if(!srcPool.equals(dstPool)){
+                throw new OperationFailureException(errf.stringToOperationError(
+                        String.format("the Image pool[%s] is not in the same pool with the ImageCachePool[%s]!",srcPool,dstPool)
+                ));
+            }
             if (ImageConstant.ImageMediaType.DataVolumeTemplate.toString().equals(dparam.image.getInventory().getMediaType()) || !srcPool.equals(dstPool)) {
                 CpCmd cmd = new CpCmd();
                 CpRsp rsp = new CpRsp();
