@@ -1,21 +1,16 @@
 package org.zstack.storage.boss.backup;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.transaction.annotation.Transactional;
-import org.zstack.core.Platform;
 import org.zstack.core.ansible.AnsibleFacade;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.header.Component;
-import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.storage.backup.*;
 import org.zstack.storage.boss.BossConstants;
 import org.zstack.storage.boss.BossSystemTags;
 import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
-
-import javax.persistence.LockModeType;
 import javax.persistence.TypedQuery;
 import java.util.List;
 

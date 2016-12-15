@@ -535,7 +535,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
             public void success(GetImageSizeRsp rsp) {
                 reply.setSize(rsp.size);
 
-                // current ceph cannot get actual size
+                // current boss cannot get actual size
                 long asize = rsp.actualSize == null ? msg.getImage().getActualSize() : rsp.actualSize;
                 reply.setActualSize(asize);
                 bus.reply(msg, reply);

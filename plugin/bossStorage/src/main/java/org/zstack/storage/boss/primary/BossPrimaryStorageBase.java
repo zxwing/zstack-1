@@ -771,13 +771,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
             deleteImageCacheCompletion.success(rsp);
             return;
         }
-        /*
-        ShellResult deleteSnapShot = ShellUtils.runAndReturn(String.format("snap_delete -p %s -s %s",cmd.snapShotPoolName,cmd.snapShotName));
-        if(deleteSnapShot.getRetCode() != 0){
-            deleteImageCacheCompletion.fail(errf.stringToOperationError(String.format("the image cache[%s] is still in used.",cmd.imagePath)));
-            return;
-        }
-        */
+
         ShellResult deleteImageCache = ShellUtils.runAndReturn(String.format("yes | snap_delete -p %s -s %s",cmd.snapShotPoolName,cmd.snapShotName));
         ShellResult deleteImage = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",cmd.imagePoolName,cmd.imageName));
 
@@ -1022,7 +1016,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                 reply.setInstallPath(volPath);
                 reply.setSize(rsp.size);
 
-                // current ceph has no way to get the actual size
+                // current boss has no way to get the actual size
                 long asize = rsp.actualSize == null ? 1 : rsp.actualSize;
                 reply.setActualSize(asize);
                 bus.reply(msg, reply);
