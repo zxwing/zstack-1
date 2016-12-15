@@ -560,7 +560,7 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                         String.format("the Image pool[%s] is not in the same pool with the ImageCachePool[%s]!",srcPool,dstPool)
                 ));
             }
-            if (ImageConstant.ImageMediaType.DataVolumeTemplate.toString().equals(dparam.image.getInventory().getMediaType()) || !srcPool.equals(dstPool)) {
+            if (ImageConstant.ImageMediaType.DataVolumeTemplate.toString().equals(dparam.image.getInventory().getMediaType())) {
                 CpCmd cmd = new CpCmd();
                 CpRsp rsp = new CpRsp();
                 cmd.srcPath = dparam.image.getSelectedBackupStorage().getInstallPath();
@@ -1604,18 +1604,10 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
                         };
 
                         if(!cmd.dstPoolName.equals(cmd.srcPoolName)){
-                            /*
-                            ShellResult CpVolume = ShellUtils.runAndReturn(String.format(
-                                    "volume_copy -sp %s -sv %s -dp %s -dv %s",cmd.srcPoolName,cmd.srcVolumeName,cmd.dstPoolName,cmd.srcVolumeName));
-                            if(CpVolume.getRetCode() != 0){
-                                cloneCompletion.fail(errf.stringToOperationError(String.format(
-                                        "error happens when copy from different pools!,causes[%s]",CpVolume.getStderr())));
-                            }*/
                             cloneCompletion.fail(errf.stringToOperationError("can not clone between different pools"));
 
                         }
                         clonePoolName = cmd.dstPoolName;
-                        logger.info("clone image start!!!!!");
                         ShellResult cloneShellResult = ShellUtils.runAndReturn(String.format("snap_clone -p %s -v %s -s %s",clonePoolName,cmd.dstVolumeName,cmd.srcVolumeName));
                         if(cloneShellResult.getRetCode() == 0){
                             rsp.totalCapacity = getTotalCapacity(getSelf());
