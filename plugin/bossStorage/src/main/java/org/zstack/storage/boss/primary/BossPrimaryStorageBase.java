@@ -2,12 +2,10 @@ package org.zstack.storage.boss.primary;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.zstack.core.cloudbus.CloudBusCallBack;
-import org.zstack.core.cloudbus.CloudBusListCallBack;
 import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.thread.ChainTask;
 import org.zstack.core.thread.SyncTaskChain;
 import org.zstack.core.thread.ThreadFacade;
-import org.zstack.core.timeout.ApiTimeoutManager;
 import org.zstack.core.workflow.FlowChainBuilder;
 import org.zstack.core.workflow.ShareFlow;
 import org.zstack.header.core.ApiTimeout;
@@ -17,10 +15,6 @@ import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.exception.CloudRuntimeException;
-import org.zstack.header.host.HostConstant;
-import org.zstack.header.host.HostStatus;
-import org.zstack.header.host.HostVO;
-import org.zstack.header.host.HostVO_;
 import org.zstack.header.image.*;
 import org.zstack.header.message.Message;
 import org.zstack.header.message.MessageReply;
@@ -41,7 +35,6 @@ import org.zstack.storage.boss.backup.BossBackupStorageVO_;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.utils.*;
-import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
 import java.util.*;
@@ -500,7 +493,6 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
 
     private void updateCapacity(ShellResponse rsp){
         PrimaryStorageCapacityUpdater updater = new PrimaryStorageCapacityUpdater(getSelf().getUuid());
-        //BossCapacityUpdater updater = new BossCapacityUpdater();
         updater.update(rsp.totalCapacity,rsp.availableCapacity,rsp.totalCapacity,rsp.availableCapacity);
     }
 
@@ -1922,7 +1914,6 @@ public class BossPrimaryStorageBase extends PrimaryStorageBase {
     @Override
     protected void connectHook(ConnectParam param, Completion completion) {
         try {
-            //connect(param.isNewAdded(), completion);
             InitCmd cmd = new InitCmd();
             InitRsp rsp = new InitRsp();
             List<Pool> pools = new ArrayList<Pool>();
