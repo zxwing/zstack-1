@@ -29,4 +29,7 @@ public class KVMSystemTags {
 
     public static final String VOLUME_WWN_TOKEN = "wwn";
     public static PatternedSystemTag VOLUME_WWN = new PatternedSystemTag(String.format("kvm::volume::{%s}", VOLUME_WWN_TOKEN), VolumeVO.class);
+
+    public static final String ALL_IPs_TOKEN = "ip";
+    public static PatternedSystemTag ALL_IPs = new PatternedSystemTag(String.format("kvm::ip::{%s}", ALL_IPs_TOKEN), HostVO.class);
 }

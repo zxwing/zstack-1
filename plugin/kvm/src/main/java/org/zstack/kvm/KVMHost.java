@@ -1,5 +1,6 @@
 package org.zstack.kvm;
 
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.transaction.annotation.Transactional;
@@ -2660,6 +2661,15 @@ public class KVMHost extends HostBase implements Host {
                                         creator.recreate = true;
                                         creator.create();
                                     }
+
+                                    if (ret.getIps() == null || ret.getIps().isEmpty()) {
+                                        throw new CloudRuntimeException(String.format("why there is no IP address on the KVM host[uuid:%s, ip:%s]", self.getUuid(), self.getManagementIp()));
+                                    }
+
+                                    creator = KVMSystemTags.ALL_IPs.newSystemTagCreator(self.getUuid());
+                                    creator.setTagByTokens(map(e(KVMSystemTags.ALL_IPs_TOKEN, StringUtils.join(ret.getIps(), ","))));
+                                    creator.recreate = true;
+                                    creator.create();
 
                                     trigger.next();
                                 }

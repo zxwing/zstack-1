@@ -86,4 +86,5 @@ public class KVMSimulatorConfig {
     public List<DeleteVmConsoleFirewallCmd> deleteVmConsoleFirewallCmds  = new ArrayList<DeleteVmConsoleFirewallCmd>();
 
     public Map<String, Long> takeSnapshotCmdSize = new HashMap<String, Long>();
+    public List<String> allIps = new ArrayList<>();
 }
