@@ -119,6 +119,12 @@ public class BossBackupStorageBase extends BackupStorageBase {
         }
     }
 
+    public static class PingCmd extends ShellCommand {
+    }
+
+    public static class PingRsp extends ShellResponse {
+
+    }
 
     @ApiTimeout(apiClasses = {APIAddImageMsg.class})
     public static class DownloadCmd extends ShellCommand {
