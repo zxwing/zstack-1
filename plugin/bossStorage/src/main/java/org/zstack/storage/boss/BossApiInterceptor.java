@@ -60,11 +60,11 @@ public class BossApiInterceptor implements ApiMessageInterceptor {
 
         if (!msg.getDataVolumePoolName().equals(msg.getImageCachePoolName()) ||
                 !msg.getImageCachePoolName().equals(msg.getRootVolumePoolName()) ||
-                    !msg.getDataVolumePoolName().equals(msg.getRootVolumePoolName())){
-
-        }            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                "the poolname of the three should be the same!"
-        ));
+                    !msg.getDataVolumePoolName().equals(msg.getRootVolumePoolName())) {
+            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
+                    "the poolname of the three should be the same!"
+            ));
+        }
     }
 
 
