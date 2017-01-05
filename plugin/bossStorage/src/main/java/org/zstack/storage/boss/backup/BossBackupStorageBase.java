@@ -497,7 +497,7 @@ public class BossBackupStorageBase extends BackupStorageBase {
                 bus.reply(msg, reply);
             }
         };
-        ShellResult shellResult = ShellUtils.runAndReturn(String.format("yes | volume_delete -p %s -v %s",getSelf().getPoolName(),imageName));
+        ShellResult shellResult = ShellUtils.runAndReturn(String.format("volume_delete -p %s -v %s -f",getSelf().getPoolName(),imageName));
         if(shellResult.getRetCode() == 0){
             rsp.availableCapacity = getPoolAvailableSize(getSelf().getPoolName());
             rsp.totalCapacity = getPoolTotalSize(getSelf().getPoolName());
