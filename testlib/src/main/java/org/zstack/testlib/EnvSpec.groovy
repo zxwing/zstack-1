@@ -357,6 +357,10 @@ class EnvSpec implements Node {
                 }
             }
 
+            if (ret == null) {
+                ret = [:]
+            }
+
             replyHttpCall(entity, rsp, ret)
         } catch (HttpError he) {
             logger.warn("the simulator[$url] reports a http error[status code:${he.status}, message:${he.message}]", he)
