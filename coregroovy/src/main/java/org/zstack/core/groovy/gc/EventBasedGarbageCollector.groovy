@@ -28,7 +28,7 @@ abstract class EventBasedGarbageCollector extends GarbageCollector {
 
     Map<String, Closure> triggers = [:]
 
-    protected void onEvent(String path, Closure c) {
+    protected void onEvent(String path, Trigger c) {
         triggers[path] = { data, tokens ->
             GarbageCollectorVO vo = dbf.findById(id, GarbageCollectorVO.class)
 
@@ -49,11 +49,7 @@ abstract class EventBasedGarbageCollector extends GarbageCollector {
                 dbf.update(vo)
 
                 executedTimes ++
-                if (c.maximumNumberOfParameters <= 1) {
-                    c(data)
-                } else {
-                    c(data, tokens)
-                }
+                c.run(tokens, data)
             } catch (Throwable t) {
                 logger.warn("[GC] unhandled exception happened when running a GC job[name:$NAME, id:$id]", t)
                 ErrorFacade errf = bean(ErrorFacade.class)

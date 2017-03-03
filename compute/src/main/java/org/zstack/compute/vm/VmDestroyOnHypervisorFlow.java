@@ -73,6 +73,13 @@ public class VmDestroyOnHypervisorFlow extends NoRollbackFlow {
                     return;
                 }
 
+                /*
+                DeleteVmGC gc = new DeleteVmGC();
+                gc.setNAME(String.format("gc-vm-%s-on-host-%s", spec.getVmInventory().getUuid(), hostUuid));
+                gc.setHostUuid(hostUuid);
+                gc.setInventory(spec.getVmInventory());
+                gc.submit();
+
                 GCDeleteVmContext c = new GCDeleteVmContext();
                 c.setHostUuid(hostUuid);
                 c.setVmUuid(spec.getVmInventory().getUuid());
@@ -112,6 +119,7 @@ public class VmDestroyOnHypervisorFlow extends NoRollbackFlow {
                 ctx.addTrigger(trigger);
 
                 gcf.schedule(ctx);
+                */
 
                 chain.next();
             }
