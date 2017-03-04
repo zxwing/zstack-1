@@ -3,6 +3,7 @@ package org.zstack.test.integration.kvm.vm
 import org.springframework.http.HttpEntity
 import org.zstack.core.db.DatabaseFacade
 import org.zstack.core.gc.GarbageCollectorVO
+import org.zstack.header.vm.VmInstanceState
 import org.zstack.header.vm.VmInstanceVO
 import org.zstack.kvm.KVMAgentCommands
 import org.zstack.kvm.KVMConstant
@@ -44,10 +45,11 @@ class VmGCCase extends SubCase {
 
         def a = new DestroyVmInstanceAction()
         a.uuid = vm.uuid
+        a.sessionId = adminSession()
         DestroyVmInstanceAction.Result res = a.call()
-        assert res.error != null
         // because of the GC, confirm the VM is deleted
-        assert !dbIsExists(vm.uuid, VmInstanceVO.class)
+        assert res.error == null
+        assert dbFindByUuid(vm.uuid, VmInstanceVO.class).state == VmInstanceState.Destroyed
 
         KVMAgentCommands.DestroyVmCmd cmd = null
         env.afterSimulator(KVMConstant.KVM_DESTROY_VM_PATH) { rsp, HttpEntity<String> e ->
@@ -62,7 +64,8 @@ class VmGCCase extends SubCase {
 
         TimeUnit.SECONDS.sleep(1)
 
-        assert !dbIsExists(vm.uuid, VmInstanceVO.class)
+        // confirm the destroy command is sent
+        assert cmd != null
         assert cmd.uuid == vm.uuid
         assert dbf.count(GarbageCollectorVO.class) == 0
     }

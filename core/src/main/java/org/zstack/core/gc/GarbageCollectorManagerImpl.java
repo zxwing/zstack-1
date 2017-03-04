@@ -1,13 +1,10 @@
-package org.zstack.core.groovy.gc;
+package org.zstack.core.gc;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.zstack.core.cloudbus.ResourceDestinationMaker;
 import org.zstack.core.config.GlobalConfig;
 import org.zstack.core.config.GlobalConfigUpdateExtensionPoint;
 import org.zstack.core.db.Q;
-import org.zstack.core.gc.GCGlobalConfig;
-import org.zstack.core.gc.GarbageCollectorVO;
-import org.zstack.core.gc.GarbageCollectorVO_;
 import org.zstack.core.thread.PeriodicTask;
 import org.zstack.core.thread.ThreadFacade;
 import org.zstack.header.Component;

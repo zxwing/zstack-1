@@ -6,15 +6,11 @@ import org.springframework.beans.factory.annotation.Configurable;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.db.DatabaseFacade;
-import org.zstack.core.gc.EventBasedGCPersistentContext;
-import org.zstack.core.gc.GCEventTrigger;
 import org.zstack.core.gc.GCFacade;
 import org.zstack.header.core.workflow.FlowTrigger;
 import org.zstack.header.core.workflow.NoRollbackFlow;
-import org.zstack.header.host.HostCanonicalEvents;
 import org.zstack.header.host.HostConstant;
 import org.zstack.header.host.HostErrors;
-import org.zstack.header.host.HostStatus;
 import org.zstack.header.message.MessageReply;
 import org.zstack.header.vm.DestroyVmOnHypervisorMsg;
 import org.zstack.header.vm.VmInstanceConstant;
@@ -24,8 +20,6 @@ import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
 
 import java.util.Map;
-
-import static org.zstack.utils.StringDSL.ln;
 
 
 @Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
@@ -73,13 +67,13 @@ public class VmDestroyOnHypervisorFlow extends NoRollbackFlow {
                     return;
                 }
 
-                /*
                 DeleteVmGC gc = new DeleteVmGC();
-                gc.setNAME(String.format("gc-vm-%s-on-host-%s", spec.getVmInventory().getUuid(), hostUuid));
-                gc.setHostUuid(hostUuid);
-                gc.setInventory(spec.getVmInventory());
+                gc.NAME = String.format("gc-vm-%s-on-host-%s", spec.getVmInventory().getUuid(), hostUuid);
+                gc.hostUuid = hostUuid;
+                gc.inventory = spec.getVmInventory();
                 gc.submit();
 
+                /*
                 GCDeleteVmContext c = new GCDeleteVmContext();
                 c.setHostUuid(hostUuid);
                 c.setVmUuid(spec.getVmInventory().getUuid());

@@ -78,7 +78,7 @@ class KVMHostSpec extends HostSpec {
         simulator(KVMConstant.KVM_VM_CHECK_STATE) { HttpEntity<String> e ->
             KVMAgentCommands.CheckVmStateCmd cmd = JSONObjectUtil.toObject(e.body, KVMAgentCommands.CheckVmStateCmd.class)
             List<VmInstanceState> states = Q.New(VmInstanceVO.class)
-                    .select(VmInstanceVO_.state).in(VmInstanceVO_.uuid, cmd.vmUuids).findValue()
+                    .select(VmInstanceVO_.state).in(VmInstanceVO_.uuid, cmd.vmUuids).listValues()
             KVMAgentCommands.CheckVmStateRsp rsp = new KVMAgentCommands.CheckVmStateRsp()
             rsp.states = [:]
             states.each {

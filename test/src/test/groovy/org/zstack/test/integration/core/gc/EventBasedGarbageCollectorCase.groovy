@@ -4,12 +4,7 @@ import org.zstack.core.Platform
 import org.zstack.core.cloudbus.EventFacade
 import org.zstack.core.db.DatabaseFacade
 import org.zstack.core.errorcode.ErrorFacade
-import org.zstack.core.groovy.gc.EventBasedGarbageCollector
-import org.zstack.core.groovy.gc.GC
-import org.zstack.core.gc.GCGlobalConfig
-import org.zstack.core.gc.GCStatus
-import org.zstack.core.groovy.gc.GarbageCollectorManagerImpl
-import org.zstack.core.gc.GarbageCollectorVO
+import org.zstack.core.gc.*
 import org.zstack.testlib.SubCase
 
 import java.util.concurrent.CountDownLatch
@@ -34,54 +29,41 @@ class EventBasedGarbageCollectorCase extends SubCase {
     }
 
     class EventBasedGC1 extends EventBasedGarbageCollector {
+        Closure trigger = { true }
         Closure testLogic
 
         @Override
         protected void setup() {
-            onEvent(EVENT_PATH, { testLogic() })
+            onEvent(EVENT_PATH, { token, data ->
+                return trigger()
+            })
         }
+
 
         @Override
-        protected void triggerNow() {
-        }
-
-        void done() {
-            success()
-        }
-
-        void error() {
-            fail(errf.stringToOperationError("on purpose"))
-        }
-
-        void drop() {
-            cancel()
+        protected void triggerNow(GCCompletion completion) {
+            testLogic(completion)
         }
     }
 
     class EventBasedGCTwoEventsTriggered extends EventBasedGarbageCollector {
+        Closure trigger = { true }
         Closure testLogic
 
         @Override
         protected void setup() {
-            onEvent(EVENT_PATH2, { testLogic() })
-            onEvent(EVENT_PATH3, { testLogic() })
+            onEvent(EVENT_PATH2, { tokens, data ->
+                trigger()
+            })
+
+            onEvent(EVENT_PATH3, { tokens, data ->
+                trigger()
+            })
         }
 
         @Override
-        protected void triggerNow() {
-
-        }
-
-        void done() {
-            success()
-        }
-
-        void error() {
-            fail(errf.stringToOperationError("on purpose"))
-        }
-
-        void drop() {
-            cancel()
+        protected void triggerNow(GCCompletion completion) {
+            testLogic(completion)
         }
     }
 
@@ -94,6 +76,8 @@ class EventBasedGarbageCollectorCase extends SubCase {
     }
 
     static class EventBasedGCInDb extends EventBasedGarbageCollector {
+        Closure trigger = { true }
+
         @GC
         String name
         @GC
@@ -103,34 +87,36 @@ class EventBasedGarbageCollectorCase extends SubCase {
 
         @Override
         protected void setup() {
-            onEvent(EVENT_PATH) {
-                EventBasedGCInDbBehavior ret = testLogicForJobLoadedFromDb(this)
-
-                if (ret == EventBasedGCInDbBehavior.SUCCESS) {
-                    success()
-                } else if (ret == EventBasedGCInDbBehavior.FAIL) {
-                    fail(bean(ErrorFacade.class).stringToOperationError("on purpose"))
-                } else if (ret == EventBasedGCInDbBehavior.CANCEL) {
-                    cancel()
-                } else {
-                    assert false: "unknown behavior $ret"
-                }
+            onEvent(EVENT_PATH) { tokens, data ->
+                return trigger()
             }
-        }
-
-        @Override
-        protected void triggerNow() {
-
         }
 
         void saveToDatabase() {
             saveToDb()
+        }
+
+        @Override
+        protected void triggerNow(GCCompletion completion) {
+            EventBasedGCInDbBehavior ret = testLogicForJobLoadedFromDb(this)
+
+            if (ret == EventBasedGCInDbBehavior.SUCCESS) {
+                completion.success()
+            } else if (ret == EventBasedGCInDbBehavior.FAIL) {
+                completion.fail(errf.stringToOperationError("on purpose"))
+            } else if (ret == EventBasedGCInDbBehavior.CANCEL) {
+                completion.cancel()
+            } else {
+                assert false: "unknown behavior $ret"
+            }
         }
     }
 
     static Closure<EventBasedGCInDbBehavior> testTriggerNowForJobLoadedFromDb
 
     static class EventBasedGCInDbTriggerNow extends EventBasedGarbageCollector {
+        Closure trigger = { true }
+
         @GC
         String name
         @GC
@@ -140,35 +126,34 @@ class EventBasedGarbageCollectorCase extends SubCase {
 
         @Override
         protected void setup() {
-            onEvent(EVENT_PATH) {
-                triggerNow()
-            }
-        }
-
-        @Override
-        protected void triggerNow() {
-            EventBasedGCInDbBehavior ret = testTriggerNowForJobLoadedFromDb(this)
-
-            if (ret == EventBasedGCInDbBehavior.SUCCESS) {
-                success()
-            } else if (ret == EventBasedGCInDbBehavior.FAIL) {
-                fail(bean(ErrorFacade.class).stringToOperationError("on purpose"))
-            } else if (ret == EventBasedGCInDbBehavior.CANCEL) {
-                cancel()
-            } else {
-                assert false: "unknown behavior $ret"
+            onEvent(EVENT_PATH) { tokens, data ->
+                return trigger()
             }
         }
 
         void saveToDatabase() {
             saveToDb()
         }
+
+        @Override
+        protected void triggerNow(GCCompletion completion) {
+            EventBasedGCInDbBehavior ret = testTriggerNowForJobLoadedFromDb(this)
+
+            if (ret == EventBasedGCInDbBehavior.SUCCESS) {
+                completion.success()
+            } else if (ret == EventBasedGCInDbBehavior.FAIL) {
+                completion.fail(errf.stringToOperationError("on purpose"))
+            } else if (ret == EventBasedGCInDbBehavior.CANCEL) {
+                completion.cancel()
+            } else {
+                assert false: "unknown behavior $ret"
+            }
+        }
     }
 
     @Override
     void setup() {
         INCLUDE_CORE_SERVICES = false
-        //NEED_WEB_SERVER = false
     }
 
     @Override
@@ -182,9 +167,9 @@ class EventBasedGarbageCollectorCase extends SubCase {
 
         def gc = new EventBasedGC1()
         gc.NAME = "testEventBasedGCSuccess"
-        gc.testLogic = {
+        gc.testLogic = { GCCompletion completion ->
             count ++
-            gc.done()
+            completion.success()
             latch.countDown()
         }
         gc.submit()
@@ -214,8 +199,8 @@ class EventBasedGarbageCollectorCase extends SubCase {
         CountDownLatch latch = new CountDownLatch(1)
 
         def gc = new EventBasedGC1()
-        gc.testLogic = {
-            gc.error()
+        gc.testLogic = { GCCompletion completion ->
+            completion.fail(errf.stringToOperationError("testEventBasedGCFailure"))
             latch.countDown()
         }
         gc.NAME = "testEventBasedGCFailure"
@@ -231,9 +216,9 @@ class EventBasedGarbageCollectorCase extends SubCase {
         // confirm re-run can success
         latch = new CountDownLatch(1)
         boolean s = false
-        gc.testLogic = {
+        gc.testLogic = { GCCompletion completion ->
             s = true
-            gc.done()
+            completion.success()
             latch.countDown()
         }
 
@@ -250,9 +235,9 @@ class EventBasedGarbageCollectorCase extends SubCase {
         int count = 0
         def gc = new EventBasedGC1()
         gc.NAME = "testEventBasedGCCancel"
-        gc.testLogic = {
+        gc.testLogic = { GCCompletion completion ->
             count ++
-            gc.drop()
+            completion.cancel()
             latch.countDown()
         }
         gc.submit()
@@ -275,9 +260,9 @@ class EventBasedGarbageCollectorCase extends SubCase {
         int count = 0
         def gc = new EventBasedGC1()
 
-        gc.testLogic = {
+        gc.testLogic = { GCCompletion completion ->
             count ++
-            gc.done()
+            completion.cancel()
             latch.countDown()
         }
         gc.NAME = "testEventBasedGCConcurrent"
@@ -331,12 +316,12 @@ class EventBasedGarbageCollectorCase extends SubCase {
         int count = 0
         def gc = new EventBasedGCTwoEventsTriggered()
 
-        gc.testLogic = {
+        gc.testLogic = { GCCompletion completion ->
             count ++
             if (count == 1) {
-                gc.error()
+                completion.fail(errf.stringToOperationError("testTwoEventsTriggeredGC"))
             } else {
-                gc.done()
+                completion.success()
             }
             latch.countDown()
         }

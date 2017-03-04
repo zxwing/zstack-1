@@ -1,11 +1,12 @@
 package org.zstack.test.integration.core.gc
 
 import org.zstack.core.db.DatabaseFacade
+import org.zstack.core.gc.GCCompletion
 import org.zstack.core.gc.GCGlobalConfig
 import org.zstack.core.gc.GCStatus
 import org.zstack.core.gc.GarbageCollectorVO
-import org.zstack.core.groovy.gc.GarbageCollectorManagerImpl
-import org.zstack.core.groovy.gc.TimeBasedGarbageCollector
+import org.zstack.core.gc.GarbageCollectorManagerImpl
+import org.zstack.core.gc.TimeBasedGarbageCollector
 import org.zstack.testlib.SubCase
 
 import java.util.concurrent.TimeUnit
@@ -26,38 +27,37 @@ class TimeBasedGarbageCollectorCase extends SubCase {
     class TimeBasedGC1 extends TimeBasedGarbageCollector {
         Closure triggerNowLogic
 
+        void doCancel() {
+            cancel()
+        }
+
         @Override
-        protected void triggerNow() {
+        protected void triggerNow(GCCompletion completion) {
             def ret = triggerNowLogic()
             if (ret == Behavior.SUCCESS) {
-                success()
+                completion.success()
             } else if (ret == Behavior.FAILURE) {
-                fail(errf.stringToOperationError("failure"))
+                completion.fail(errf.stringToOperationError("failure"))
             } else if (ret == Behavior.CANCEL) {
-                cancel()
+                completion.cancel()
             } else {
                 assert false: "unknown behavior $ret"
             }
-        }
-
-        void doCancel() {
-            cancel()
         }
     }
 
     static Closure<Behavior> triggerNowLogicInDb
 
     static class TimeBasedGCInDb extends TimeBasedGarbageCollector {
-
         @Override
-        protected void triggerNow() {
+        protected void triggerNow(GCCompletion completion) {
             def ret = triggerNowLogicInDb()
             if (ret == Behavior.SUCCESS) {
-                success()
+                completion.success()
             } else if (ret == Behavior.FAILURE) {
-                fail(errf.stringToOperationError("on purpose"))
+                completion.fail(errf.stringToOperationError("failure"))
             } else if (ret == Behavior.CANCEL) {
-                cancel()
+                completion.cancel()
             } else {
                 assert false: "unknown behavior $ret"
             }
