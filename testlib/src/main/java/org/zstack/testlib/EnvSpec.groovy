@@ -319,7 +319,7 @@ class EnvSpec implements Node {
             long count = SQL.New("select count(*) from ${type.name}".toString(), Long.class).find()
 
             if (count > 0) {
-                logger.fatal("[${Test.CURRENT_SUB_CASE.class}] EnvSpec.delete() didn't cleanup the environment, there are still records in the database" +
+                logger.fatal("[${Test.CURRENT_SUB_CASE != null ? Test.CURRENT_SUB_CASE.class : this.class}] EnvSpec.delete() didn't cleanup the environment, there are still records in the database" +
                         " table ${type.name}, go fix it immediately!!! Abort the system")
                 // abort the system
                 System.exit(1)
