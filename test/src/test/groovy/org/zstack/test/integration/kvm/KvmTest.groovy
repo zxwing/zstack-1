@@ -2,6 +2,7 @@ package org.zstack.test.integration.kvm
 
 import org.zstack.test.integration.kvm.capacity.CheckHostCapacityWhenAddHostCase
 import org.zstack.test.integration.kvm.vm.OneVmBasicLifeCycleCase
+import org.zstack.test.integration.kvm.vm.VmGCCase
 import org.zstack.testlib.SpringSpec
 import org.zstack.testlib.Test
 
@@ -30,7 +31,8 @@ class KvmTest extends Test {
     void test() {
         runSubCases([
                 new OneVmBasicLifeCycleCase(),
-                new CheckHostCapacityWhenAddHostCase()
+                new CheckHostCapacityWhenAddHostCase(),
+                new VmGCCase()
         ])
     }
 }

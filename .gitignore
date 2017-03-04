@@ -29,3 +29,4 @@ zstack-api.log
 .vscode/
 test-premium/zstack-integration-test-result/
 envDSLTree
+test/zstack-integration-test-result/

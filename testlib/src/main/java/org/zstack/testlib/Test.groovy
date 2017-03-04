@@ -290,6 +290,8 @@ abstract class Test implements ApiHelper {
         String name
     }
 
+    static Case CURRENT_SUB_CASE
+
     protected void runSubCases(List<Case> cases) {
         String resultDir = System.getProperty("resultDir")
         if (resultDir == null) {
@@ -312,6 +314,7 @@ abstract class Test implements ApiHelper {
 
             logger.info("starts running a sub case[${c.class}] of suite[${this.class}]")
             try {
+                CURRENT_SUB_CASE = c
                 c.run()
 
                 caseResult.success = true
