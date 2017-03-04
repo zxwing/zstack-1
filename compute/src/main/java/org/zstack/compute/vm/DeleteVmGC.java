@@ -1,16 +1,12 @@
 package org.zstack.compute.vm;
 
 import org.zstack.core.cloudbus.CloudBusCallBack;
+import org.zstack.core.db.Q;
 import org.zstack.core.gc.EventBasedGarbageCollector;
 import org.zstack.core.gc.GCCompletion;
-import org.zstack.header.host.HostCanonicalEvents;
-import org.zstack.header.host.HostConstant;
-import org.zstack.header.host.HostStatus;
-import org.zstack.header.host.HostVO;
+import org.zstack.header.host.*;
 import org.zstack.header.message.MessageReply;
-import org.zstack.header.vm.VmDirectlyDestroyOnHypervisorMsg;
-import org.zstack.header.vm.VmInstanceInventory;
-import org.zstack.header.vm.VmInstanceVO;
+import org.zstack.header.vm.*;
 
 /**
  * Created by xing5 on 2017/3/3.
@@ -34,13 +30,25 @@ public class DeleteVmGC extends EventBasedGarbageCollector {
 
     @Override
     protected void triggerNow(GCCompletion completion) {
-        if (!dbf.isExist(hostUuid, HostVO.class)) {
-            completion.success();
+        HostStatus status = Q.New(HostVO.class).select(HostVO_.status)
+                .eq(HostVO_.uuid, hostUuid).findValue();
+        if (status == null) {
+            // the host has been deleted
+            completion.cancel();
             return;
         }
 
-        if (!dbf.isExist(inventory.getUuid(), VmInstanceVO.class)) {
-            completion.success();
+        if (status != HostStatus.Connected) {
+            completion.fail(errf.stringToOperationError(String.format("the host[uuid:%s] is not connected", hostUuid)));
+            return;
+        }
+
+        VmInstanceState vmstate = Q.New(VmInstanceVO.class).select(VmInstanceVO_.state)
+                .eq(VmInstanceVO_.uuid, inventory.getUuid()).findValue();
+
+        if (vmstate != null && vmstate != VmInstanceState.Destroyed) {
+            // the vm has been recovered
+            completion.cancel();
             return;
         }
 
