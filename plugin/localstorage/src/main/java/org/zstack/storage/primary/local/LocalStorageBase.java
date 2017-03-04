@@ -5,8 +5,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.CloudBusListCallBack;
 import org.zstack.core.componentloader.PluginRegistry;
-import org.zstack.core.db.*;
+import org.zstack.core.db.Q;
+import org.zstack.core.db.SQLBatch;
+import org.zstack.core.db.SimpleQuery;
 import org.zstack.core.db.SimpleQuery.Op;
+import org.zstack.core.db.UpdateQuery;
 import org.zstack.core.thread.AsyncThread;
 import org.zstack.core.thread.ChainTask;
 import org.zstack.core.thread.SyncTaskChain;
@@ -37,15 +40,15 @@ import org.zstack.header.storage.primary.VolumeSnapshotCapability.VolumeSnapshot
 import org.zstack.header.storage.snapshot.VolumeSnapshotInventory;
 import org.zstack.header.storage.snapshot.VolumeSnapshotVO;
 import org.zstack.header.storage.snapshot.VolumeSnapshotVO_;
-import org.zstack.header.vm.VmInstanceVO;
-import org.zstack.header.vm.VmInstanceVO_;
-import org.zstack.header.volume.*;
+import org.zstack.header.volume.VolumeConstant;
+import org.zstack.header.volume.VolumeInventory;
+import org.zstack.header.volume.VolumeType;
+import org.zstack.header.volume.VolumeVO;
 import org.zstack.storage.primary.PrimaryStorageBase;
 import org.zstack.storage.primary.PrimaryStorageCapacityUpdater;
 import org.zstack.storage.primary.PrimaryStoragePhysicalCapacityManager;
 import org.zstack.storage.primary.local.APIGetLocalStorageHostDiskCapacityReply.HostDiskCapacity;
 import org.zstack.storage.primary.local.MigrateBitsStruct.ResourceInfo;
-import org.zstack.storage.snapshot.VolumeSnapshot;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.DebugUtils;
 import org.zstack.utils.Utils;
@@ -1107,9 +1110,9 @@ public class LocalStorageBase extends PrimaryStorageBase {
         new SQLBatch() {
             // dirty cleanup database for all possible related entities linking to the local storage.
             // basically, we cleanup, volumes, volume snapshots, image caches.
-            // all below sql must be executed as the order the defined, DO NOT change unless you know
+            // all below sql must be executed as the order they defined, DO NOT change anything unless you know
             // exactly what you are doing.
-            // the MySQL won't support cascade trigger, which means when you delete a VM it nic will be
+            // the MySQL won't support cascade trigger, which means when you delete a VM its nic will be
             // deleted accordingly but the trigger installed on the `AFTER DELETE ON VmNicVO` will not
             // be executed.
             // so we have to explicitly delete VmNicVO, VolumeVO then VmInstanceVO in order, to make

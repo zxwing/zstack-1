@@ -1,6 +1,7 @@
 package org.zstack.test.integration.kvm.vm
 
 import org.springframework.http.HttpEntity
+import org.zstack.core.Platform
 import org.zstack.core.db.DatabaseFacade
 import org.zstack.core.gc.GarbageCollectorVO
 import org.zstack.header.vm.VmInstanceState
@@ -8,6 +9,7 @@ import org.zstack.header.vm.VmInstanceVO
 import org.zstack.kvm.KVMAgentCommands
 import org.zstack.kvm.KVMConstant
 import org.zstack.sdk.DestroyVmInstanceAction
+import org.zstack.sdk.StopVmInstanceAction
 import org.zstack.sdk.VmInstanceInventory
 import org.zstack.test.integration.kvm.Env
 import org.zstack.test.integration.kvm.KvmTest
@@ -15,6 +17,7 @@ import org.zstack.testlib.EnvSpec
 import org.zstack.testlib.HttpError
 import org.zstack.testlib.ImageSpec
 import org.zstack.testlib.InstanceOfferingSpec
+import org.zstack.testlib.KVMHostSpec
 import org.zstack.testlib.L3NetworkSpec
 import org.zstack.testlib.SubCase
 import org.zstack.testlib.VmSpec
@@ -34,7 +37,7 @@ class VmGCCase extends SubCase {
         useSpring(KvmTest.springSpec)
     }
 
-    private VmInstanceInventory createGCCandidateVm() {
+    private VmInstanceInventory createGCCandidateDestroyedVm() {
         def vm = createVmInstance {
             name = "the-vm"
             instanceOfferingUuid = (env.specByName("instanceOffering") as InstanceOfferingSpec).inventory.uuid
@@ -98,7 +101,7 @@ class VmGCCase extends SubCase {
     }
 
     void testGCJobCancelAfterHostDelete() {
-        VmInstanceInventory vm = createGCCandidateVm()
+        VmInstanceInventory vm = createGCCandidateDestroyedVm()
 
         deleteHost {
             uuid = vm.hostUuid
@@ -111,7 +114,7 @@ class VmGCCase extends SubCase {
     }
 
     void testGCJobCancelAfterVmRecovered() {
-        VmInstanceInventory vm = createGCCandidateVm()
+        VmInstanceInventory vm = createGCCandidateDestroyedVm()
 
         recoverVmInstance {
             uuid = vm.uuid
@@ -142,6 +145,103 @@ class VmGCCase extends SubCase {
             testDeleteVmWhenHostDisconnect()
             testGCJobCancelAfterVmRecovered()
             testGCJobCancelAfterHostDelete()
+
+            // recreate the host
+            env.recreate("kvm")
+
+            testStopVmWhenHostDisconnect()
+            testStopVmGCJobCancelAfterVmDeleted()
+            testStopVmGCJobCancelAfterHostDeleted()
+        }
+    }
+
+    private VmInstanceInventory createGCCandidateStoppedVm() {
+        def vm = createVmInstance {
+            name = "the-vm"
+            instanceOfferingUuid = (env.specByName("instanceOffering") as InstanceOfferingSpec).inventory.uuid
+            imageUuid = (env.specByName("image1") as ImageSpec).inventory.uuid
+            l3NetworkUuids = [(env.specByName("l3") as L3NetworkSpec).inventory.uuid]
+        } as VmInstanceInventory
+
+        env.afterSimulator(KVMConstant.KVM_STOP_VM_PATH) {
+            throw new HttpError(403, "on purpose")
+        }
+
+        def a = new StopVmInstanceAction()
+        a.uuid = vm.uuid
+        a.sessionId = adminSession()
+        StopVmInstanceAction.Result res = a.call()
+        // because of the GC, confirm the VM is stopped
+        assert res.error == null
+        assert dbFindByUuid(vm.uuid, VmInstanceVO.class).state == VmInstanceState.Stopped
+        assert dbf.count(GarbageCollectorVO.class) != 0
+
+        return vm
+    }
+
+    void testStopVmGCJobCancelAfterHostDeleted() {
+        VmInstanceInventory vm = createGCCandidateStoppedVm()
+
+        KVMAgentCommands.StopVmCmd cmd = null
+        env.afterSimulator(KVMConstant.KVM_STOP_VM_PATH) { rsp, HttpEntity<String> e ->
+            cmd = json(e.body, KVMAgentCommands.StopVmCmd.class)
+            return rsp
+        }
+
+        deleteHost {
+            uuid = vm.hostUuid
+        }
+
+        TimeUnit.SECONDS.sleep(1)
+
+        assert cmd == null
+        // the GC job is cancelled
+        assert dbf.count(GarbageCollectorVO.class) == 0
+    }
+
+    void testStopVmGCJobCancelAfterVmDeleted() {
+        VmInstanceInventory vm = createGCCandidateStoppedVm()
+
+        KVMAgentCommands.StopVmCmd cmd = null
+        env.afterSimulator(KVMConstant.KVM_STOP_VM_PATH) { rsp, HttpEntity<String> e ->
+            cmd = json(e.body, KVMAgentCommands.StopVmCmd.class)
+            return rsp
+        }
+
+        destroyVmInstance {
+            uuid = vm.uuid
+        }
+
+        TimeUnit.SECONDS.sleep(1)
+
+        assert cmd == null
+        // the GC job is cancelled
+        assert dbf.count(GarbageCollectorVO.class) == 0
+    }
+
+    void testStopVmWhenHostDisconnect() {
+        VmInstanceInventory vm = createGCCandidateStoppedVm()
+
+        KVMAgentCommands.StopVmCmd cmd = null
+        env.afterSimulator(KVMConstant.KVM_STOP_VM_PATH) { rsp, HttpEntity<String> e ->
+            cmd = json(e.body, KVMAgentCommands.StopVmCmd.class)
+            return rsp
+        }
+
+        // reconnect host to trigger the GC
+        reconnectHost {
+            uuid = vm.hostUuid
+        }
+
+        TimeUnit.SECONDS.sleep(1)
+
+        assert cmd != null
+        assert cmd.uuid == vm.uuid
+        assert dbf.count(GarbageCollectorVO.class) == 0
+
+        // cleanup our vm
+        destroyVmInstance {
+            uuid = vm.uuid
         }
     }
 

@@ -166,9 +166,13 @@ class EnvSpec implements Node {
     }
 
     private void deploy() {
+        deploy(this)
+    }
+
+    private void deploy(Object node) {
         def allNodes = []
 
-        walk {
+        walkNode(node) {
             if (it instanceof CreateAction) {
                 it.preOperations.each { it() }
             }
@@ -277,6 +281,14 @@ class EnvSpec implements Node {
 
         assert latch.await(1, TimeUnit.MINUTES): "global configs not all updated after 1 minutes timeout"
         assert errors.isEmpty(): "some global configs fail to update, see ${errors.collect {it.toString()}}"
+    }
+
+    def recreate(String specName) {
+        def spec = specByName(specName)
+        assert spec != null: "cannot find the spec[name:$specName]"
+
+        deploy(spec)
+        return spec
     }
 
     EnvSpec create(Closure cl = null) {
