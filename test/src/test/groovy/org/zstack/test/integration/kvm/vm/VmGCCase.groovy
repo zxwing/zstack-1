@@ -2,8 +2,13 @@ package org.zstack.test.integration.kvm.vm
 
 import org.springframework.http.HttpEntity
 import org.zstack.core.Platform
+import org.zstack.core.cloudbus.CloudBus
 import org.zstack.core.db.DatabaseFacade
 import org.zstack.core.gc.GarbageCollectorVO
+import org.zstack.header.message.MessageReply
+import org.zstack.header.vm.StopVmInstanceMsg
+import org.zstack.header.vm.StopVmInstanceReply
+import org.zstack.header.vm.VmInstanceConstant
 import org.zstack.header.vm.VmInstanceState
 import org.zstack.header.vm.VmInstanceVO
 import org.zstack.kvm.KVMAgentCommands
@@ -31,6 +36,7 @@ class VmGCCase extends SubCase {
     EnvSpec env
 
     DatabaseFacade dbf
+    CloudBus bus
 
     @Override
     void setup() {
@@ -140,6 +146,7 @@ class VmGCCase extends SubCase {
     @Override
     void test() {
         dbf = bean(DatabaseFacade.class)
+        bus = bean(CloudBus.class)
 
         env.create {
             testDeleteVmWhenHostDisconnect()
@@ -155,6 +162,15 @@ class VmGCCase extends SubCase {
         }
     }
 
+    private void stopVmWithGCOpen(String vmUuid) {
+        StopVmInstanceMsg msg = new StopVmInstanceMsg()
+        msg.gcOnFailure = true
+        msg.vmInstanceUuid = vmUuid
+        bus.makeTargetServiceIdByResourceUuid(msg, VmInstanceConstant.SERVICE_ID, vmUuid)
+        MessageReply reply = bus.call(msg)
+        assert reply.success
+    }
+
     private VmInstanceInventory createGCCandidateStoppedVm() {
         def vm = createVmInstance {
             name = "the-vm"
@@ -167,12 +183,8 @@ class VmGCCase extends SubCase {
             throw new HttpError(403, "on purpose")
         }
 
-        def a = new StopVmInstanceAction()
-        a.uuid = vm.uuid
-        a.sessionId = adminSession()
-        StopVmInstanceAction.Result res = a.call()
-        // because of the GC, confirm the VM is stopped
-        assert res.error == null
+        stopVmWithGCOpen(vm.uuid)
+
         assert dbFindByUuid(vm.uuid, VmInstanceVO.class).state == VmInstanceState.Stopped
         assert dbf.count(GarbageCollectorVO.class) != 0
 

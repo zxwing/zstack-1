@@ -165,14 +165,37 @@ class EnvSpec implements Node {
         return specsByName[name]
     }
 
-    private void deploy() {
-        deploy(this)
+    private String retrieveSessonUuid(Node it) {
+        String suuid = session.uuid
+
+        if (it instanceof HasSession) {
+            if (it.accountName != null) {
+                AccountSpec aspec = find(it.accountName, AccountSpec.class)
+                assert aspec != null: "cannot find the account[$it.accountName] defined in environment()"
+                suuid = aspec.session.uuid
+            } else {
+                def n = it.parent
+                while (n != null) {
+                    if (!(n instanceof HasSession) || n.accountName == null) {
+                        n = n.parent
+                    } else {
+                        // one of the parent has the accountName set, use it
+                        AccountSpec aspec = find(n.accountName, AccountSpec.class)
+                        assert aspec != null: "cannot find the account[$n.accountName] defined in environment()"
+                        suuid = aspec.session.uuid
+                        break
+                    }
+                }
+            }
+        }
+
+        return suuid
     }
 
-    private void deploy(Object node) {
+    private void deploy() {
         def allNodes = []
 
-        walkNode(node) {
+        walk {
             if (it instanceof CreateAction) {
                 it.preOperations.each { it() }
             }
@@ -199,27 +222,8 @@ class EnvSpec implements Node {
             def uuid = Platform.getUuid()
             specsByUuid[uuid] = it
 
-            def suuid = session.uuid
-            if (it instanceof HasSession) {
-                if (it.accountName != null) {
-                    AccountSpec aspec = find(it.accountName, AccountSpec.class)
-                    assert aspec != null: "cannot find the account[$it.accountName] defined in environment()"
-                    suuid = aspec.session.uuid
-                } else {
-                    def n = it.parent
-                    while (n != null) {
-                        if (!(n instanceof HasSession) || n.accountName == null) {
-                            n = n.parent
-                        } else {
-                            // one of the parent has the accountName set, use it
-                            AccountSpec aspec = find(n.accountName, AccountSpec.class)
-                            assert aspec != null: "cannot find the account[$n.accountName] defined in environment()"
-                            suuid = aspec.session.uuid
-                            break
-                        }
-                    }
-                }
-            }
+
+            def suuid = retrieveSessonUuid(it)
 
             try {
                 SpecID id = (it as CreateAction).create(uuid, suuid)
@@ -287,7 +291,20 @@ class EnvSpec implements Node {
         def spec = specByName(specName)
         assert spec != null: "cannot find the spec[name:$specName]"
 
-        deploy(spec)
+        walkNode(spec) {
+            if (!(it instanceof CreateAction)) {
+                return
+            }
+
+            String uuid = Platform.getUuid()
+            specsByUuid[uuid] = it
+
+            SpecID id = it.create(uuid, retrieveSessonUuid(it as Node))
+            if (id != null) {
+                specsByName[id.name] = it
+            }
+        }
+
         return spec
     }
 
