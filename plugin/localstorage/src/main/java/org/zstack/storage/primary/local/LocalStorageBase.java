@@ -1119,7 +1119,7 @@ public class LocalStorageBase extends PrimaryStorageBase {
             // mysql triggers work in order to delete entities in AccountResourceRefVO, SystemVO etc.
 
             @Override
-            public void scripts() {
+            protected void scripts() {
                 List<LocalStorageResourceRefVO> refs = sql(
                         "select ref from LocalStorageResourceRefVO ref where ref.hostUuid = :huuid" +
                                 " and ref.primaryStorageUuid = :psUuid", LocalStorageResourceRefVO.class

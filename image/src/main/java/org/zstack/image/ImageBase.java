@@ -3,19 +3,20 @@ package org.zstack.image;
 import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
+import org.zstack.core.asyncbatch.While;
 import org.zstack.core.cascade.CascadeConstant;
 import org.zstack.core.cascade.CascadeFacade;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.cloudbus.CloudBusListCallBack;
 import org.zstack.core.componentloader.PluginRegistry;
-import org.zstack.core.db.DatabaseFacade;
-import org.zstack.core.db.SimpleQuery;
+import org.zstack.core.db.*;
 import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.gc.*;
 import org.zstack.core.workflow.FlowChainBuilder;
 import org.zstack.header.core.Completion;
+import org.zstack.header.core.NoErrorCompletion;
 import org.zstack.header.core.NopeCompletion;
 import org.zstack.header.core.ReturnValueCompletion;
 import org.zstack.header.core.workflow.*;
@@ -511,69 +512,56 @@ public class ImageBase implements Image {
             }
         }
 
-        List<ExpungeImageMsg> emsgs = CollectionUtils.transformToList(bsUuids, new Function<ExpungeImageMsg, String>() {
+        While.New(bsUuids).each((bsUuid, completion) -> {
+            ExpungeImageMsg emsg = new ExpungeImageMsg();
+            emsg.setBackupStorageUuid((String) bsUuid);
+            emsg.setImageUuid(self.getUuid());
+            bus.makeTargetServiceIdByResourceUuid(emsg, ImageConstant.SERVICE_ID, self.getUuid());
+            bus.send(emsg, new CloudBusCallBack(completion) {
+                @Override
+                public void run(MessageReply reply) {
+                    ImageBackupStorageRefVO ref = Q.New(ImageBackupStorageRefVO.class)
+                            .eq(ImageBackupStorageRefVO_.backupStorageUuid, bsUuid)
+                            .eq(ImageBackupStorageRefVO_.imageUuid, msg.getImageUuid())
+                            .find();
+
+                    if (!reply.isSuccess() && ref != null) {
+                        BackupStorageDeleteBitGC gc = new BackupStorageDeleteBitGC();
+                        gc.NAME = String.format("gc-delete-bits-%s-on-backup-storage-%s", msg.getImageUuid(), bsUuid);
+                        gc.backupStorageUuid = (String) bsUuid;
+                        gc.imageUuid = msg.getImageUuid();
+                        gc.installPath = ref.getInstallPath();
+                        gc.submit(10L, TimeUnit.MINUTES);
+                    }
+
+                    if (ref != null) {
+                        dbf.remove(ref);
+                    }
+
+                    completion.done();
+                }
+            });
+        }).run(new NoErrorCompletion(msg) {
             @Override
-            public ExpungeImageMsg call(String arg) {
-                ExpungeImageMsg emsg = new ExpungeImageMsg();
-                emsg.setBackupStorageUuid(arg);
-                emsg.setImageUuid(self.getUuid());
-                bus.makeTargetServiceIdByResourceUuid(emsg, ImageConstant.SERVICE_ID, self.getUuid());
-                return emsg;
+            public void done() {
+                new SQLBatch() {
+                    @Override
+                    protected void scripts() {
+                        long count = sql("select count(ref) from ImageBackupStorageRefVO ref" +
+                                " where ref.imageUuid = :uuid", Long.class)
+                                .param("uuid", msg.getImageUuid()).find();
+
+                        if (count == 0) {
+                            // the image is expunged on all backup storage
+                            sql("delete from ImageVO img where img.uuid = :uuid")
+                                    .param("uuid", msg.getImageUuid()).execute();
+                        }
+                    }
+                }.execute();
+
+                bus.publish(new APIExpungeImageEvent(msg.getId()));
             }
         });
-
-        final List<String> finalBsUuids = bsUuids;
-        final APIExpungeImageEvent evt = new APIExpungeImageEvent(msg.getId());
-        bus.send(emsgs, new CloudBusListCallBack(msg) {
-            @Override
-            public void run(List<MessageReply> replies) {
-                List<ExpungeImageMsg> failedExpungeImageMsgList = new ArrayList<ExpungeImageMsg>();
-                replies.stream()
-                        .filter(r -> !r.isSuccess())
-                        .forEach(r ->
-                                {
-                                    scheduleGcJob(emsgs.get(replies.indexOf(r)));
-                                    String bsUuid = finalBsUuids.get(replies.indexOf(r));
-                                    logger.warn(String.format(
-                                            "failed to expunge the image[uuid:%s, name:%s] on the backup storage[uuid:%s], %s",
-                                            self.getUuid(), self.getName(), bsUuid, r.getError()));
-                                }
-                        );
-
-                bus.publish(evt);
-            }
-        });
-    }
-
-    private String getBackupStorageInstallPath(String imageUuid, String bsUuid) {
-        SimpleQuery<ImageBackupStorageRefVO> q = dbf.createQuery(ImageBackupStorageRefVO.class);
-        q.select(ImageBackupStorageRefVO_.installPath);
-        q.add(ImageBackupStorageRefVO_.backupStorageUuid, SimpleQuery.Op.EQ, bsUuid);
-        q.add(ImageBackupStorageRefVO_.imageUuid, SimpleQuery.Op.EQ, imageUuid);
-        return q.findValue();
-    }
-
-    private void scheduleGcJob(final ExpungeImageMsg msg) {
-        String installPath = getBackupStorageInstallPath(msg.getImageUuid(), msg.getBackupStorageUuid());
-        if (installPath == null)
-            return;
-
-        dbf.removeByPrimaryKey(msg.getImageUuid(), ImageVO.class);
-
-        GCBitsDeletionOnBackupStorageContext c = new GCBitsDeletionOnBackupStorageContext();
-        c.setBackupStorageUuid(msg.getBackupStorageUuid());
-        c.setImageUuid(msg.getImageUuid());
-        c.setInstallPath(installPath);
-
-        TimeBasedGCPersistentContext<GCBitsDeletionOnBackupStorageContext> context = new TimeBasedGCPersistentContext<>();
-        context.setContextClass(GCBitsDeletionOnBackupStorageContext.class);
-        context.setRunnerClass(GCBitsDeletionOnBackupStorageRunner.class);
-        context.setContext(c);
-
-        context.setName("gc-expunge-image");
-        context.setInterval(10);
-        context.setTimeUnit(TimeUnit.SECONDS);
-        gcf.schedule(context);
     }
 
     private void handle(APIUpdateImageMsg msg) {

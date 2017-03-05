@@ -6,7 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Created by xing5 on 2017/3/4.
  */
 public abstract class SQLBatch {
-    public abstract void scripts();
+    protected abstract void scripts();
 
     protected SQL sql(String text) {
         return SQL.New(text);
