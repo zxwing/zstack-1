@@ -7,21 +7,17 @@ import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.CloudBusCallBack;
 import org.zstack.core.db.DatabaseFacade;
 import org.zstack.core.errorcode.ErrorFacade;
-import org.zstack.core.gc.EventBasedGCPersistentContext;
-import org.zstack.core.gc.GCEventTrigger;
-import org.zstack.core.gc.GCFacade;
 import org.zstack.header.core.workflow.FlowTrigger;
 import org.zstack.header.core.workflow.NoRollbackFlow;
-import org.zstack.header.host.HostCanonicalEvents;
 import org.zstack.header.host.HostConstant;
 import org.zstack.header.host.HostErrors;
-import org.zstack.header.host.HostStatus;
 import org.zstack.header.message.MessageReply;
-import org.zstack.header.vm.*;
+import org.zstack.header.vm.APIStopVmInstanceMsg;
+import org.zstack.header.vm.StopVmOnHypervisorMsg;
+import org.zstack.header.vm.VmInstanceConstant;
+import org.zstack.header.vm.VmInstanceSpec;
 
 import java.util.Map;
-
-import static org.zstack.utils.StringDSL.ln;
 
 @Configurable(preConstruction = true, autowire = Autowire.BY_TYPE)
 public class VmStopOnHypervisorFlow extends NoRollbackFlow {
@@ -31,8 +27,6 @@ public class VmStopOnHypervisorFlow extends NoRollbackFlow {
     protected CloudBus bus;
     @Autowired
     protected ErrorFacade errf;
-    @Autowired
-    protected GCFacade gcf;
 
     @Override
     public void run(final FlowTrigger chain, Map data) {
