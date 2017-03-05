@@ -534,7 +534,10 @@ public class ImageBase implements Image {
             bus.send(emsg, new CloudBusCallBack(completion) {
                 @Override
                 public void run(MessageReply reply) {
-                    logger.warn(reply.getError().toString());
+                    if (!reply.isSuccess()) {
+                        logger.warn(reply.getError().toString());
+                    }
+
                     completion.done();
                 }
             });

@@ -24,6 +24,8 @@ class EventBasedGarbageCollectorCase extends SubCase {
     ErrorFacade errf
     GarbageCollectorManagerImpl gcMgr
 
+    String adminSessionUuid
+
     static class Context {
         String text
     }
@@ -158,6 +160,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
 
     @Override
     void environment() {
+        adminSessionUuid = loginAsAdmin().uuid
     }
 
     void testEventBasedGCSuccess() {
@@ -503,6 +506,31 @@ class EventBasedGarbageCollectorCase extends SubCase {
         assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
     }
 
+    void testEventBasedGCCancelByApi() {
+        int count = 0
+        def gc = new EventBasedGC1()
+        gc.NAME = "testEventBasedGCCancel"
+        gc.testLogic = { GCCompletion completion ->
+            count ++
+            completion.cancel()
+        }
+        gc.submit()
+
+        deleteGCJob {
+            uuid = gc.uuid
+            sessionId = adminSessionUuid
+        }
+
+        // trigger the GC
+        evtf.fire(EVENT_PATH, "trigger it")
+
+        TimeUnit.SECONDS.sleep(1)
+
+        // trigger again, confirm the event is no longer hooked
+        assert !dbIsExists(gc.uuid, GarbageCollectorVO.class)
+        assert count == 0
+    }
+
     @Override
     void test() {
         dbf = bean(DatabaseFacade.class)
@@ -521,6 +549,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         testLoadedOrphanJobCancel()
         testLoadedOrphanJobScan()
         testLoadedOrphanJobTriggerNow()
+        testEventBasedGCCancelByApi()
     }
 
     @Override
