@@ -7,7 +7,7 @@ import org.zstack.testlib.Test
  * Created by xing5 on 2017/3/3.
  */
 class ImageTest extends Test {
-    SpringSpec springSpec = makeSpring {
+    static SpringSpec springSpec = makeSpring {
         localStorage()
         nfsPrimaryStorage()
         sftpBackupStorage()

@@ -5,7 +5,7 @@ import org.zstack.utils.DebugUtils;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.function.BiConsumer;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by xing5 on 2017/3/5.
@@ -14,15 +14,29 @@ public class While<T> {
     private Collection<T> items;
     private Do consumer;
 
+    private int mode;
+    private int step;
+
+    private final int EACH = 1;
+    private final int ALL = 2;
+    private final int STEP = 3;
+
     public interface Do<T> {
         void accept(T item, NoErrorCompletion completion);
     }
 
-    private While(Collection<T> items) {
+    public While(Collection<T> items) {
         this.items = items;
     }
 
     public While each(Do<T> consumer) {
+        mode = EACH;
+        this.consumer = consumer;
+        return this;
+    }
+
+    public While all(Do<T> consumer) {
+        mode = ALL;
         this.consumer = consumer;
         return this;
     }
@@ -42,13 +56,71 @@ public class While<T> {
         });
     }
 
-    public void run(NoErrorCompletion completion) {
-        DebugUtils.Assert(consumer != null, "each must be called before run()");
+    public While step(Do<T> consumer, int step) {
+        if (step < 0) {
+            throw new IllegalArgumentException(String.format("step must be greater than zero, got %s", step));
+        }
 
-        run(items.iterator(), completion);
+        this.consumer = consumer;
+        this.step = step;
+        mode = STEP;
+        return this;
     }
 
-    public static <T> While New(Collection<T> c) {
-        return new While<>(c);
+    public void run(NoErrorCompletion completion) {
+        DebugUtils.Assert(consumer != null, "each() or all() or step() must be called before run()");
+
+        if (mode == EACH) {
+            run(items.iterator(), completion);
+        } else if (mode == ALL) {
+            runAll(completion);
+        } else if (mode == STEP) {
+            runStep(completion);
+        } else {
+            DebugUtils.Assert(false, "should be here");
+        }
+    }
+
+    private void runStep(NoErrorCompletion completion) {
+        int s = Math.min(step, items.size());
+
+        Iterator<T> it = items.iterator();
+        for (int i=0; i<s; i++) {
+            runStep(it, completion);
+        }
+    }
+
+    private void runStep(Iterator<T> it, NoErrorCompletion completion) {
+        T t;
+        synchronized (it) {
+            if (!it.hasNext()) {
+                completion.done();
+                return;
+            }
+
+            t = it.next();
+        }
+
+        consumer.accept(t, new NoErrorCompletion(completion) {
+            @Override
+            public void done() {
+                runStep(it, completion);
+            }
+        });
+    }
+
+    private void runAll(NoErrorCompletion completion) {
+        AtomicInteger count = new AtomicInteger(items.size());
+
+        for (T t : items) {
+            consumer.accept(t, new NoErrorCompletion() {
+                @Override
+                public void done() {
+                    if (count.decrementAndGet() == 0) {
+                        completion.done();
+                    }
+                }
+            });
+        }
     }
 }

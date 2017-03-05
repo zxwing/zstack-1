@@ -187,12 +187,7 @@ public class ImageBase implements Image {
         final ExpungeImageReply reply = new ExpungeImageReply();
         final ImageBackupStorageRefVO ref = CollectionUtils.find(
                 self.getBackupStorageRefs(),
-                new Function<ImageBackupStorageRefVO, ImageBackupStorageRefVO>() {
-                    @Override
-                    public ImageBackupStorageRefVO call(ImageBackupStorageRefVO arg) {
-                        return arg.getBackupStorageUuid().equals(msg.getBackupStorageUuid()) ? arg : null;
-                    }
-                }
+                arg -> arg.getBackupStorageUuid().equals(msg.getBackupStorageUuid()) ? arg : null
         );
 
         if (ref == null) {
@@ -210,29 +205,47 @@ public class ImageBase implements Image {
             @Override
             public void run(MessageReply r) {
                 if (!r.isSuccess()) {
-                    //TODO
-                    logger.warn(String.format("failed to delete image[uuid:%s, name:%s] from backup storage[uuid:%s] because %s, need to garbage collect it",
-                            self.getUuid(), self.getName(), r.getError(), ref.getBackupStorageUuid()));
-                    reply.setError(r.getError());
-                } else {
-                    returnBackupStorageCapacity(ref.getBackupStorageUuid(), self.getActualSize());
-                    //TODO remove ref from metadata, this logic should after all refs deleted
-                    CollectionUtils.safeForEach(pluginRgty.getExtensionList(ExpungeImageExtensionPoint.class), new ForEachFunction<ExpungeImageExtensionPoint>() {
-                        @Override
-                        public void run(ExpungeImageExtensionPoint ext) {
-                            ext.afterExpungeImage(ImageInventory.valueOf(self), ref.getBackupStorageUuid());
-                        }
-                    });
-                    dbf.remove(ref);
-                    logger.debug(String.format("successfully expunged the image[uuid: %s, name: %s] on the backup storage[uuid: %s]",
-                            self.getUuid(), self.getName(), ref.getBackupStorageUuid()));
-                    self = dbf.reload(self);
-                    if (self.getBackupStorageRefs().isEmpty()) {
-                        logger.debug(String.format("the image[uuid:%s, name:%s] has been expunged on all backup storage, remove it from database",
-                                self.getUuid(), self.getName()));
-                        dbf.remove(self);
-                    }
+                    BackupStorageDeleteBitGC gc = new BackupStorageDeleteBitGC();
+                    gc.NAME = String.format("gc-delete-bits-%s-on-backup-storage-%s", msg.getImageUuid(), ref.getBackupStorageUuid());
+                    gc.backupStorageUuid = ref.getBackupStorageUuid();
+                    gc.imageUuid = msg.getImageUuid();
+                    gc.installPath = ref.getInstallPath();
+                    gc.submit(ImageGlobalConfig.DELETION_GARBAGE_COLLECTION_INTERVAL.value(Long.class),
+                            TimeUnit.SECONDS);
                 }
+
+                returnBackupStorageCapacity(ref.getBackupStorageUuid(), self.getActualSize());
+                //TODO remove ref from metadata, this logic should after all refs deleted
+                CollectionUtils.safeForEach(pluginRgty.getExtensionList(ExpungeImageExtensionPoint.class), new ForEachFunction<ExpungeImageExtensionPoint>() {
+                    @Override
+                    public void run(ExpungeImageExtensionPoint ext) {
+                        ext.afterExpungeImage(ImageInventory.valueOf(self), ref.getBackupStorageUuid());
+                    }
+                });
+
+                dbf.remove(ref);
+
+                logger.debug(String.format("successfully expunged the image[uuid: %s, name: %s] on the backup storage[uuid: %s]",
+                        self.getUuid(), self.getName(), ref.getBackupStorageUuid()));
+
+                new SQLBatch() {
+                    // delete the image if it's not on any backup storage
+                    @Override
+                    protected void scripts() {
+                        long count = sql("select count(ref) from ImageBackupStorageRefVO ref" +
+                                " where ref.imageUuid = :uuid", Long.class)
+                                .param("uuid", msg.getImageUuid()).find();
+
+                        if (count == 0) {
+                            // the image is expunged on all backup storage
+                            sql("delete from ImageVO img where img.uuid = :uuid")
+                                    .param("uuid", msg.getImageUuid()).execute();
+
+                            logger.debug(String.format("the image[uuid:%s, name:%s] has been expunged on all backup storage, remove it from database",
+                                    self.getUuid(), self.getName()));
+                        }
+                    }
+                }.execute();
 
                 bus.reply(msg, reply);
             }
@@ -512,53 +525,22 @@ public class ImageBase implements Image {
             }
         }
 
-        While.New(bsUuids).each((bsUuid, completion) -> {
+
+        new While<>(bsUuids).all((bsUuid, completion) -> {
             ExpungeImageMsg emsg = new ExpungeImageMsg();
-            emsg.setBackupStorageUuid((String) bsUuid);
+            emsg.setBackupStorageUuid(bsUuid);
             emsg.setImageUuid(self.getUuid());
             bus.makeTargetServiceIdByResourceUuid(emsg, ImageConstant.SERVICE_ID, self.getUuid());
             bus.send(emsg, new CloudBusCallBack(completion) {
                 @Override
                 public void run(MessageReply reply) {
-                    ImageBackupStorageRefVO ref = Q.New(ImageBackupStorageRefVO.class)
-                            .eq(ImageBackupStorageRefVO_.backupStorageUuid, bsUuid)
-                            .eq(ImageBackupStorageRefVO_.imageUuid, msg.getImageUuid())
-                            .find();
-
-                    if (!reply.isSuccess() && ref != null) {
-                        BackupStorageDeleteBitGC gc = new BackupStorageDeleteBitGC();
-                        gc.NAME = String.format("gc-delete-bits-%s-on-backup-storage-%s", msg.getImageUuid(), bsUuid);
-                        gc.backupStorageUuid = (String) bsUuid;
-                        gc.imageUuid = msg.getImageUuid();
-                        gc.installPath = ref.getInstallPath();
-                        gc.submit(10L, TimeUnit.MINUTES);
-                    }
-
-                    if (ref != null) {
-                        dbf.remove(ref);
-                    }
-
+                    logger.warn(reply.getError().toString());
                     completion.done();
                 }
             });
         }).run(new NoErrorCompletion(msg) {
             @Override
             public void done() {
-                new SQLBatch() {
-                    @Override
-                    protected void scripts() {
-                        long count = sql("select count(ref) from ImageBackupStorageRefVO ref" +
-                                " where ref.imageUuid = :uuid", Long.class)
-                                .param("uuid", msg.getImageUuid()).find();
-
-                        if (count == 0) {
-                            // the image is expunged on all backup storage
-                            sql("delete from ImageVO img where img.uuid = :uuid")
-                                    .param("uuid", msg.getImageUuid()).execute();
-                        }
-                    }
-                }.execute();
-
                 bus.publish(new APIExpungeImageEvent(msg.getId()));
             }
         });
