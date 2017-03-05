@@ -114,10 +114,10 @@ class ImageGCCase extends SubCase {
 
     @Override
     void test() {
-        // make the interval very long, we use api to trigger the job to test
-        ImageGlobalConfig.DELETION_GARBAGE_COLLECTION_INTERVAL.updateValue(TimeUnit.DAYS.toSeconds(1))
-
         env.create {
+            // make the interval very long, we use api to trigger the job to test
+            ImageGlobalConfig.DELETION_GARBAGE_COLLECTION_INTERVAL.updateValue(TimeUnit.DAYS.toSeconds(1))
+
             testImageGCWhenBackupStorageDisconnect()
 
             env.recreate("image")

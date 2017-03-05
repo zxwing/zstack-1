@@ -113,6 +113,8 @@ class KVMHostSpec extends HostSpec {
 
         simulator(KVMConstant.KVM_TAKE_VOLUME_SNAPSHOT_PATH) {
             def rsp = new KVMAgentCommands.TakeSnapshotResponse()
+            rsp.newVolumeInstallPath = "/new/volume/install/path"
+            rsp.snapshotInstallPath = "/snapshot/install/path"
             rsp.size = 1
             return rsp
         }
