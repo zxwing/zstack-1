@@ -23,7 +23,7 @@ public abstract class TimeBasedGarbageCollector extends GarbageCollector {
 
     private void setupTimer() {
         logger.debug(String.format("[GC] schedule a GC job[name:%s, id:%s] to run after %s %s",
-                NAME, id, NEXT_TIME, NEXT_TIME_UNIT));
+                NAME, uuid, NEXT_TIME, NEXT_TIME_UNIT));
 
         currentTimer = new TimerTask() {
             @Override
@@ -61,5 +61,7 @@ public abstract class TimeBasedGarbageCollector extends GarbageCollector {
 
         saveToDb();
         setupTimer();
+
+        gcMgr.registerGC(this);
     }
 }

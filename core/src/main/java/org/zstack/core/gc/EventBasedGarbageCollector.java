@@ -15,7 +15,7 @@ public abstract class EventBasedGarbageCollector extends GarbageCollector {
         loadFromVO(vo);
         setup();
         installTriggers();
-        logger.debug(String.format("[GC] loaded a job[name:%s, id:%s]", NAME, id));
+        logger.debug(String.format("[GC] loaded a job[name:%s, id:%s]", NAME, uuid));
         runTrigger();
     }
 
@@ -26,10 +26,10 @@ public abstract class EventBasedGarbageCollector extends GarbageCollector {
             @Override
             @AsyncThread
             protected void run(Map tokens, Object data) {
-                GarbageCollectorVO vo = dbf.findById(id, GarbageCollectorVO.class);
+                GarbageCollectorVO vo = dbf.findByUuid(uuid, GarbageCollectorVO.class);
 
                 if (vo == null) {
-                    logger.warn(String.format("[GC] cannot find a job[name:%s, id:%s], assume it's deleted", NAME, id));
+                    logger.warn(String.format("[GC] cannot find a job[name:%s, id:%s], assume it's deleted", NAME, uuid));
                     cancel();
                     return;
                 }
@@ -41,11 +41,11 @@ public abstract class EventBasedGarbageCollector extends GarbageCollector {
 
                 if (!lock()) {
                     logger.debug(String.format("[GC] the job[name:%s, id:%s] is being executed by another trigger," +
-                            "skip this event[%s]", NAME, id, path));
+                            "skip this event[%s]", NAME, uuid, path));
                     return;
                 }
 
-                logger.debug(String.format("[GC] the job[name:%s, id:%s] is triggered by an event[%s]", NAME, id, path));
+                logger.debug(String.format("[GC] the job[name:%s, id:%s] is triggered by an event[%s]", NAME, uuid, path));
 
                 vo.setStatus(GCStatus.Processing);
                 dbf.update(vo);
@@ -72,5 +72,7 @@ public abstract class EventBasedGarbageCollector extends GarbageCollector {
     public final void submit() {
         saveToDb();
         installTriggers();
+
+        gcMgr.registerGC(this);
     }
 }

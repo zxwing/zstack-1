@@ -28,7 +28,7 @@ class ApiHelperGenerator {
             groovyActions.add("""\
     def $funcName(@DelegatesTo(strategy = Closure.OWNER_FIRST, value = ${actionClass.typeName}.class) Closure c) {
         def a = new ${actionClass.typeName}()
-        ${actionClass.fields.find {it.name == "sessionId"} != null ? "a.sessionId = Test.currentEnvSpec.session.uuid" : ""}
+        ${actionClass.fields.find {it.name == "sessionId"} != null ? "a.sessionId = Test.currentEnvSpec?.session?.uuid" : ""}
         c.resolveStrategy = Closure.OWNER_FIRST
         c.delegate = a
         c()

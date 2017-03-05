@@ -174,7 +174,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         }
         gc.submit()
 
-        GarbageCollectorVO vo = dbf.findById(gc.id, GarbageCollectorVO.class)
+        GarbageCollectorVO vo = dbf.findByUuid(gc.uuid, GarbageCollectorVO.class)
         assert vo != null
         assert vo.runnerClass == gc.class.name
         assert vo.context != null
@@ -186,8 +186,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         latch.await(10, TimeUnit.SECONDS)
 
         assert count == 1
-        vo = dbf.findById(gc.id, GarbageCollectorVO.class)
-        assert vo == null
+        assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
 
         // trigger again, confirm the event is no longer hooked
         evtf.fire(EVENT_PATH, "trigger it")
@@ -210,7 +209,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         evtf.fire(EVENT_PATH, "trigger it")
         latch.await(10, TimeUnit.SECONDS)
 
-        GarbageCollectorVO vo = dbf.findById(gc.id, GarbageCollectorVO.class)
+        GarbageCollectorVO vo = dbf.findByUuid(gc.uuid, GarbageCollectorVO.class)
         assert vo.status == GCStatus.Idle
 
         // confirm re-run can success
@@ -224,8 +223,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
 
         evtf.fire(EVENT_PATH, "trigger it")
         latch.await(10, TimeUnit.SECONDS)
-        vo = dbf.findById(gc.id, GarbageCollectorVO.class)
-        assert vo == null
+        assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
         assert s
     }
 
@@ -245,7 +243,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         // trigger the GC
         evtf.fire(EVENT_PATH, "trigger it")
         latch.await(10, TimeUnit.SECONDS)
-        assert dbf.findById(gc.id, GarbageCollectorVO.class) == null
+        assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
         assert count == 1
 
         // trigger again, confirm the event is no longer hooked
@@ -282,7 +280,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         latch.await(10, TimeUnit.SECONDS)
         // confirm the trigger only runs once
         assert count == 1
-        assert dbf.findById(gc.id, GarbageCollectorVO.class) == null
+        assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
     }
 
     void testEventBasedGCExceptionInTrigger() {
@@ -305,7 +303,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         TimeUnit.SECONDS.sleep(2)
 
         latch.await(10, TimeUnit.SECONDS)
-        GarbageCollectorVO vo = dbf.findById(gc.id, GarbageCollectorVO.class)
+        GarbageCollectorVO vo = dbf.findByUuid(gc.uuid, GarbageCollectorVO.class)
         assert vo.status == GCStatus.Idle
         dbf.remove(vo)
     }
@@ -335,7 +333,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
 
         latch.await(10, TimeUnit.SECONDS)
         assert count == 2
-        assert dbf.findById(gc.id, GarbageCollectorVO.class) == null
+        assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
 
         // trigger again, confirm the count is not increased, which
         // means the trigger is no longer hooked on the events
@@ -356,7 +354,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         gc.saveToDatabase()
 
         // make the Job as an orphan
-        GarbageCollectorVO vo = dbf.findById(gc.id, GarbageCollectorVO.class)
+        GarbageCollectorVO vo = dbf.findByUuid(gc.uuid, GarbageCollectorVO.class)
         vo.setManagementNodeUuid(null)
         dbf.update(vo)
 
@@ -367,7 +365,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         evtf.fire(EVENT_PATH, "trigger it")
         TimeUnit.SECONDS.sleep(1)
 
-        assert null == dbf.findById(gc.id, GarbageCollectorVO.class)
+        assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
     }
 
     void testLoadedOrphanJobFailure() {
@@ -381,7 +379,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         gc.saveToDatabase()
 
         // make the Job as an orphan
-        GarbageCollectorVO vo = dbf.findById(gc.id, GarbageCollectorVO.class)
+        GarbageCollectorVO vo = dbf.findByUuid(gc.uuid, GarbageCollectorVO.class)
         vo.setManagementNodeUuid(null)
         dbf.update(vo)
 
@@ -392,7 +390,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         evtf.fire(EVENT_PATH, "trigger it")
         TimeUnit.SECONDS.sleep(1)
 
-        vo = dbf.findById(gc.id, GarbageCollectorVO.class)
+        vo = dbf.findByUuid(gc.uuid, GarbageCollectorVO.class)
         assert vo.status == GCStatus.Idle
         dbf.remove(vo)
     }
@@ -408,7 +406,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         gc.saveToDatabase()
 
         // make the Job as an orphan
-        GarbageCollectorVO vo = dbf.findById(gc.id, GarbageCollectorVO.class)
+        GarbageCollectorVO vo = dbf.findByUuid(gc.uuid, GarbageCollectorVO.class)
         vo.setManagementNodeUuid(null)
         dbf.update(vo)
 
@@ -423,7 +421,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
 
         TimeUnit.SECONDS.sleep(1)
         assert called
-        assert dbf.findById(gc.id, GarbageCollectorVO.class) == null
+        assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
     }
 
     void testLoadedOrphanJobSuccess() {
@@ -437,7 +435,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         gc.saveToDatabase()
 
         // make the Job as an orphan
-        GarbageCollectorVO vo = dbf.findById(gc.id, GarbageCollectorVO.class)
+        GarbageCollectorVO vo = dbf.findByUuid(gc.uuid, GarbageCollectorVO.class)
         vo.setManagementNodeUuid(null)
         dbf.update(vo)
 
@@ -447,13 +445,13 @@ class EventBasedGarbageCollectorCase extends SubCase {
         String name = null
         String description = null
         Context ctx = null
-        Long loadedJobId = null
+        String loadedJobId = null
 
         testLogicForJobLoadedFromDb = { EventBasedGCInDb g ->
             name = g.name
             description = g.description
             ctx = g.context
-            loadedJobId = g.id
+            loadedJobId = g.uuid
 
             count ++
             latch.countDown()
@@ -473,8 +471,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
 
         // wait 1s for the job doing success()
         TimeUnit.SECONDS.sleep(1)
-        vo = dbf.findById(loadedJobId, GarbageCollectorVO.class)
-        assert vo == null
+        assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
     }
 
     void testLoadedOrphanJobScan() {
@@ -488,7 +485,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
         gc.saveToDatabase()
 
         // make the Job as an orphan
-        GarbageCollectorVO vo = dbf.findById(gc.id, GarbageCollectorVO.class)
+        GarbageCollectorVO vo = dbf.findByUuid(gc.uuid, GarbageCollectorVO.class)
         vo.setManagementNodeUuid(null)
         dbf.update(vo)
 
@@ -503,7 +500,7 @@ class EventBasedGarbageCollectorCase extends SubCase {
 
         TimeUnit.SECONDS.sleep(1)
 
-        assert dbf.findById(gc.id, GarbageCollectorVO.class) == null
+        assert dbFindByUuid(gc.uuid, GarbageCollectorVO.class).status == GCStatus.Done
     }
 
     @Override

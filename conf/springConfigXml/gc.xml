@@ -23,6 +23,13 @@
         <zstack:plugin>
             <zstack:extension interface="org.zstack.header.managementnode.ManagementNodeReadyExtensionPoint"/>
             <zstack:extension interface="org.zstack.header.Component"/>
+            <zstack:extension interface="org.zstack.header.Service"/>
+        </zstack:plugin>
+    </bean>
+
+    <bean id="GCApiInterceptor" class="org.zstack.core.gc.GCApiInterceptor" >
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.header.apimediator.ApiMessageInterceptor"/>
         </zstack:plugin>
     </bean>
 </beans>

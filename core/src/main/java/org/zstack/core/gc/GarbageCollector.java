@@ -1,6 +1,5 @@
 package org.zstack.core.gc;
 
-import org.apache.commons.beanutils.PropertyUtils;
 import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
@@ -8,6 +7,7 @@ import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.EventFacade;
 import org.zstack.core.db.DatabaseFacade;
+import org.zstack.core.db.SQL;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.thread.AsyncThread;
 import org.zstack.header.errorcode.ErrorCode;
@@ -37,6 +37,8 @@ public abstract class GarbageCollector {
     protected ErrorFacade errf;
     @Autowired
     protected EventFacade evtf;
+    @Autowired
+    GarbageCollectorManagerImpl gcMgr;
 
     Runnable canceller;
     private AtomicBoolean lockJob = new AtomicBoolean(false);
@@ -44,10 +46,10 @@ public abstract class GarbageCollector {
     // override in the subclass to give a name to the GC job
     public String NAME = getClass().getName();
     public int EXECUTED_TIMES;
-    Long id;
+    String uuid;
 
-    public Long getId() {
-        return id;
+    public String getUuid() {
+        return uuid;
     }
 
     protected abstract void triggerNow(GCCompletion completion);
@@ -61,34 +63,37 @@ public abstract class GarbageCollector {
     }
 
     protected void success() {
-        assert id != null;
+        assert uuid != null;
         assert canceller != null;
 
-        logger.debug(String.format("[GC] a job[name:%s, id:%s] completes successfully", NAME, id));
+        logger.debug(String.format("[GC] a job[name:%s, id:%s] completes successfully", NAME, uuid));
         canceller.run();
 
-        dbf.removeByPrimaryKey(id, GarbageCollectorVO.class);
+        SQL.New(GarbageCollectorVO.class).set(GarbageCollectorVO_.status, GCStatus.Done).update();
+        gcMgr.deregisterGC(this);
     }
 
     protected void cancel() {
-        assert id != null;
+        assert uuid != null;
         assert canceller != null;
 
-        logger.debug(String.format("[GC] a job[name:%s, id:%s] is cancelled by itself", NAME, id));
+        logger.debug(String.format("[GC] a job[name:%s, id:%s] is cancelled by itself", NAME, uuid));
         canceller.run();
 
-        dbf.removeByPrimaryKey(id, GarbageCollectorVO.class);
+        SQL.New(GarbageCollectorVO.class).set(GarbageCollectorVO_.status, GCStatus.Done).update();
+
+        gcMgr.deregisterGC(this);
     }
 
     protected void fail(ErrorCode err) {
-        assert id != null;
+        assert uuid != null;
 
         unlock();
 
-        logger.debug(String.format("[GC] a job[name:%s, id:%s] failed because %s", NAME, id ,err));
-        GarbageCollectorVO vo = dbf.findById(id, GarbageCollectorVO.class);
+        logger.debug(String.format("[GC] a job[name:%s, id:%s] failed because %s", NAME, uuid,err));
+        GarbageCollectorVO vo = dbf.findByUuid(uuid, GarbageCollectorVO.class);
         if (vo == null) {
-            logger.warn(String.format("[GC] cannot find a job[name:%s, id:%s], assume it's deleted", NAME, id));
+            logger.warn(String.format("[GC] cannot find a job[name:%s, id:%s], assume it's deleted", NAME, uuid));
             cancel();
             return;
         }
@@ -119,6 +124,7 @@ public abstract class GarbageCollector {
         });
 
         GarbageCollectorVO vo = new GarbageCollectorVO();
+        vo.setUuid(Platform.getUuid());
         vo.setContext(JSONObjectUtil.toJsonString(context));
         vo.setRunnerClass(getClass().getName());
         vo.setManagementNodeUuid(Platform.getManagementServerId());
@@ -130,9 +136,9 @@ public abstract class GarbageCollector {
         }
         vo.setName(NAME);
         vo = dbf.persistAndRefresh(vo);
-        id = vo.getId();
+        uuid = vo.getUuid();
 
-        logger.debug(String.format("[GC] saved a job[name:%s, id:%s] to DB", NAME, id));
+        logger.debug(String.format("[GC] saved a job[name:%s, id:%s] to DB", NAME, uuid));
     }
 
     void loadFromVO(GarbageCollectorVO vo) {
@@ -151,10 +157,12 @@ public abstract class GarbageCollector {
             }
         }
 
-        id = vo.getId();
+        uuid = vo.getUuid();
         vo.setStatus(GCStatus.Idle);
         vo.setManagementNodeUuid(Platform.getManagementServerId());
         dbf.update(vo);
+
+        gcMgr.registerGC(this);
     }
 
     @AsyncThread
@@ -181,7 +189,7 @@ public abstract class GarbageCollector {
             });
         } catch (Throwable t) {
             logger.warn(String.format("[GC] unhandled exception happened when" +
-                    " running a GC job[name:%s, id:%s]", NAME, id), t);
+                    " running a GC job[name:%s, id:%s]", NAME, uuid), t);
             fail(errf.stringToInternalError(t.getMessage()));
         }
     }

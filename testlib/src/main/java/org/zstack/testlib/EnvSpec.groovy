@@ -165,7 +165,7 @@ class EnvSpec implements Node {
         return specsByName[name]
     }
 
-    private String retrieveSessonUuid(Node it) {
+    private String retrieveSessionUuid(Node it) {
         String suuid = session.uuid
 
         if (it instanceof HasSession) {
@@ -223,7 +223,7 @@ class EnvSpec implements Node {
             specsByUuid[uuid] = it
 
 
-            def suuid = retrieveSessonUuid(it)
+            def suuid = retrieveSessionUuid(it)
 
             try {
                 SpecID id = (it as CreateAction).create(uuid, suuid)
@@ -299,7 +299,7 @@ class EnvSpec implements Node {
             String uuid = Platform.getUuid()
             specsByUuid[uuid] = it
 
-            SpecID id = it.create(uuid, retrieveSessonUuid(it as Node))
+            SpecID id = it.create(uuid, retrieveSessionUuid(it as Node))
             if (id != null) {
                 specsByName[id.name] = it
             }
@@ -405,11 +405,6 @@ class EnvSpec implements Node {
 
     void handleSimulatorHttpRequests(HttpServletRequest req, HttpServletResponse rsp) {
         def url = req.getRequestURI()
-        if (WebBeanConstructor.WEB_HOOK_PATH.toString().contains(url)) {
-            ZSClient.webHookCallback(req, rsp)
-            return
-        }
-
         def handler = httpHandlers[url]
         if (handler == null) {
             rsp.sendError(HttpStatus.NOT_FOUND.value(), "no handler found for the path $url")
