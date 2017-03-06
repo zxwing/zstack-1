@@ -398,47 +398,6 @@ public class FlatEipBackend implements EipBackend, KVMHostConnectExtensionPoint,
         batchDeleteEips(eips, hostUuid, false, completion);
     }
 
-    private void setupGC(List<EipTO> eips, String hostUuid) {
-        GCDeleteEipContext c = new GCDeleteEipContext();
-        c.setEips(eips);
-        c.setHostUuid(hostUuid);
-        c.setTriggerHostStatus(HostStatus.Connected.toString());
-
-        EventBasedGCPersistentContext<GCDeleteEipContext> ctx = new EventBasedGCPersistentContext<GCDeleteEipContext>();
-        ctx.setRunnerClass(GCDeleteEipRunner.class);
-        ctx.setContextClass(GCDeleteEipContext.class);
-        ctx.setName(String.format("delete-eips-on-host-%s", hostUuid));
-        ctx.setContext(c);
-
-        GCEventTrigger trigger = new GCEventTrigger();
-        trigger.setCodeName("gc-delete-eips-on-host-connected");
-        trigger.setEventPath(HostCanonicalEvents.HOST_STATUS_CHANGED_PATH);
-        String code = ln(
-                "import org.zstack.header.host.HostCanonicalEvents.HostStatusChangedData",
-                "import org.zstack.network.service.flat.GCDeleteEipContext",
-                "HostStatusChangedData d = (HostStatusChangedData) data",
-                "GCDeleteEipContext c = (GCDeleteEipContext) context",
-                "return c.hostUuid == d.hostUuid && d.newStatus == c.triggerHostStatus"
-        ).toString();
-        trigger.setCode(code);
-        ctx.addTrigger(trigger);
-
-        trigger = new GCEventTrigger();
-        trigger.setCodeName("gc-delete-vm-on-host-deleted");
-        trigger.setEventPath(HostCanonicalEvents.HOST_DELETED_PATH);
-        code = ln(
-                "import org.zstack.header.host.HostCanonicalEvents.HostDeletedData",
-                "import org.zstack.network.service.flat.GCDeleteEipContext",
-                "HostDeletedData d = (HostDeletedData) data",
-                "GCDeleteEipContext c = (GCDeleteEipContext) context",
-                "return c.hostUuid == d.hostUuid"
-        ).toString();
-        trigger.setCode(code);
-        ctx.addTrigger(trigger);
-
-        gcf.schedule(ctx);
-    }
-
     private void batchDeleteEips(final List<EipTO> eips, final String hostUuid, boolean noHostStatusCheck, final Completion completion) {
         BatchDeleteEipCmd cmd = new BatchDeleteEipCmd();
         cmd.eips = eips;
@@ -457,7 +416,13 @@ public class FlatEipBackend implements EipBackend, KVMHostConnectExtensionPoint,
 
                     ErrorCode err = reply.getError();
                     if (err.isError(HostErrors.OPERATION_FAILURE_GC_ELIGIBLE)) {
-                        setupGC(eips, hostUuid);
+
+                        FlatEipGC gc = new FlatEipGC();
+                        gc.eips = eips;
+                        gc.hostUuid = hostUuid;
+                        gc.NAME = String.format("gc-flat-eips-on-hosts-%s", hostUuid);
+                        gc.submit();
+
                         completion.success();
                     } else {
                         completion.fail(reply.getError());
@@ -642,7 +607,13 @@ public class FlatEipBackend implements EipBackend, KVMHostConnectExtensionPoint,
 
                     ErrorCode err = reply.getError();
                     if (err.isError(HostErrors.OPERATION_FAILURE_GC_ELIGIBLE)) {
-                        setupGC(list(cmd.eip), msg.getHostUuid());
+
+                        FlatEipGC gc = new FlatEipGC();
+                        gc.eips = list(cmd.eip);
+                        gc.hostUuid = msg.getHostUuid();
+                        gc.NAME = String.format("gc-eips-on-host-%s", msg.getHostUuid());
+                        gc.submit();
+
                         completion.success();
                     } else {
                         completion.fail(reply.getError());
