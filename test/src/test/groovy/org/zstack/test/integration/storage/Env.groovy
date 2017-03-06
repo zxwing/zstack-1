@@ -11,15 +11,6 @@ import org.zstack.utils.data.SizeUnit
  * Created by zouye on 2017/2/28.
  */
 class Env {
-    def DOC = """
-use:
-1. sftp backup storage
-2. local primary storage
-3. virtual router provider
-4. l2 novlan network
-5. security group
-"""
-
     static EnvSpec localStorageOneVmEnv() {
         return Test.makeEnv {
             instanceOffering {

@@ -1760,40 +1760,6 @@ public class VmInstanceManagerImpl extends AbstractService implements
         return ret;
     }
 
-    private void checkUnknownVm() {
-        List<String> unknownVmUuids = getVmInUnknownStateManagedByUs();
-        if (unknownVmUuids.isEmpty()) {
-            return;
-        }
-
-        for (final String uuid : unknownVmUuids) {
-            TimeBasedGCEphemeralContext<Void> context = new TimeBasedGCEphemeralContext<>();
-            context.setInterval(5);
-            context.setTimeUnit(TimeUnit.SECONDS);
-            context.setRunner(new GCRunner() {
-                @Override
-                public void run(GCContext context, final GCCompletion completion) {
-                    VmCheckOwnStateMsg msg = new VmCheckOwnStateMsg();
-                    msg.setVmInstanceUuid(uuid);
-                    bus.makeTargetServiceIdByResourceUuid(msg, VmInstanceConstant.SERVICE_ID, uuid);
-                    bus.send(msg, new CloudBusCallBack(completion) {
-                        @Override
-                        public void run(MessageReply reply) {
-                            if (reply.isSuccess()) {
-                                completion.success();
-                            } else {
-                                completion.fail(errf.stringToOperationError(
-                                        String.format("unable to check the vm[uuid:%s]'s state, %s", uuid, reply.getError())
-                                ));
-                            }
-                        }
-                    });
-                }
-            });
-            gcf.scheduleImmediately(context);
-        }
-    }
-
     @Override
     @AsyncThread
     public void managementNodeReady() {
