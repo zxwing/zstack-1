@@ -1,6 +1,6 @@
 package org.zstack.test.integration.networkservice.provider
 
-import org.zstack.test.integration.networkservice.provider.flat.eip.FlatEipGCCase
+import org.zstack.test.integration.networkservice.provider.flat.eip.FlatNetworkGCCase
 import org.zstack.test.integration.networkservice.provider.flat.userdata.OneVmUserdata
 import org.zstack.test.integration.networkservice.provider.flat.dhcp.OneVmDhcp
 import org.zstack.testlib.SpringSpec
@@ -38,7 +38,7 @@ class NetworkServiceProviderTest extends Test {
                 // flat network provider
                 new OneVmDhcp(),
                 new OneVmUserdata(),
-                new FlatEipGCCase()
+                new FlatNetworkGCCase()
         ])
     }
 }

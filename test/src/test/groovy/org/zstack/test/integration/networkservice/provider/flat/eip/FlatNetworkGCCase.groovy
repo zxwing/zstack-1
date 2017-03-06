@@ -1,16 +1,20 @@
 package org.zstack.test.integration.networkservice.provider.flat.eip
 
 import org.zstack.core.gc.GCStatus
+import org.zstack.network.service.flat.BridgeNameFinder
+import org.zstack.network.service.flat.FlatDhcpBackend
 import org.zstack.network.service.flat.FlatEipBackend
 import org.zstack.sdk.EipInventory
 import org.zstack.sdk.GarbageCollectorInventory
 import org.zstack.sdk.HostInventory
+import org.zstack.sdk.L3NetworkInventory
 import org.zstack.test.integration.networkservice.provider.NetworkServiceProviderTest
 import org.zstack.test.integration.networkservice.provider.flat.NetworkServiceEnv
 import org.zstack.testlib.EipSpec
 import org.zstack.testlib.EnvSpec
 import org.zstack.testlib.HostSpec
 import org.zstack.testlib.HttpError
+import org.zstack.testlib.L3NetworkSpec
 import org.zstack.testlib.SubCase
 
 import java.util.concurrent.TimeUnit
@@ -18,11 +22,12 @@ import java.util.concurrent.TimeUnit
 /**
  * Created by xing5 on 2017/3/6.
  */
-class FlatEipGCCase extends SubCase {
+class FlatNetworkGCCase extends SubCase {
     EnvSpec env
 
     EipInventory eip
     HostInventory host
+    L3NetworkInventory l3
 
     @Override
     void clean() {
@@ -40,7 +45,7 @@ class FlatEipGCCase extends SubCase {
     }
 
 
-    void testGCSuccess() {
+    void testEipGCSuccess() {
         env.afterSimulator(FlatEipBackend.DELETE_EIP_PATH) {
             throw new HttpError(403, "on purpose")
         }
@@ -82,7 +87,7 @@ class FlatEipGCCase extends SubCase {
         }
     }
 
-    void testGCCancelledAfterHostDeleted() {
+    void testEipGCCancelledAfterHostDeleted() {
         env.afterSimulator(FlatEipBackend.DELETE_EIP_PATH) {
             throw new HttpError(403, "on purpose")
         }
@@ -118,17 +123,105 @@ class FlatEipGCCase extends SubCase {
         assert inv.status == GCStatus.Done.toString()
     }
 
+    void testNamespaceGCSuccess() {
+        env.afterSimulator(FlatDhcpBackend.DHCP_DELETE_NAMESPACE_PATH) {
+            throw new HttpError(403, "on purpose")
+        }
+
+        String bridgeName = new BridgeNameFinder().findByL3Uuid(l3.uuid)
+
+        deleteL3Network {
+            uuid = l3.uuid
+        }
+
+        GarbageCollectorInventory inv = queryGCJob {
+            conditions=["context~=%$bridgeName%".toString()]
+        }[0]
+
+        assert inv.status == GCStatus.Idle.toString()
+
+        boolean called = false
+        env.afterSimulator(FlatDhcpBackend.DHCP_DELETE_NAMESPACE_PATH) { rsp ->
+            called = true
+            return rsp
+        }
+
+        reconnectHost {
+            uuid = host.uuid
+        }
+
+        TimeUnit.SECONDS.sleep(2)
+        assert called
+
+        inv = queryGCJob {
+            conditions=["context~=%$bridgeName%".toString()]
+        }[0]
+
+        assert inv.status == GCStatus.Done.toString()
+
+        // cleanup the job for following cases
+        deleteGCJob {
+            uuid = inv.uuid
+        }
+    }
+
+    void testNamespaceCancelledAfterHostDeleted() {
+        env.afterSimulator(FlatDhcpBackend.DHCP_DELETE_NAMESPACE_PATH) {
+            throw new HttpError(403, "on purpose")
+        }
+
+        String bridgeName = new BridgeNameFinder().findByL3Uuid(l3.uuid)
+
+        deleteL3Network {
+            uuid = l3.uuid
+        }
+
+        GarbageCollectorInventory inv = queryGCJob {
+            conditions=["context~=%$bridgeName%".toString()]
+        }[0]
+
+        assert inv.status == GCStatus.Idle.toString()
+
+        boolean called = false
+        env.afterSimulator(FlatDhcpBackend.DHCP_DELETE_NAMESPACE_PATH) { rsp ->
+            called = true
+            return rsp
+        }
+
+        deleteHost {
+            uuid = host.uuid
+        }
+
+        TimeUnit.SECONDS.sleep(2)
+        assert !called
+
+        inv = queryGCJob {
+            conditions=["context~=%$bridgeName%".toString()]
+        }[0]
+
+        assert inv.status == GCStatus.Done.toString()
+    }
+
     @Override
     void test() {
         env.create {
             eip = (env.specByName("eip") as EipSpec).inventory
             host = (env.specByName("kvm") as HostSpec).inventory
+            l3 = (env.specByName("l3") as L3NetworkSpec).inventory
 
-            testGCSuccess()
+            testEipGCSuccess()
 
             eip = (env.recreate("eip") as EipSpec).inventory
 
-            testGCCancelledAfterHostDeleted()
+            testEipGCCancelledAfterHostDeleted()
+
+            host = (env.recreate("kvm") as HostSpec).inventory
+
+            testNamespaceGCSuccess()
+
+            l3 = (env.recreate("l3") as L3NetworkSpec).inventory
+
+            testNamespaceCancelledAfterHostDeleted()
         }
     }
 }
