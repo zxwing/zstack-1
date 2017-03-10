@@ -84,6 +84,8 @@ import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 import org.zstack.utils.network.NetworkUtils;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
 import java.sql.Timestamp;
@@ -935,9 +937,7 @@ public class VmInstanceManagerImpl extends AbstractService implements
 
                 CheckIpAvailabilityReply cr = r.castReply();
                 if (!cr.isAvailable()) {
-                    throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                            String.format("IP[%s] is not available on the L3 network[uuid:%s]", ip, l3Uuid)
-                    ));
+                    throw new ApiMessageInterceptionException(operr("IP[%s] is not available on the L3 network[uuid:%s]", ip, l3Uuid));
                 }
             }
 
@@ -1956,10 +1956,8 @@ public class VmInstanceManagerImpl extends AbstractService implements
         vq.add(VolumeVO_.uuid, Op.EQ, ref.getResourceUuid());
         vq.add(VolumeVO_.type, Op.EQ, VolumeType.Root);
         if (vq.isExists()) {
-            throw new OperationFailureException(errf.stringToOperationError(
-                    String.format("the resource[uuid:%s] is a ROOT volume, you cannot change its owner, instead," +
-                            "change the owner of the VM the root volume belongs to", ref.getResourceUuid())
-            ));
+            throw new OperationFailureException(operr("the resource[uuid:%s] is a ROOT volume, you cannot change its owner, instead," +
+                            "change the owner of the VM the root volume belongs to", ref.getResourceUuid()));
         }
     }
 
