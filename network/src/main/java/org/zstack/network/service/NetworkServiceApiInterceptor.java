@@ -14,6 +14,8 @@ import org.zstack.header.network.service.*;
 import org.zstack.utils.CollectionUtils;
 import org.zstack.utils.function.Function;
 
+import static org.zstack.core.Platform.operr;
+
 import java.util.*;
 
 /**
@@ -95,9 +97,7 @@ public class NetworkServiceApiInterceptor implements ApiMessageInterceptor {
         for (List<String> types : msg.getNetworkServices().values()) {
             for (String type : types) {
                 if (existingNwsTypes.contains(type)) {
-                    throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                            String.format("there has been a network service[%s] attached to L3 network[uuid:%s]", type, msg.getL3NetworkUuid())
-                    ));
+                    throw new ApiMessageInterceptionException(operr("there has been a network service[%s] attached to L3 network[uuid:%s]", type, msg.getL3NetworkUuid()));
                 }
             }
         }

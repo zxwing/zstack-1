@@ -87,7 +87,7 @@ public class KvmVmSyncPingTask extends VmTracer implements KVMPingAgentNoFailure
                     reportVmState(host.getUuid(), states);
                     completion.success();
                 } else {
-                    ErrorCode errorCode = operr("unable to do vm sync on host[uuid:%s, ip:%s] because %s", host.getUuid(), host.getManagementIp(), ret.getError()));
+                    ErrorCode errorCode = operr("unable to do vm sync on host[uuid:%s, ip:%s] because %s", host.getUuid(), host.getManagementIp(), ret.getError());
                     completion.fail(errorCode);
                 }
             }

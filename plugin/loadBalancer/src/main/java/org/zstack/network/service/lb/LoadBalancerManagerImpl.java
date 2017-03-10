@@ -41,6 +41,8 @@ import org.zstack.tag.TagManager;
 import org.zstack.utils.Utils;
 import org.zstack.utils.logging.CLogger;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.TypedQuery;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -86,7 +88,7 @@ public class LoadBalancerManagerImpl extends AbstractService implements LoadBala
     private void passThrough(LoadBalancerMessage msg) {
         LoadBalancerVO vo = dbf.findByUuid(msg.getLoadBalancerUuid(), LoadBalancerVO.class);
         if (vo == null) {
-            throw new OperationFailureException(errf.stringToOperationError(String.format("cannot find the load balancer[uuid:%s]", msg.getLoadBalancerUuid())));
+            throw new OperationFailureException(operr("cannot find the load balancer[uuid:%s]", msg.getLoadBalancerUuid()));
         }
 
         LoadBalancerBase base = new LoadBalancerBase(vo);
@@ -225,9 +227,7 @@ public class LoadBalancerManagerImpl extends AbstractService implements LoadBala
         AbstractSystemTagOperationJudger judger = new AbstractSystemTagOperationJudger() {
             @Override
             public void tagPreDeleted(SystemTagInventory tag) {
-                throw new OperationFailureException(errf.stringToOperationError(
-                        String.format("cannot delete the system tag[%s]. The load balancer plugin relies on it, you can only update it", tag.getTag())
-                ));
+                throw new OperationFailureException(operr("cannot delete the system tag[%s]. The load balancer plugin relies on it, you can only update it", tag.getTag()));
             }
         };
         LoadBalancerSystemTags.BALANCER_ALGORITHM.installJudger(judger);

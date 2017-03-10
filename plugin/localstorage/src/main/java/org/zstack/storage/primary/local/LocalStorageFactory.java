@@ -41,6 +41,8 @@ import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.TypedQuery;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -329,9 +331,7 @@ public class LocalStorageFactory implements PrimaryStorageFactory, Component,
             if (KVMConstant.KVM_HYPERVISOR_TYPE.equals(spec.getVmInventory().getHypervisorType())) {
                 return new LocalStorageKvmMigrateVmFlow();
             } else {
-                throw new OperationFailureException(errf.stringToOperationError(
-                        String.format("local storage doesn't support live migration for hypervisor[%s]", spec.getVmInventory().getHypervisorType())
-                ));
+                throw new OperationFailureException(operr("local storage doesn't support live migration for hypervisor[%s]", spec.getVmInventory().getHypervisorType()));
             }
         }
 
@@ -507,15 +507,13 @@ public class LocalStorageFactory implements PrimaryStorageFactory, Component,
         String dataHost = q.findValue();
 
         if (!rootHost.equals(dataHost)) {
-            throw new OperationFailureException(errf.stringToOperationError(
-                    String.format("cannot attach the data volume[uuid:%s] to the vm[uuid:%s]." +
+            throw new OperationFailureException(operr("cannot attach the data volume[uuid:%s] to the vm[uuid:%s]." +
                             " Both vm's root volume and the data volume are" +
                             " on local primary storage, but they are on different hosts." +
                             " The root volume[uuid:%s] is on the host[uuid:%s] but the data volume[uuid: %s]" +
                             " is on the host[uuid: %s]",
                             volume.getUuid(), vm.getUuid(), vm.getRootVolumeUuid(),
-                            rootHost, volume.getUuid(), dataHost)
-            ));
+                            rootHost, volume.getUuid(), dataHost));
         }
     }
 
@@ -715,11 +713,9 @@ public class LocalStorageFactory implements PrimaryStorageFactory, Component,
         rq.add(LocalStorageResourceRefVO_.resourceUuid, Op.EQ, vol.getUuid());
         rq.add(LocalStorageResourceRefVO_.resourceType, Op.EQ, VolumeVO.class.getSimpleName());
         if (!rq.isExists()) {
-            throw new OperationFailureException(errf.stringToOperationError(
-                    String.format("the data volume[name:%s, uuid:%s] is on the local storage[uuid:%s]; however," +
+            throw new OperationFailureException(operr("the data volume[name:%s, uuid:%s] is on the local storage[uuid:%s]; however," +
                                     "the host on which the data volume is has been deleted. Unable to recover this volume",
-                            vol.getName(), vol.getUuid(), vol.getPrimaryStorageUuid())
-            ));
+                            vol.getName(), vol.getUuid(), vol.getPrimaryStorageUuid()));
         }
     }
 
@@ -760,11 +756,9 @@ public class LocalStorageFactory implements PrimaryStorageFactory, Component,
         rq.setParameter("rtype", VolumeVO.class.getSimpleName());
         long count = rq.getSingleResult();
         if (count == 0) {
-            throw new OperationFailureException(errf.stringToOperationError(
-                    String.format("unable to recover the vm[uuid:%s, name:%s]. The vm's root volume is on the local" +
+            throw new OperationFailureException(operr("unable to recover the vm[uuid:%s, name:%s]. The vm's root volume is on the local" +
                                     " storage[uuid:%s]; however, the host on which the root volume is has been deleted",
-                            vm.getUuid(), vm.getName(), psuuid)
-            ));
+                            vm.getUuid(), vm.getName(), psuuid));
         }
     }
 
@@ -799,10 +793,8 @@ public class LocalStorageFactory implements PrimaryStorageFactory, Component,
         q.setMaxResults(1);
         Long count = q.getSingleResult();
         if (count > 0) {
-            throw new OperationFailureException(errf.stringToOperationError(
-                    String.format("unable to live migrate with local storage. The vm[uuid:%s] has volumes on local storage," +
-                            "to protect your data, please stop the vm and do the volume migration", vm.getUuid())
-            ));
+            throw new OperationFailureException(operr("unable to live migrate with local storage. The vm[uuid:%s] has volumes on local storage," +
+                            "to protect your data, please stop the vm and do the volume migration", vm.getUuid()));
         }
     }
 

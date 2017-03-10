@@ -17,6 +17,8 @@ import org.zstack.network.service.vip.VipVO_;
 import org.zstack.tag.PatternedSystemTag;
 import org.zstack.utils.DebugUtils;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.TypedQuery;
 import java.util.List;
 
@@ -120,9 +122,7 @@ public class LoadBalancerApiInterceptor implements ApiMessageInterceptor {
         q.setParameter("uuid", l3Uuid);
         q.setParameter("ntype", LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING);
         if (q.getResultList().isEmpty()) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("the L3 network[uuid:%s] of the vm nics has no network service[%s] enabled", l3Uuid, LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING)
-            ));
+            throw new ApiMessageInterceptionException(operr("the L3 network[uuid:%s] of the vm nics has no network service[%s] enabled", l3Uuid, LoadBalancerConstants.LB_NETWORK_SERVICE_TYPE_STRING));
         }
 
         sql = "select ref.vmNicUuid from LoadBalancerListenerVmNicRefVO ref where ref.vmNicUuid in (:nicUuids) and ref.listenerUuid = :uuid";
@@ -131,9 +131,7 @@ public class LoadBalancerApiInterceptor implements ApiMessageInterceptor {
         q.setParameter("uuid", msg.getListenerUuid());
         List<String> existingNics = q.getResultList();
         if (!existingNics.isEmpty()) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("the vm nics[uuid:%s] are already on the load balancer listener[uuid:%s]", existingNics, msg.getListenerUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("the vm nics[uuid:%s] are already on the load balancer listener[uuid:%s]", existingNics, msg.getListenerUuid()));
         }
 
         sql = "select l.loadBalancerUuid from LoadBalancerListenerVO l where l.uuid = :uuid";

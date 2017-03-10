@@ -19,6 +19,8 @@ import org.zstack.header.vm.VmInstanceVO;
 import org.zstack.header.vm.VmInstanceVO_;
 import org.zstack.header.volume.*;
 
+import static org.zstack.core.Platform.operr;
+
 import java.util.ArrayList;
 
 /**
@@ -119,10 +121,8 @@ public class LocalStorageApiInterceptor implements ApiMessageInterceptor {
             vmq.add(VmInstanceVO_.uuid, Op.EQ, vol.getVmInstanceUuid());
             VmInstanceState vmstate = vmq.findValue();
             if (VmInstanceState.Stopped != vmstate) {
-                throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                        String.format("the volume[uuid:%s] is the root volume of the vm[uuid:%s]. Currently the vm is in" +
-                                " state of %s, please stop it before migration", vol.getUuid(), vol.getVmInstanceUuid(), vmstate)
-                ));
+                throw new ApiMessageInterceptionException(operr("the volume[uuid:%s] is the root volume of the vm[uuid:%s]. Currently the vm is in" +
+                                " state of %s, please stop it before migration", vol.getUuid(), vol.getVmInstanceUuid(), vmstate));
             }
 
             SimpleQuery<VolumeVO> vq = dbf.createQuery(VolumeVO.class);
@@ -130,10 +130,8 @@ public class LocalStorageApiInterceptor implements ApiMessageInterceptor {
             vq.add(VolumeVO_.vmInstanceUuid, Op.EQ, vol.getVmInstanceUuid());
             long count = vq.count();
             if (count != 0) {
-                throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                        String.format("the volume[uuid:%s] is the root volume of the vm[uuid:%s]. Currently the vm still" +
-                                " has %s data volumes attached, please detach them before migration", vol.getUuid(), vol.getVmInstanceUuid(), count)
-                ));
+                throw new ApiMessageInterceptionException(operr("the volume[uuid:%s] is the root volume of the vm[uuid:%s]. Currently the vm still" +
+                                " has %s data volumes attached, please detach them before migration", vol.getUuid(), vol.getVmInstanceUuid(), count));
             }
         }
 

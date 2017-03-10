@@ -19,6 +19,8 @@ import org.zstack.header.zone.ZoneVO;
 import org.zstack.header.zone.ZoneVO_;
 import org.zstack.utils.network.NetworkUtils;
 
+import static org.zstack.core.Platform.operr;
+
 import java.util.List;
 
 /**
@@ -303,9 +305,7 @@ public class L3NetworkApiInterceptor implements ApiMessageInterceptor {
         q.add(L3NetworkDnsVO_.l3NetworkUuid, Op.EQ, msg.getL3NetworkUuid());
         q.add(L3NetworkDnsVO_.dns, Op.EQ, msg.getDns());
         if (q.isExists()) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("there has been a DNS[%s] on L3 network[uuid:%s]", msg.getDns(), msg.getL3NetworkUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("there has been a DNS[%s] on L3 network[uuid:%s]", msg.getDns(), msg.getL3NetworkUuid()));
         }
     }
 }

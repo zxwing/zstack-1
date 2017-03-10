@@ -19,6 +19,8 @@ import org.zstack.network.service.vip.VipVO;
 import org.zstack.network.service.vip.VipVO_;
 import org.zstack.utils.network.NetworkUtils;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
 import java.util.List;
@@ -59,16 +61,12 @@ public class PortForwardingApiInterceptor implements ApiMessageInterceptor {
         PortForwardingRuleState state = t.get(0, PortForwardingRuleState.class);
 
         if (state != PortForwardingRuleState.Enabled) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("Port forwarding rule[uuid:%s] is not in state of Enabled, current state is %s", msg.getRuleUuid(), state)
-            ));
+            throw new ApiMessageInterceptionException(operr("Port forwarding rule[uuid:%s] is not in state of Enabled, current state is %s", msg.getRuleUuid(), state));
         }
 
         String vmNicUuid = t.get(1, String.class);
         if (vmNicUuid != null) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("Port forwarding rule[uuid:%s] has been attached to vm nic[uuid:%s] already", msg.getRuleUuid(), vmNicUuid)
-            ));
+            throw new ApiMessageInterceptionException(operr("Port forwarding rule[uuid:%s] has been attached to vm nic[uuid:%s] already", msg.getRuleUuid(), vmNicUuid));
         }
     }
 
@@ -99,9 +97,7 @@ public class PortForwardingApiInterceptor implements ApiMessageInterceptor {
 
         PortForwardingRuleState state = t.get(1, PortForwardingRuleState.class);
         if (state != PortForwardingRuleState.Enabled) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("port forwarding rule[uuid:%s] is not in state of Enabled,  current state is %s. A rule can only be attached when its state is Enabled", msg.getRuleUuid(), state)
-            ));
+            throw new ApiMessageInterceptionException(operr("port forwarding rule[uuid:%s] is not in state of Enabled,  current state is %s. A rule can only be attached when its state is Enabled", msg.getRuleUuid(), state));
         }
 
         VipVO vip = new Callable<VipVO>() {
@@ -243,10 +239,8 @@ public class PortForwardingApiInterceptor implements ApiMessageInterceptor {
             vq.setParameter("nicUuid", vmNicUuid);
             VmInstanceVO vm = vq.getSingleResult();
 
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("the VM[name:%s uuid:%s] already has port forwarding rules that have different VIPs than the one[uuid:%s]",
-                            vm.getName(), vm.getUuid(), vipUuid)
-            ));
+            throw new ApiMessageInterceptionException(operr("the VM[name:%s uuid:%s] already has port forwarding rules that have different VIPs than the one[uuid:%s]",
+                            vm.getName(), vm.getUuid(), vipUuid));
         }
     }
 

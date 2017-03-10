@@ -121,9 +121,8 @@ public class KVMRealizeL2VlanNetworkBackend implements L2NetworkRealizationExten
                 KVMHostAsyncHttpCallReply hreply = reply.castReply();
                 CheckVlanBridgeResponse rsp = hreply.toResponse(CheckVlanBridgeResponse.class);
                 if (!rsp.isSuccess()) {
-                    ErrorCode err = errf.stringToOperationError(
-                            String.format("failed to check bridge[%s] for l2VlanNetwork[uuid:%s, name:%s] on kvm host[uuid:%s], %s",
-                                    cmd.getBridgeName(), l2vlan.getUuid(), l2vlan.getName(), hostUuid, rsp.getError()));
+                    ErrorCode err = operr("failed to check bridge[%s] for l2VlanNetwork[uuid:%s, name:%s] on kvm host[uuid:%s], %s",
+                                    cmd.getBridgeName(), l2vlan.getUuid(), l2vlan.getName(), hostUuid, rsp.getError());
                     completion.fail(err);
                     return;
                 }
