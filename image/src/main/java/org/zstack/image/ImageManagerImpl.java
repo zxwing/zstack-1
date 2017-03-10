@@ -61,6 +61,8 @@ import org.zstack.utils.function.Function;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
 import java.sql.Timestamp;
@@ -281,8 +283,8 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                                     }
 
                                     if (backupStorage.isEmpty()) {
-                                        trigger.fail(errf.stringToOperationError(String.format("failed to allocate all backup storage[uuid:%s], a list of error: %s",
-                                                msg.getBackupStorageUuids(), JSONObjectUtil.toJsonString(errs))));
+                                        trigger.fail(operr("failed to allocate all backup storage[uuid:%s], a list of error: %s",
+                                                msg.getBackupStorageUuids(), JSONObjectUtil.toJsonString(errs)));
                                     } else {
                                         trigger.next();
                                     }
@@ -690,8 +692,8 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                                     }
 
                                     if (targetBackupStorages.isEmpty()) {
-                                        trigger.fail(errf.stringToOperationError(String.format("unable to allocate backup storage specified by uuids%s, list errors are: %s",
-                                                msg.getBackupStorageUuids(), JSONObjectUtil.toJsonString(errs))));
+                                        trigger.fail(operr("unable to allocate backup storage specified by uuids%s, list errors are: %s",
+                                                msg.getBackupStorageUuids(), JSONObjectUtil.toJsonString(errs)));
                                     } else {
                                         trigger.next();
                                     }

@@ -14,6 +14,7 @@ import org.zstack.header.core.scheduler.SchedulerVO;
 import org.zstack.header.core.scheduler.SchedulerVO_;
 import org.zstack.header.errorcode.SysErrors;
 import org.zstack.header.message.APIMessage;
+import static org.zstack.core.Platform.operr;
 
 /**
  * Created by Mei Lei on 7/5/16.
@@ -74,15 +75,11 @@ public class SchedulerApiInterceptor implements ApiMessageInterceptor {
         q.select(SchedulerVO_.state);
         q.add(SchedulerVO_.uuid, SimpleQuery.Op.EQ, msg.getUuid());
         String state = q.findValue();
-        if (msg.getStateEvent().equals("enable") && state.equals(SchedulerState.Enabled)) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("can not enable a Enabled scheduler" )
-            ));
+        if (msg.getStateEvent().equals("enable") && state.equals(SchedulerState.Enabled.toString())) {
+            throw new ApiMessageInterceptionException(operr("can not enable a Enabled scheduler" ));
         }
-        if (msg.getStateEvent().equals("disable") && state.equals(SchedulerState.Disabled)) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("can not disable a Disabled scheduler")
-            ));
+        if (msg.getStateEvent().equals("disable") && state.equals(SchedulerState.Disabled.toString())) {
+            throw new ApiMessageInterceptionException(operr("can not disable a Disabled scheduler"));
         }
     }
 

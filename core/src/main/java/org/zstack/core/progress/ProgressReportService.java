@@ -97,9 +97,7 @@ public class ProgressReportService extends AbstractService implements Management
     private void validationUuid(String uuid) {
         if (uuid == null) {
             logger.warn(String.format("not supported null uuid: %s", uuid));
-            throw new OperationFailureException(
-                    errf.stringToOperationError(String.format("not supported null uuid: %s",
-                            uuid)));
+            throw new OperationFailureException(operr("not supported null uuid: %s", uuid));
         }
     }
 

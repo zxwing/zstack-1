@@ -43,6 +43,8 @@ import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 import org.zstack.utils.path.PathUtil;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.Query;
 import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
@@ -334,11 +336,11 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
             boolean isMine = uq.isExists();
 
             if (!isAdmin && !isMine) {
-                throw new OperationFailureException(errf.stringToOperationError(String.format(
+                throw new OperationFailureException(operr(
                         "the user specified by the userUuid[%s] does not belong to the current account, and the" +
                                 " current account is not an admin account, so it has no permission to check the user's" +
                                 "permissions", msg.getUserUuid()
-                )));
+                ));
             }
         }
 
@@ -1712,7 +1714,7 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
 
         if (a.getType() == AccountType.SystemAdmin) {
             if (msg.getName() != null && (msg.getUuid() == null || msg.getUuid().equals(AccountConstant.INITIAL_SYSTEM_ADMIN_UUID))) {
-                throw new OperationFailureException(errf.stringToOperationError(
+                throw new OperationFailureException(operr(
                         "the name of admin account cannot be updated"
                 ));
             }
@@ -1722,10 +1724,8 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
 
         AccountVO account = dbf.findByUuid(msg.getUuid(), AccountVO.class);
         if (!account.getUuid().equals(a.getUuid())) {
-            throw new OperationFailureException(errf.stringToOperationError(
-                    String.format("account[uuid: %s, name: %s] is a normal account, it cannot reset the password of another account[uuid: %s]",
-                            account.getUuid(), account.getName(), msg.getUuid())
-            ));
+            throw new OperationFailureException(operr("account[uuid: %s, name: %s] is a normal account, it cannot reset the password of another account[uuid: %s]",
+                            account.getUuid(), account.getName(), msg.getUuid()));
         }
     }
 

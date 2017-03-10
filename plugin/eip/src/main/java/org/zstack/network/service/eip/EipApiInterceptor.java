@@ -18,6 +18,8 @@ import org.zstack.header.vm.VmNicVO_;
 import org.zstack.network.service.vip.VipState;
 import org.zstack.network.service.vip.VipVO;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
 import java.util.concurrent.Callable;
@@ -73,16 +75,12 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
 
             EipState state = t.get(0, EipState.class);
             if (state != EipState.Enabled) {
-                throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                        String.format("eip[uuid:%s] is not in state of Enabled, cannot get attachable vm nic", msg.getEipUuid())
-                ));
+                throw new ApiMessageInterceptionException(operr("eip[uuid:%s] is not in state of Enabled, cannot get attachable vm nic", msg.getEipUuid()));
             }
 
             String vmNicUuid = t.get(1, String.class);
             if (vmNicUuid != null) {
-                throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                        String.format("eip[uuid:%s] has attached to vm nic[uuid:%s], cannot get attachable vm nic", msg.getEipUuid(), vmNicUuid)
-                ));
+                throw new ApiMessageInterceptionException(operr("eip[uuid:%s] has attached to vm nic[uuid:%s], cannot get attachable vm nic", msg.getEipUuid(), vmNicUuid));
             }
         }
     }
@@ -102,10 +100,8 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
 
         EipState state = t.get(0, EipState.class);
         if (state != EipState.Enabled) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("eip[uuid: %s] can only be attached when state is %s, current state is %s",
-                            msg.getEipUuid(), EipState.Enabled, state)
-            ));
+            throw new ApiMessageInterceptionException(operr("eip[uuid: %s] can only be attached when state is %s, current state is %s",
+                            msg.getEipUuid(), EipState.Enabled, state));
         }
 
         String vipIp = t.get(2, String.class);
@@ -166,10 +162,8 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
         String netmask = t.get(1, String.class);
         SubnetUtils sub = new SubnetUtils(gw, netmask);
         if (sub.getInfo().isInRange(eipIp)) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("overlap public and private subnets. The subnet of EIP[%s] is an overlap with the subnet[%s/%s]" +
-                            " of the VM nic[uuid:%s].", eipIp, gw, netmask, vmNicUuid)
-            ));
+            throw new ApiMessageInterceptionException(operr("overlap public and private subnets. The subnet of EIP[%s] is an overlap with the subnet[%s/%s]" +
+                            " of the VM nic[uuid:%s].", eipIp, gw, netmask, vmNicUuid));
         }
     }
 

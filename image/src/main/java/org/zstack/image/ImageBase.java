@@ -39,6 +39,8 @@ import org.zstack.utils.function.ForEachFunction;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
+import static org.zstack.core.Platform.operr;
+
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -141,9 +143,7 @@ public class ImageBase implements Image {
             });
 
             if (bsUuids.isEmpty()) {
-                throw new OperationFailureException(errf.stringToOperationError(
-                        String.format("the image[uuid:%s, name:%s] is not on any backup storage", self.getUuid(), self.getName())
-                ));
+                throw new OperationFailureException(operr("the image[uuid:%s, name:%s] is not on any backup storage", self.getUuid(), self.getName()));
             }
 
             SimpleQuery<BackupStorageVO> q = dbf.createQuery(BackupStorageVO.class);
@@ -153,9 +153,8 @@ public class ImageBase implements Image {
             q.setLimit(1);
             backupStorageUuid = q.findValue();
             if (backupStorageUuid == null) {
-                completion.fail(errf.stringToOperationError(
-                        String.format("No connected backup storage found for image[uuid:%s, name:%s]",
-                                self.getUuid(), self.getName())));
+                completion.fail(operr("No connected backup storage found for image[uuid:%s, name:%s]",
+                        self.getUuid(), self.getName()));
                 return;
             }
         }
@@ -451,10 +450,8 @@ public class ImageBase implements Image {
             });
 
             if (toRecoverBsUuids.isEmpty()) {
-                throw new OperationFailureException(errf.stringToOperationError(
-                        String.format("the image[uuid:%s, name:%s] is not deleted on any backup storage",
-                                self.getUuid(), self.getName())
-                ));
+                throw new OperationFailureException(operr("the image[uuid:%s, name:%s] is not deleted on any backup storage",
+                                self.getUuid(), self.getName()));
             }
         } else {
             toRecoverBsUuids = new ArrayList<String>();
@@ -518,10 +515,8 @@ public class ImageBase implements Image {
             );
 
             if (bsUuids.isEmpty()) {
-                throw new OperationFailureException(errf.stringToOperationError(
-                        String.format("the image[uuid:%s, name:%s] is not deleted on any backup storage",
-                                self.getUuid(), self.getName())
-                ));
+                throw new OperationFailureException(operr("the image[uuid:%s, name:%s] is not deleted on any backup storage",
+                                self.getUuid(), self.getName()));
             }
         } else {
             for (final String bsUuid : msg.getBackupStorageUuids()) {
