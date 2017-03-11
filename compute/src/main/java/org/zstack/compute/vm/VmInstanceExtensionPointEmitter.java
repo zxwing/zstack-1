@@ -80,8 +80,8 @@ public class VmInstanceExtensionPointEmitter implements Component {
             try {
                 String err = ext.preStopVm(inv);
                 if (err != null) {
-                    return operr(("VmInstanceStopVmExtensionPoint[%s] refuses to stop vm[uuid:%s] because %s", ext.getClass().getName(),
-                            inv.getUuid(), err);
+                    return operr("VmInstanceStopVmExtensionPoint[%s] refuses to stop vm[uuid:%s] because %s",
+                            ext.getClass().getName(), inv.getUuid(), err);
                 }
             } catch (Exception e) {
                 logger.warn(String.format("Unhandled exception while calling %s", ext.getClass().getName()), e);
