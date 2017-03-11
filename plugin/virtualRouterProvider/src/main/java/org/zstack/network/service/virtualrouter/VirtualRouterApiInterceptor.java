@@ -28,6 +28,8 @@ import org.zstack.utils.ShellResult;
 import org.zstack.utils.ShellUtils;
 import org.zstack.utils.network.NetworkUtils;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.Tuple;
 import java.util.List;
 
@@ -168,9 +170,7 @@ public class VirtualRouterApiInterceptor implements ApiMessageInterceptor {
         q.add(IpRangeVO_.l3NetworkUuid, Op.EQ, managementNetworkUuid);
         List<IpRangeVO> iprs = q.list();
         if (iprs.isEmpty()) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("the management network[uuid:%s] doesn't have any IP range", managementNetworkUuid)
-            ));
+            throw new ApiMessageInterceptionException(operr("the management network[uuid:%s] doesn't have any IP range", managementNetworkUuid));
         }
 
         String startIp = iprs.get(0).getStartIp();

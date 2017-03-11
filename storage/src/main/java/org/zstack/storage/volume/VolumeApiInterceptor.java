@@ -23,6 +23,8 @@ import org.zstack.header.vm.VmInstanceVO;
 import org.zstack.header.vm.VmInstanceVO_;
 import org.zstack.header.volume.*;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.Tuple;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -82,10 +84,8 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
         q.add(VolumeVO_.uuid, Op.EQ, msg.getVolumeUuid());
         q.add(VolumeVO_.status, Op.EQ, VolumeStatus.Deleted);
         if (!q.isExists()) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("the volume[uuid:%s] is not in status of deleted. This is operation is to recover a deleted data volume",
-                            msg.getVolumeUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("the volume[uuid:%s] is not in status of deleted. This is operation is to recover a deleted data volume",
+                            msg.getVolumeUuid()));
         }
     }
 
@@ -94,9 +94,7 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
         q.add(VolumeVO_.uuid, Op.EQ, volumeUuid);
         q.add(VolumeVO_.status, Op.EQ, VolumeStatus.Deleted);
         if (q.isExists()) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("the volume[uuid:%s] is in status of deleted, cannot do the operation", volumeUuid)
-            ));
+            throw new ApiMessageInterceptionException(operr("the volume[uuid:%s] is in status of deleted, cannot do the operation", volumeUuid));
         }
     }
 
@@ -110,15 +108,11 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
         }
 
         if (ImageState.Enabled != img.getState()) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("image[uuid:%s] is not Enabled, it's %s", img.getUuid(), img.getState())
-            ));
+            throw new ApiMessageInterceptionException(operr("image[uuid:%s] is not Enabled, it's %s", img.getUuid(), img.getState()));
         }
 
         if (ImageStatus.Ready != img.getStatus()) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("image[uuid:%s] is not Ready, it's %s", img.getUuid(), img.getStatus())
-            ));
+            throw new ApiMessageInterceptionException(operr("image[uuid:%s] is not Ready, it's %s", img.getUuid(), img.getStatus()));
         }
     }
 
@@ -168,10 +162,8 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
 
 
         if (vol.getType() == VolumeType.Root) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("the volume[uuid:%s, name:%s] is Root Volume, can't detach it",
-                            vol.getUuid(), vol.getName())
-            ));
+            throw new ApiMessageInterceptionException(operr("the volume[uuid:%s, name:%s] is Root Volume, can't detach it",
+                            vol.getUuid(), vol.getName()));
         }
     }
 
@@ -179,22 +171,16 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
         VolumeVO vol = dbf.findByUuid(msg.getVolumeUuid(), VolumeVO.class);
 
         if (vol.getType() == VolumeType.Root) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("the volume[uuid:%s, name:%s] is Root Volume, can't attach it",
-                            vol.getUuid(), vol.getName())
-            ));
+            throw new ApiMessageInterceptionException(operr("the volume[uuid:%s, name:%s] is Root Volume, can't attach it",
+                            vol.getUuid(), vol.getName()));
         }
 
         if (vol.getState() == VolumeState.Disabled) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("data volume[uuid:%s] is Disabled, can't attach", vol.getUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("data volume[uuid:%s] is Disabled, can't attach", vol.getUuid()));
         }
 
         if (vol.getStatus() == VolumeStatus.Deleted) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("the volume[uuid:%s] is in status of deleted, cannot do the operation", vol.getUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("the volume[uuid:%s] is in status of deleted, cannot do the operation", vol.getUuid()));
         }
 
         if (vol.getVmInstanceUuid() != null) {
@@ -236,10 +222,8 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
         vq.add(VolumeVO_.vmInstanceUuid, Op.EQ, msg.getVmInstanceUuid());
         long count = vq.count();
         if (count + 1 > maxDataVolumeNum) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("hypervisor[%s] only allows max %s data volumes to be attached to a single vm; there have been %s data volumes attached to vm[uuid:%s]",
-                            hvType, maxDataVolumeNum, count, msg.getVmInstanceUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("hypervisor[%s] only allows max %s data volumes to be attached to a single vm; there have been %s data volumes attached to vm[uuid:%s]",
+                            hvType, maxDataVolumeNum, count, msg.getVmInstanceUuid()));
         }
     }
 
@@ -273,9 +257,7 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
 
         VolumeStatus status = t.get(1, VolumeStatus.class);
         if (status == VolumeStatus.Deleted) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("volume[uuid:%s] is already in status of deleted", msg.getVolumeUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("volume[uuid:%s] is already in status of deleted", msg.getVolumeUuid()));
         }
     }
 

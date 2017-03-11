@@ -70,6 +70,8 @@ import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.TypedQuery;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -645,10 +647,8 @@ public class VirtualRouterManagerImpl extends AbstractService implements Virtual
             public VirtualRouterVmInventory call() {
                 VirtualRouterVmVO vr = findVR();
                 if (vr != null && !VmInstanceState.Running.equals(vr.getState())) {
-                    throw new OperationFailureException(errf.stringToOperationError(
-                            String.format("virtual router[uuid:%s] for l3 network[uuid:%s] is not in Running state, current state is %s. We don't have HA feature now(it's coming soon), please restart it from UI and then try starting this vm again",
-                                    vr.getUuid(), l3Nw.getUuid(), vr.getState())
-                    ));
+                    throw new OperationFailureException(operr("virtual router[uuid:%s] for l3 network[uuid:%s] is not in Running state, current state is %s. We don't have HA feature now(it's coming soon), please restart it from UI and then try starting this vm again",
+                                    vr.getUuid(), l3Nw.getUuid(), vr.getState()));
                 }
 
                 return vr == null ? null : new VirtualRouterVmInventory(vr);

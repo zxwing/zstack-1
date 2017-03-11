@@ -37,6 +37,8 @@ import org.zstack.tag.TagManager;
 import org.zstack.utils.*;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
 import java.util.*;
@@ -566,8 +568,7 @@ public class PrimaryStorageManagerImpl extends AbstractService implements Primar
         }
 
         if (target == null) {
-            throw new OperationFailureException(errf.stringToOperationError(
-                    String.format("cannot find any qualified primary storage, errors are %s", errs)));
+            throw new OperationFailureException(operr("cannot find any qualified primary storage, errors are %s", errs));
         }
 
         reply.setPrimaryStorageInventory(target);

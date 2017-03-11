@@ -13,6 +13,7 @@ import org.zstack.header.apimediator.StopRoutingException;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.network.l3.IpAllocatorType;
 import org.zstack.utils.network.NetworkUtils;
+import static org.zstack.core.Platform.operr;
 
 /**
  */
@@ -61,9 +62,7 @@ public class VipApiInterceptor implements ApiMessageInterceptor {
             q.add(VipVO_.ip, Op.EQ, msg.getRequiredIp());
             q.add(VipVO_.l3NetworkUuid, Op.EQ, msg.getL3NetworkUuid());
             if (q.isExists()) {
-                throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                        String.format("there is already a vip[%s] on l3Network[uuid:%s]", msg.getRequiredIp(), msg.getL3NetworkUuid())
-                ));
+                throw new ApiMessageInterceptionException(operr("there is already a vip[%s] on l3Network[uuid:%s]", msg.getRequiredIp(), msg.getL3NetworkUuid()));
             }
         }
     }

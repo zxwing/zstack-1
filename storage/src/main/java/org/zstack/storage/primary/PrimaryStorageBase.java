@@ -530,7 +530,7 @@ public abstract class PrimaryStorageBase extends AbstractPrimaryStorage {
     }
 
     protected void handle(APICleanUpImageCacheOnPrimaryStorageMsg msg) {
-        throw new OperationFailureException(errf.stringToOperationError("operation not supported"));
+        throw new OperationFailureException(operr("operation not supported"));
     }
 
     private void handle(final APISyncPrimaryStorageCapacityMsg msg) {

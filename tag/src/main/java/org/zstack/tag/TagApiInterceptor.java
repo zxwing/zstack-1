@@ -15,6 +15,8 @@ import org.zstack.header.message.APIMessage;
 import org.zstack.header.tag.*;
 import org.zstack.identity.QuotaUtil;
 
+import static org.zstack.core.Platform.operr;
+
 import javax.persistence.TypedQuery;
 
 /**
@@ -72,9 +74,7 @@ public class TagApiInterceptor implements ApiMessageInterceptor {
         q.add(SystemTagVO_.uuid, Op.EQ, msg.getUuid());
         q.add(SystemTagVO_.inherent, Op.EQ, true);
         if (q.isExists()) {
-            throw new ApiMessageInterceptionException(errf.stringToOperationError(
-                    String.format("tag[uuid:%s] is an inherent system tag, can not be removed", msg.getUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("tag[uuid:%s] is an inherent system tag, can not be removed", msg.getUuid()));
         }
 
         boolean userTag = dbf.isExist(msg.getUuid(), UserTagVO.class);
