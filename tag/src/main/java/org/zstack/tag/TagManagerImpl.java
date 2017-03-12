@@ -29,6 +29,7 @@ import org.zstack.utils.*;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 import javax.persistence.Query;
@@ -620,9 +621,7 @@ public class TagManagerImpl extends AbstractService implements TagManager,
         }
 
         if (!checked) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("no system tag matches %s", tag)
-            ));
+            throw new ApiMessageInterceptionException(argerr("no system tag matches %s", tag));
         }
 
     }
@@ -740,9 +739,7 @@ public class TagManagerImpl extends AbstractService implements TagManager,
                 }
 
                 if (!checked) {
-                    throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                            String.format("no system tag matches %s", tag)
-                    ));
+                    throw new ApiMessageInterceptionException(argerr("no system tag matches %s", tag));
                 }
             }
 

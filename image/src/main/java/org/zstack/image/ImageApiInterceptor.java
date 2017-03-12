@@ -25,6 +25,7 @@ import org.zstack.header.volume.VolumeState;
 import org.zstack.header.volume.VolumeStatus;
 import org.zstack.header.volume.VolumeVO;
 
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 import java.util.List;
@@ -118,15 +119,13 @@ public class ImageApiInterceptor implements ApiMessageInterceptor {
         }
 
         if (msg.isSystem() && (ImageMediaType.ISO.toString().equals(msg.getMediaType()) || ImageConstant.ISO_FORMAT_STRING.equals(msg.getFormat()))) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
+            throw new ApiMessageInterceptionException(argerr(
                     "ISO cannot be used as system image"
             ));
         }
 
         if (!VolumeFormat.hasType(msg.getFormat())) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("unknown format[%s]", msg.getFormat())
-            ));
+            throw new ApiMessageInterceptionException(argerr("unknown format[%s]", msg.getFormat()));
         }
 
         if (msg.getType() != null && !ImageType.hasType(msg.getType())) {

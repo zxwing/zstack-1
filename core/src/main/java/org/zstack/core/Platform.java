@@ -587,19 +587,15 @@ public class Platform {
         return managementServerIp;
     }
 
-    public static String i18n(String code, List args) {
-        return i18n(code, args.toArray(new Object[args.size()]));
+    private static String toI18nString(String code, Object... args) {
+        return toI18nString(code, null, args);
     }
 
-    public static String i18n(String code, Object...args) {
-        return i18n(code, null, args);
+    public static String toI18nString(String code, Locale l, List args) {
+        return toI18nString(code, l, args.toArray(new Object[args.size()]));
     }
 
-    public static String i18n(String code, Locale l, List args) {
-        return i18n(code, l, args.toArray(new Object[args.size()]));
-    }
-
-    public static String i18n(String code, Locale l, Object...args) {
+    public static String toI18nString(String code, Locale l, Object...args) {
         l = l == null ? locale : l;
 
         try {
@@ -613,8 +609,12 @@ public class Platform {
         }
     }
 
-    public static String i18n(String str) {
-        return str;
+    public static String i18n(String str, Object...args) {
+        if (args != null) {
+            return String.format(str, args);
+        } else {
+            return str;
+        }
     }
 
     public static boolean killProcess(int pid) {
@@ -645,8 +645,12 @@ public class Platform {
         if (SysErrors.INTERNAL == errCode) {
             return errf.instantiateErrorCode(errCode, String.format(fmt, args));
         } else {
-            return errf.instantiateErrorCode(errCode, i18n(fmt, args));
+            return errf.instantiateErrorCode(errCode, toI18nString(fmt, args));
         }
+    }
+
+    public static ErrorCode inerr(String fmt, Object...args) {
+        return err(SysErrors.INTERNAL, fmt, args);
     }
 
     public static ErrorCode operr(String fmt, Object...args) {

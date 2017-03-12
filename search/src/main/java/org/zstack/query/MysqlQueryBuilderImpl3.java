@@ -27,6 +27,8 @@ import org.zstack.utils.function.Function;
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.logging.CLogger;
 
+import static org.zstack.core.Platform.argerr;
+
 import javax.persistence.*;
 import javax.persistence.metamodel.StaticMetamodel;
 import java.lang.reflect.Field;
@@ -444,8 +446,8 @@ public class MysqlQueryBuilderImpl3 implements Component, QueryBuilder, GlobalAp
             if (at == null) {
                 Field metaField = FieldUtils.getField(attr, info.jpaMetaClass);
                 if (metaField == null) {
-                    throw new OperationFailureException(errf.stringToInvalidArgumentError(String.format("entity meta class[%s] has no field[%s]",
-                            info.jpaMetaClass.getName(), attr)));
+                    throw new OperationFailureException(argerr("entity meta class[%s] has no field[%s]",
+                            info.jpaMetaClass.getName(), attr));
                 }
 
                 entityField = FieldUtils.getField(attr, info.entityClass);
@@ -996,10 +998,8 @@ public class MysqlQueryBuilderImpl3 implements Component, QueryBuilder, GlobalAp
             EntityInfo info = entityInfos.get(inventoryClass);
             for (String f : msg.getFields()) {
                 if (!info.premitiveFieldNames.contains(f)) {
-                    throw new OperationFailureException(errf.stringToInvalidArgumentError(
-                            String.format("field[%s] is not a primitive of the inventory %s; you cannot specify it in the parameter 'fields';" +
-                                    "valid fields are %s", f, info.inventoryClass.getSimpleName(), info.premitiveFieldNames)
-                    ));
+                    throw new OperationFailureException(argerr("field[%s] is not a primitive of the inventory %s; you cannot specify it in the parameter 'fields';" +
+                                    "valid fields are %s", f, info.inventoryClass.getSimpleName(), info.premitiveFieldNames));
                 }
             }
         }

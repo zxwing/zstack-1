@@ -13,6 +13,7 @@ import org.zstack.header.apimediator.StopRoutingException;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.network.l3.IpAllocatorType;
 import org.zstack.utils.network.NetworkUtils;
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 /**
@@ -53,9 +54,7 @@ public class VipApiInterceptor implements ApiMessageInterceptor {
 
         if (msg.getRequiredIp() != null) {
             if (!NetworkUtils.isIpv4Address(msg.getRequiredIp())) {
-                throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                        String.format("requiredIp[%s] is not in valid IPv4 mediaType", msg.getRequiredIp())
-                ));
+                throw new ApiMessageInterceptionException(argerr("requiredIp[%s] is not in valid IPv4 mediaType", msg.getRequiredIp()));
             }
 
             SimpleQuery<VipVO> q = dbf.createQuery(VipVO.class);

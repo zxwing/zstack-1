@@ -13,6 +13,7 @@ import org.zstack.header.configuration.*;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.storage.primary.PrimaryStorageAllocatorStrategyType;
 import org.zstack.utils.data.SizeUnit;
+import static org.zstack.core.Platform.argerr;
 
 /**
  * Created with IntelliJ IDEA.
@@ -78,21 +79,15 @@ public class ConfigurationApiInterceptor implements ApiMessageInterceptor {
         }
 
         if (msg.getType() != null && !InstanceOfferingType.hasType(msg.getType())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("unsupported instance offering type[%s]", msg.getType())
-            ));
+            throw new ApiMessageInterceptionException(argerr("unsupported instance offering type[%s]", msg.getType()));
         }
 
         if (msg.getCpuNum() < 1) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("cpu num[%s] is less than 1", msg.getCpuNum())
-            ));
+            throw new ApiMessageInterceptionException(argerr("cpu num[%s] is less than 1", msg.getCpuNum()));
         }
 
         if (msg.getMemorySize() < SizeUnit.MEGABYTE.toByte(16)) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("memory size[%s bytes] is less than 16M, no modern operating system is likely able to boot with such small memory size", msg.getMemorySize())
-            ));
+            throw new ApiMessageInterceptionException(argerr("memory size[%s bytes] is less than 16M, no modern operating system is likely able to boot with such small memory size", msg.getMemorySize()));
         }
     }
 

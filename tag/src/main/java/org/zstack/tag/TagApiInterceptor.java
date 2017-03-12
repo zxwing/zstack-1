@@ -15,6 +15,7 @@ import org.zstack.header.message.APIMessage;
 import org.zstack.header.tag.*;
 import org.zstack.identity.QuotaUtil;
 
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 import javax.persistence.TypedQuery;
@@ -54,9 +55,7 @@ public class TagApiInterceptor implements ApiMessageInterceptor {
 
     private void validate(APICreateTagMsg msg) {
         if (!tagMgr.getManagedEntityNames().contains(msg.getResourceType())) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("no resource type[%s] found in tag system", msg.getResourceType())
-            ));
+            throw new ApiMessageInterceptionException(argerr("no resource type[%s] found in tag system", msg.getResourceType()));
         }
 
         if (msg instanceof APICreateSystemTagMsg) {
@@ -97,7 +96,7 @@ public class TagApiInterceptor implements ApiMessageInterceptor {
 
         Long size = q.getSingleResult();
         if (size <= 0) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError("The argument :'resourceType' doesn't match uuid"));
+            throw new ApiMessageInterceptionException(argerr("The argument :'resourceType' doesn't match uuid"));
         }
 
     }

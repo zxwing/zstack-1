@@ -13,6 +13,8 @@ import org.zstack.header.apimediator.StopRoutingException;
 import org.zstack.header.message.APIMessage;
 import org.zstack.header.storage.backup.*;
 
+import static org.zstack.core.Platform.argerr;
+
 import java.util.List;
 
 /**
@@ -58,9 +60,7 @@ public class BackupStorageApiInterceptor implements ApiMessageInterceptor {
 
     private void checkNull(final String name, final String val) {
         if (val == null) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("%s should not be null", name)
-            ));
+            throw new ApiMessageInterceptionException(argerr("%s should not be null", name));
         }
     }
     private void validate(APIDeleteExportedImageFromBackupStorageMsg msg) {
@@ -83,9 +83,7 @@ public class BackupStorageApiInterceptor implements ApiMessageInterceptor {
         }
 
         if (!pass && !msg.isAll()) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("zoneUuids, backupStorageUuids must have at least one be none-empty list, or all is set to true")
-            ));
+            throw new ApiMessageInterceptionException(argerr("zoneUuids, backupStorageUuids must have at least one be none-empty list, or all is set to true"));
         }
 
         if (msg.isAll() && (msg.getBackupStorageUuids() == null || msg.getBackupStorageUuids().isEmpty())) {

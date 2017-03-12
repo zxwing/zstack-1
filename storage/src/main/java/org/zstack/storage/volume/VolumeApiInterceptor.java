@@ -23,6 +23,7 @@ import org.zstack.header.vm.VmInstanceVO;
 import org.zstack.header.vm.VmInstanceVO_;
 import org.zstack.header.volume.*;
 
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 import javax.persistence.Tuple;
@@ -102,9 +103,7 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
         ImageVO img = dbf.findByUuid(msg.getImageUuid(), ImageVO.class);
         ImageMediaType type = img.getMediaType();
         if (ImageMediaType.DataVolumeTemplate != type) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("image[uuid:%s] is not %s, it's %s", msg.getImageUuid(), ImageMediaType.DataVolumeTemplate, type)
-            ));
+            throw new ApiMessageInterceptionException(argerr("image[uuid:%s] is not %s, it's %s", msg.getImageUuid(), ImageMediaType.DataVolumeTemplate, type));
         }
 
         if (ImageState.Enabled != img.getState()) {
@@ -124,25 +123,19 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
 
         VolumeType type = t.get(3, VolumeType.class);
         if (type == VolumeType.Root) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("volume[uuid:%s] is Root volume, can not be attach to vm", msg.getVolumeUuid())
-            ));
+            throw new ApiMessageInterceptionException(argerr("volume[uuid:%s] is Root volume, can not be attach to vm", msg.getVolumeUuid()));
         }
 
         // As per issue #1696, we do not report error if the volume has been attached.
         // Instead, an empty list will be returned later when handling this message.
         VolumeState state = t.get(1, VolumeState.class);
         if (state != VolumeState.Enabled) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("volume[uuid:%s] is in state[%s], data volume can only be attached when state is %s", msg.getVolumeUuid(), state, VolumeState.Enabled)
-            ));
+            throw new ApiMessageInterceptionException(argerr("volume[uuid:%s] is in state[%s], data volume can only be attached when state is %s", msg.getVolumeUuid(), state, VolumeState.Enabled));
         }
 
         VolumeStatus status = t.get(2, VolumeStatus.class);
         if (status != VolumeStatus.Ready && status != VolumeStatus.NotInstantiated) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("volume[uuid:%s] is in status[%s], data volume can only be attached when status is %s or %S", msg.getVolumeUuid(), status, VolumeStatus.Ready, VolumeStatus.NotInstantiated)
-            ));
+            throw new ApiMessageInterceptionException(argerr("volume[uuid:%s] is in status[%s], data volume can only be attached when status is %s or %S", msg.getVolumeUuid(), status, VolumeStatus.Ready, VolumeStatus.NotInstantiated));
         }
     }
 

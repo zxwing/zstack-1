@@ -18,6 +18,7 @@ import org.zstack.header.vm.VmNicVO_;
 import org.zstack.network.service.vip.VipState;
 import org.zstack.network.service.vip.VipVO;
 
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 import javax.persistence.Tuple;
@@ -62,9 +63,7 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
 
     private void validate(APIGetEipAttachableVmNicsMsg msg) {
         if (msg.getVipUuid() == null && msg.getEipUuid() == null) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("either eipUuid or vipUuid must be set")
-            ));
+            throw new ApiMessageInterceptionException(argerr("either eipUuid or vipUuid must be set"));
         }
 
         if (msg.getEipUuid() != null) {
@@ -123,10 +122,8 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
 
         VmNicVO nic = dbf.findByUuid(msg.getVmNicUuid(), VmNicVO.class);
         if (nic.getL3NetworkUuid().equals(vip.getL3NetworkUuid())) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("guest l3Network of vm nic[uuid:%s] and vip l3Network of EIP[uuid:%s] are the same network",
-                            msg.getVmNicUuid(), msg.getEipUuid())
-            ));
+            throw new ApiMessageInterceptionException(argerr("guest l3Network of vm nic[uuid:%s] and vip l3Network of EIP[uuid:%s] are the same network",
+                            msg.getVmNicUuid(), msg.getEipUuid()));
         }
 
         // check if the vm already has a network where the vip comes
@@ -176,10 +173,8 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
         q.setParameter("vipL3Uuid", vip.getL3NetworkUuid());
         Long c = q.getSingleResult();
         if (c > 0) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("the vm[uuid:%s] that the EIP is about to attach is already on the public network[uuid:%s] from which" +
-                            " the vip[uuid:%s, name:%s, ip:%s] comes", vmUuid, vip.getL3NetworkUuid(), vip.getUuid(), vip.getName(), vip.getIp())
-            ));
+            throw new ApiMessageInterceptionException(argerr("the vm[uuid:%s] that the EIP is about to attach is already on the public network[uuid:%s] from which" +
+                            " the vip[uuid:%s, name:%s, ip:%s] comes", vmUuid, vip.getL3NetworkUuid(), vip.getUuid(), vip.getName(), vip.getIp()));
         }
     }
 
@@ -204,9 +199,7 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
             nicq.add(VmNicVO_.uuid, Op.EQ, msg.getVmNicUuid());
             VmNicVO nic = nicq.find();
             if (nic.getL3NetworkUuid().equals(vip.getL3NetworkUuid())) {
-                throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                        String.format("guest l3Network of vm nic[uuid:%s] and vip l3Network of vip[uuid: %s] are the same network", msg.getVmNicUuid(), msg.getVipUuid())
-                ));
+                throw new ApiMessageInterceptionException(argerr("guest l3Network of vm nic[uuid:%s] and vip l3Network of vip[uuid: %s] are the same network", msg.getVmNicUuid(), msg.getVipUuid()));
             }
 
             // check if the vm already has a network where the vip comes

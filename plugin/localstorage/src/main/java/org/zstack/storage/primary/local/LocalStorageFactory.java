@@ -41,6 +41,7 @@ import org.zstack.utils.Utils;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 import javax.persistence.TypedQuery;
@@ -837,11 +838,9 @@ public class LocalStorageFactory implements PrimaryStorageFactory, Component,
             }
 
             if (hostUuid == null) {
-                throw new OperationFailureException(errf.stringToInvalidArgumentError(
-                        String.format("To create data volume on the local primary storage, you must specify the host that" +
+                throw new OperationFailureException(argerr("To create data volume on the local primary storage, you must specify the host that" +
                                         " the data volume is going to be created using the system tag [%s]",
-                                LocalStorageSystemTags.DEST_HOST_FOR_CREATING_DATA_VOLUME.getTagFormat())
-                ));
+                                LocalStorageSystemTags.DEST_HOST_FOR_CREATING_DATA_VOLUME.getTagFormat()));
             }
         }
 
@@ -849,9 +848,7 @@ public class LocalStorageFactory implements PrimaryStorageFactory, Component,
         q.add(LocalStorageHostRefVO_.hostUuid, Op.EQ, hostUuid);
         q.add(LocalStorageHostRefVO_.primaryStorageUuid, Op.EQ, msg.getPrimaryStorageUuid());
         if (!q.isExists()) {
-            throw new OperationFailureException(errf.stringToInvalidArgumentError(
-                    String.format("the host[uuid:%s] doesn't belong to the local primary storage[uuid:%s]", hostUuid, msg.getPrimaryStorageUuid())
-            ));
+            throw new OperationFailureException(argerr("the host[uuid:%s] doesn't belong to the local primary storage[uuid:%s]", hostUuid, msg.getPrimaryStorageUuid()));
         }
 
         InstantiateVolumeOnPrimaryStorageMsg imsg;

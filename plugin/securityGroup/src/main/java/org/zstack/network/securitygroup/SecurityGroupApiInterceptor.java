@@ -20,6 +20,8 @@ import org.zstack.network.securitygroup.APIAddSecurityGroupRuleMsg.SecurityGroup
 import org.zstack.utils.gson.JSONObjectUtil;
 import org.zstack.utils.network.NetworkUtils;
 
+import static org.zstack.core.Platform.argerr;
+
 import javax.persistence.TypedQuery;
 import java.util.ArrayList;
 import java.util.List;
@@ -120,9 +122,7 @@ public class SecurityGroupApiInterceptor implements ApiMessageInterceptor {
         nq.add(NetworkServiceL3NetworkRefVO_.l3NetworkUuid, Op.EQ, msg.getL3NetworkUuid());
         nq.add(NetworkServiceL3NetworkRefVO_.networkServiceType, Op.EQ, SecurityGroupConstant.SECURITY_GROUP_NETWORK_SERVICE_TYPE);
         if (!nq.isExists()) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("the L3 network[uuid:%s] doesn't have the network service type[%s] enabled", msg.getL3NetworkUuid(), SecurityGroupConstant.SECURITY_GROUP_NETWORK_SERVICE_TYPE)
-            ));
+            throw new ApiMessageInterceptionException(argerr("the L3 network[uuid:%s] doesn't have the network service type[%s] enabled", msg.getL3NetworkUuid(), SecurityGroupConstant.SECURITY_GROUP_NETWORK_SERVICE_TYPE));
         }
     }
 
@@ -160,10 +160,8 @@ public class SecurityGroupApiInterceptor implements ApiMessageInterceptor {
         }
 
         if (!wrongUuids.isEmpty()) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("VM nics[uuids:%s] are not on L3 networks that have been attached to the security group[uuid:%s]",
-                            wrongUuids, securityGroupUuid)
-            ));
+            throw new ApiMessageInterceptionException(argerr("VM nics[uuids:%s] are not on L3 networks that have been attached to the security group[uuid:%s]",
+                            wrongUuids, securityGroupUuid));
         }
     }
 

@@ -39,6 +39,7 @@ import org.zstack.utils.function.ForEachFunction;
 import org.zstack.utils.function.Function;
 import org.zstack.utils.logging.CLogger;
 
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 import java.sql.Timestamp;
@@ -464,17 +465,13 @@ public class ImageBase implements Image {
                 });
 
                 if (ref == null) {
-                    throw new OperationFailureException(errf.stringToInvalidArgumentError(
-                            String.format("the image[uuid:%s, name:%s] is not on the backup storage[uuid:%s]",
-                                    self.getUuid(), self.getName(), bsUuid)
-                    ));
+                    throw new OperationFailureException(argerr("the image[uuid:%s, name:%s] is not on the backup storage[uuid:%s]",
+                                    self.getUuid(), self.getName(), bsUuid));
                 }
 
                 if (ref.getStatus() != ImageStatus.Deleted) {
-                    throw new OperationFailureException(errf.stringToInvalidArgumentError(
-                            String.format("the image[uuid:%s, name:%s]'s status[%s] is not Deleted on the backup storage[uuid:%s]",
-                                    self.getUuid(), self.getName(), ref.getStatus(), bsUuid)
-                    ));
+                    throw new OperationFailureException(argerr("the image[uuid:%s, name:%s]'s status[%s] is not Deleted on the backup storage[uuid:%s]",
+                                    self.getUuid(), self.getName(), ref.getStatus(), bsUuid));
                 }
 
                 toRecoverBsUuids.add(bsUuid);
@@ -531,17 +528,13 @@ public class ImageBase implements Image {
                 );
 
                 if (ref == null) {
-                    throw new OperationFailureException(errf.stringToInvalidArgumentError(
-                            String.format("the image[uuid:%s, name:%s] is not on the backup storage[uuid:%s]",
-                                    self.getUuid(), self.getName(), bsUuid)
-                    ));
+                    throw new OperationFailureException(argerr("the image[uuid:%s, name:%s] is not on the backup storage[uuid:%s]",
+                                    self.getUuid(), self.getName(), bsUuid));
                 }
 
                 if (ref.getStatus() != ImageStatus.Deleted) {
-                    throw new OperationFailureException(errf.stringToInvalidArgumentError(
-                            String.format("the image[uuid:%s, name:%s] is not deleted on the backup storage[uuid:%s]",
-                                    self.getUuid(), self.getName(), bsUuid)
-                    ));
+                    throw new OperationFailureException(argerr("the image[uuid:%s, name:%s] is not deleted on the backup storage[uuid:%s]",
+                                    self.getUuid(), self.getName(), bsUuid));
                 }
 
                 bsUuids.add(bsUuid);

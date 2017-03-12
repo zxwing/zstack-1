@@ -17,6 +17,7 @@ import org.zstack.network.service.vip.VipVO_;
 import org.zstack.tag.PatternedSystemTag;
 import org.zstack.utils.DebugUtils;
 
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 import javax.persistence.TypedQuery;
@@ -91,15 +92,11 @@ public class LoadBalancerApiInterceptor implements ApiMessageInterceptor {
             lq.add(LoadBalancerVO_.vipUuid, Op.EQ, msg.getVipUuid());
             String lbuuid = lq.findValue();
 
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("the vip[uuid:%s] is occupied by another load balancer[uuid:%s]", msg.getVipUuid(), lbuuid)
-            ));
+            throw new ApiMessageInterceptionException(argerr("the vip[uuid:%s] is occupied by another load balancer[uuid:%s]", msg.getVipUuid(), lbuuid));
         }
 
         if (useFor != null) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("the vip[uuid:%s] is occupied by another service[%s]", msg.getVipUuid(), useFor)
-            ));
+            throw new ApiMessageInterceptionException(argerr("the vip[uuid:%s] is occupied by another service[%s]", msg.getVipUuid(), useFor));
         }
     }
 
@@ -111,9 +108,7 @@ public class LoadBalancerApiInterceptor implements ApiMessageInterceptor {
         List<String> l3Uuids = q.getResultList();
         DebugUtils.Assert(!l3Uuids.isEmpty(), "cannot find the l3Network");
         if (l3Uuids.size() > 1) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("vm nics[uuids:%s] are not on the same L3 network. they are on L3 networks[uuids:%s]", msg.getVmNicUuids(), l3Uuids)
-            ));
+            throw new ApiMessageInterceptionException(argerr("vm nics[uuids:%s] are not on the same L3 network. they are on L3 networks[uuids:%s]", msg.getVmNicUuids(), l3Uuids));
         }
 
         String l3Uuid = l3Uuids.get(0);
@@ -229,9 +224,7 @@ public class LoadBalancerApiInterceptor implements ApiMessageInterceptor {
         q.add(LoadBalancerListenerVO_.loadBalancerUuid, Op.EQ, msg.getLoadBalancerUuid());
         String luuid = q.findValue();
         if (luuid != null) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("conflict loadBalancerPort[%s], a listener[uuid:%s] has used that port", msg.getLoadBalancerPort(), luuid)
-            ));
+            throw new ApiMessageInterceptionException(argerr("conflict loadBalancerPort[%s], a listener[uuid:%s] has used that port", msg.getLoadBalancerPort(), luuid));
         }
 
         q = dbf.createQuery(LoadBalancerListenerVO.class);
@@ -240,9 +233,7 @@ public class LoadBalancerApiInterceptor implements ApiMessageInterceptor {
         q.add(LoadBalancerListenerVO_.loadBalancerUuid, Op.EQ, msg.getLoadBalancerUuid());
         luuid = q.findValue();
         if (luuid != null) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("conflict instancePort[%s], a listener[uuid:%s] has used that port", msg.getInstancePort(), luuid)
-            ));
+            throw new ApiMessageInterceptionException(argerr("conflict instancePort[%s], a listener[uuid:%s] has used that port", msg.getInstancePort(), luuid));
         }
     }
 

@@ -28,6 +28,8 @@ import org.zstack.utils.function.FunctionNoArg;
 import org.zstack.utils.logging.CLogger;
 import org.zstack.utils.path.PathUtil;
 
+import static org.zstack.core.Platform.argerr;
+
 import javax.persistence.TypedQuery;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -321,15 +323,11 @@ public class ApiMessageProcessorImpl implements ApiMessageProcessor {
 
                 if (value != null &&!at.emptyString()) {
                     if (value instanceof String && StringUtils.isEmpty((String) value)) {
-                        throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                                String.format("field[%s] cannot be an empty string", f.getName())
-                        ));
+                        throw new ApiMessageInterceptionException(argerr("field[%s] cannot be an empty string", f.getName()));
                     } else if (value instanceof Collection) {
                         for (Object v : (Collection)value) {
                             if (v instanceof String && StringUtils.isEmpty((String)v)) {
-                                throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                                        String.format("field[%s] cannot contain any empty string", f.getName())
-                                ));
+                                throw new ApiMessageInterceptionException(argerr("field[%s] cannot contain any empty string", f.getName()));
                             }
                         }
                     }

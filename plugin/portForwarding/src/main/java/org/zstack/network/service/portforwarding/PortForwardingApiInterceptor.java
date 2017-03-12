@@ -19,6 +19,7 @@ import org.zstack.network.service.vip.VipVO;
 import org.zstack.network.service.vip.VipVO_;
 import org.zstack.utils.network.NetworkUtils;
 
+import static org.zstack.core.Platform.argerr;
 import static org.zstack.core.Platform.operr;
 
 import javax.persistence.Tuple;
@@ -116,18 +117,14 @@ public class PortForwardingApiInterceptor implements ApiMessageInterceptor {
         vq.add(VmNicVO_.uuid, Op.EQ, msg.getVmNicUuid());
         String guestL3Uuid = vq.findValue();
         if (guestL3Uuid.equals(vip.getL3NetworkUuid())) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("guest l3Network of vm nic[uuid:%s] and vip l3Network of port forwarding rule[uuid:%s] are the same network",
-                            msg.getVmNicUuid(), msg.getRuleUuid())
-            ));
+            throw new ApiMessageInterceptionException(argerr("guest l3Network of vm nic[uuid:%s] and vip l3Network of port forwarding rule[uuid:%s] are the same network",
+                            msg.getVmNicUuid(), msg.getRuleUuid()));
         }
 
         if (vip.getPeerL3NetworkUuid() != null && !vip.getPeerL3NetworkUuid().equals(guestL3Uuid)) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                    String.format("the VIP[uuid:%s] is already bound the a guest L3 network[uuid:%s], but the VM nic[uuid:%s]" +
+            throw new ApiMessageInterceptionException(argerr("the VIP[uuid:%s] is already bound the a guest L3 network[uuid:%s], but the VM nic[uuid:%s]" +
                             " is on another guest L3 network[uuid:%s]", vip.getUuid(), vip.getPeerL3NetworkUuid(),
-                            msg.getVmNicUuid(), guestL3Uuid)
-            ));
+                            msg.getVmNicUuid(), guestL3Uuid));
         }
 
         checkIfAnotherVip(vip.getUuid(), msg.getVmNicUuid());
@@ -203,16 +200,12 @@ public class PortForwardingApiInterceptor implements ApiMessageInterceptor {
             nicq.add(VmNicVO_.uuid, Op.EQ, msg.getVmNicUuid());
             String nicL3Uuid = nicq.findValue();
             if (nicL3Uuid.equals(vipL3Uuid)) {
-                throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                        String.format("guest l3Network of vm nic[uuid:%s] and vip l3Network of vip[uuid: %s] are the same network", msg.getVmNicUuid(), msg.getVipUuid())
-                ));
+                throw new ApiMessageInterceptionException(argerr("guest l3Network of vm nic[uuid:%s] and vip l3Network of vip[uuid: %s] are the same network", msg.getVmNicUuid(), msg.getVipUuid()));
             }
 
             if (peerL3Uuid != null && !peerL3Uuid.equals(nicL3Uuid)) {
-                throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
-                        String.format("the VIP[uuid:%s] is already bound the a guest L3 network[uuid:%s], but the VM nic[uuid:%s]" +
-                                " is on another guest L3 network[uuid:%s]", msg.getVipUuid(), peerL3Uuid, msg.getVmNicUuid(), nicL3Uuid)
-                ));
+                throw new ApiMessageInterceptionException(argerr("the VIP[uuid:%s] is already bound the a guest L3 network[uuid:%s], but the VM nic[uuid:%s]" +
+                                " is on another guest L3 network[uuid:%s]", msg.getVipUuid(), peerL3Uuid, msg.getVmNicUuid(), nicL3Uuid));
             }
 
             checkIfAnotherVip(msg.getVipUuid(), msg.getVmNicUuid());

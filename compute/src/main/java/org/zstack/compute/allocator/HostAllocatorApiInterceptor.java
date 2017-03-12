@@ -17,6 +17,8 @@ import org.zstack.header.message.APIMessage;
 import org.zstack.header.zone.ZoneVO;
 import org.zstack.header.zone.ZoneVO_;
 
+import static org.zstack.core.Platform.argerr;
+
 import java.util.List;
 
 /**
@@ -51,7 +53,7 @@ public class HostAllocatorApiInterceptor implements ApiMessageInterceptor {
 
     private void validate(APIGetCandidateBackupStorageForCreatingImageMsg msg) {
         if (msg.getVolumeSnapshotUuid() == null && msg.getVolumeUuid() == null) {
-            throw new ApiMessageInterceptionException(errf.stringToInvalidArgumentError(
+            throw new ApiMessageInterceptionException(argerr(
                     "either volumeUuid or volumeSnapshotUuid must be set"
             ));
         }
