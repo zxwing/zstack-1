@@ -91,10 +91,8 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
         Tuple t = q.findTuple();
         String vmNicUuid = t.get(1, String.class);
         if (vmNicUuid != null) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("eip[uuid:%s] has attached to another vm nic[uuid:%s], can't attach again",
-                            msg.getEipUuid(), vmNicUuid)
-            ));
+            throw new ApiMessageInterceptionException(operr("eip[uuid:%s] has attached to another vm nic[uuid:%s], can't attach again",
+                            msg.getEipUuid(), vmNicUuid));
         }
 
         EipState state = t.get(0, EipState.class);
@@ -136,9 +134,7 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
         q.add(EipVO_.uuid, Op.EQ, msg.getUuid());
         String vmNicUuid = q.findValue();
         if (vmNicUuid == null) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("eip[uuid:%s] has not attached to any vm nic", msg.getUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("eip[uuid:%s] has not attached to any vm nic", msg.getUuid()));
         }
     }
 
@@ -181,15 +177,11 @@ public class EipApiInterceptor implements ApiMessageInterceptor {
     private void validate(APICreateEipMsg msg) {
         VipVO vip = dbf.findByUuid(msg.getVipUuid(), VipVO.class);
         if (vip.getUseFor() != null) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("vip[uuid:%s] has been occupied other network service entity[%s]", msg.getVipUuid(), vip.getUseFor())
-            ));
+            throw new ApiMessageInterceptionException(operr("vip[uuid:%s] has been occupied other network service entity[%s]", msg.getVipUuid(), vip.getUseFor()));
         }
 
         if (vip.getState() != VipState.Enabled) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("vip[uuid:%s] is not in state[%s], current state is %s", msg.getVipUuid(), VipState.Enabled, vip.getState())
-            ));
+            throw new ApiMessageInterceptionException(operr("vip[uuid:%s] is not in state[%s], current state is %s", msg.getVipUuid(), VipState.Enabled, vip.getState()));
         }
 
         if (msg.getVmNicUuid() != null) {

@@ -613,12 +613,8 @@ public class VolumeSnapshotTreeBase {
                 }
 
                 if (err != null) {
-                    completion.fail(errf.instantiateErrorCode(
-                            SysErrors.OPERATION_ERROR,
-                            String.format("failed to change status of volume snapshot[uuid:%s, name:%s] by status event[%s]",
-                                    failSnapshot.getUuid(), failSnapshot.getName(), evt),
-                            err
-                    ));
+                    completion.fail(operr("failed to change status of volume snapshot[uuid:%s, name:%s] by status event[%s]",
+                                    failSnapshot.getUuid(), failSnapshot.getName(), evt).causedBy(err));
                 } else {
                     completion.success();
                 }

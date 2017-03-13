@@ -13,6 +13,7 @@ import org.zstack.header.query.QueryCondition;
 import org.zstack.header.query.QueryOp;
 import org.zstack.utils.network.NetworkUtils;
 import static org.zstack.core.Platform.argerr;
+import static org.zstack.core.Platform.operr;
 
 /**
  */
@@ -65,9 +66,7 @@ public class SftpBackupStorageApiInterceptor implements ApiMessageInterceptor {
         SimpleQuery<SftpBackupStorageVO> q = dbf.createQuery(SftpBackupStorageVO.class);
         q.add(SftpBackupStorageVO_.hostname, Op.EQ, msg.getHostname());
         if (q.isExists()) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("duplicate backup storage. There has been a sftp backup storage[hostname:%s] existing", msg.getHostname())
-            ));
+            throw new ApiMessageInterceptionException(operr("duplicate backup storage. There has been a sftp backup storage[hostname:%s] existing", msg.getHostname()));
         }
     }
 }

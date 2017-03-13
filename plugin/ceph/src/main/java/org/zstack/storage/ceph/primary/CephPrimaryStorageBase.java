@@ -2259,7 +2259,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
                             @Override
                             public void done() {
                                 if (!errorCodes.isEmpty()) {
-                                    trigger.fail(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR, "unable to connect mons", errorCodes));
+                                    trigger.fail(operr( "unable to connect mons").causedBy(errorCodes));
                                 } else {
                                     trigger.next();
                                 }
@@ -2303,7 +2303,7 @@ public class CephPrimaryStorageBase extends PrimaryStorageBase {
                             public void done() {
                                 // one fail, all fail
                                 if (!errors.isEmpty()) {
-                                    trigger.fail(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR, "unable to add mon to ceph primary storage", errors));
+                                    trigger.fail(operr("unable to add mon to ceph primary storage").causedBy(errors));
                                 } else {
                                     trigger.next();
                                 }

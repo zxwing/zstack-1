@@ -428,15 +428,13 @@ public class MysqlQueryBuilderImpl3 implements Component, QueryBuilder, GlobalAp
 
             if (!skipInventoryCheck) {
                 if (inventoryField == null || inventoryField.isAnnotationPresent(APINoSee.class)) {
-                    throw new OperationFailureException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                            String.format("condition name[%s] is invalid, no such field on inventory class[%s]",
-                                    attr, inventoryClass.getName())));
+                    throw new OperationFailureException(argerr("condition name[%s] is invalid, no such field on inventory class[%s]",
+                                    attr, inventoryClass.getName()));
                 }
 
                 if (inventoryField.isAnnotationPresent(Unqueryable.class)) {
-                    throw new OperationFailureException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                            String.format("condition name[%s] is invalid, field[%s] of inventory[%s] is annotated as @Unqueryable field",
-                                    attr, attr, inventoryClass.getName())));
+                    throw new OperationFailureException(argerr("condition name[%s] is invalid, field[%s] of inventory[%s] is annotated as @Unqueryable field",
+                                    attr, attr, inventoryClass.getName()));
                 }
             }
 

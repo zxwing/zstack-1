@@ -73,9 +73,7 @@ public class ConfigurationApiInterceptor implements ApiMessageInterceptor {
 
     private void validate(APICreateInstanceOfferingMsg msg) {
         if (msg.getAllocatorStrategy() != null && !HostAllocatorStrategyType.hasType(msg.getAllocatorStrategy())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("unsupported host allocation strategy[%s]", msg.getAllocatorStrategy())
-            ));
+            throw new ApiMessageInterceptionException(argerr("unsupported host allocation strategy[%s]", msg.getAllocatorStrategy()));
         }
 
         if (msg.getType() != null && !InstanceOfferingType.hasType(msg.getType())) {
@@ -93,9 +91,7 @@ public class ConfigurationApiInterceptor implements ApiMessageInterceptor {
 
     private void validate(APICreateDiskOfferingMsg msg) {
         if (msg.getAllocationStrategy() != null && !PrimaryStorageAllocatorStrategyType.hasType(msg.getAllocationStrategy())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("unsupported primary storage allocation strategy[%s]", msg.getAllocationStrategy())
-            ));
+            throw new ApiMessageInterceptionException(argerr("unsupported primary storage allocation strategy[%s]", msg.getAllocationStrategy()));
         }
     }
 }

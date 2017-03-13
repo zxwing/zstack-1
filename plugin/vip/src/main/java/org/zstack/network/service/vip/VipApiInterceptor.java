@@ -47,9 +47,7 @@ public class VipApiInterceptor implements ApiMessageInterceptor {
 
     private void validate(APICreateVipMsg msg) {
         if (msg.getAllocatorStrategy() != null && !IpAllocatorType.hasType(msg.getAllocatorStrategy())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("unsupported ip allocation strategy[%s]", msg.getAllocatorStrategy())
-            ));
+            throw new ApiMessageInterceptionException(argerr("unsupported ip allocation strategy[%s]", msg.getAllocatorStrategy()));
         }
 
         if (msg.getRequiredIp() != null) {

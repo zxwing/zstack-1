@@ -804,9 +804,8 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
 
             @Override
             public void fail(ErrorCode errorCode) {
-                completion.fail(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                        String.format("unable to create an empty volume[uuid:%s, name:%s] on the kvm host[uuid:%s]",
-                                volume.getUuid(), volume.getName(), hostUuid), errorCode));
+                completion.fail(operr("unable to create an empty volume[uuid:%s, name:%s] on the kvm host[uuid:%s]",
+                                volume.getUuid(), volume.getName(), hostUuid).causedBy(errorCode));
             }
         });
     }

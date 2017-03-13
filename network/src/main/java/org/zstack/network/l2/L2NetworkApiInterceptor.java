@@ -16,6 +16,7 @@ import org.zstack.header.message.APIMessage;
 import org.zstack.header.network.l2.*;
 
 import static org.zstack.core.Platform.argerr;
+import static org.zstack.core.Platform.operr;
 
 import javax.persistence.TypedQuery;
 import java.util.List;
@@ -62,9 +63,7 @@ public class L2NetworkApiInterceptor implements ApiMessageInterceptor {
         q.add(L2NetworkClusterRefVO_.clusterUuid, Op.EQ, msg.getClusterUuid());
         q.add(L2NetworkClusterRefVO_.l2NetworkUuid, Op.EQ, msg.getL2NetworkUuid());
         if (q.isExists()) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("l2Network[uuid:%s] has attached to cluster[uuid:%s], can't attach again", msg.getL2NetworkUuid(), msg.getClusterUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("l2Network[uuid:%s] has attached to cluster[uuid:%s], can't attach again", msg.getL2NetworkUuid(), msg.getClusterUuid()));
         }
 
         SimpleQuery<L2NetworkVO> l2q = dbf.createQuery(L2NetworkVO.class);
@@ -125,9 +124,7 @@ public class L2NetworkApiInterceptor implements ApiMessageInterceptor {
         q.add(L2NetworkClusterRefVO_.clusterUuid, Op.EQ, msg.getClusterUuid());
         q.add(L2NetworkClusterRefVO_.l2NetworkUuid, Op.EQ, msg.getL2NetworkUuid());
         if (!q.isExists()) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("l2Network[uuid:%s] has not attached to cluster[uuid:%s]", msg.getL2NetworkUuid(), msg.getClusterUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("l2Network[uuid:%s] has not attached to cluster[uuid:%s]", msg.getL2NetworkUuid(), msg.getClusterUuid()));
         }
     }
 
@@ -141,9 +138,7 @@ public class L2NetworkApiInterceptor implements ApiMessageInterceptor {
 
     private void validate(APICreateL2NetworkMsg msg) {
         if (!L2NetworkType.hasType(msg.getType())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("unsupported l2Network type[%s]", msg.getType())
-            ));
+            throw new ApiMessageInterceptionException(argerr("unsupported l2Network type[%s]", msg.getType()));
         }
     }
 }

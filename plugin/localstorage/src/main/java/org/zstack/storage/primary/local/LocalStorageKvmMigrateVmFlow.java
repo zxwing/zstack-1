@@ -1096,9 +1096,8 @@ public class LocalStorageKvmMigrateVmFlow extends NoRollbackFlow {
 
                                 @Override
                                 public void fail(ErrorCode errorCode) {
-                                    trigger.fail(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                                            String.format("unable to create an empty volume[uuid:%s, name:%s] on the kvm host[uuid:%s]",
-                                                    p.volume.getUuid(), p.volume.getName(), dstHostUuid), errorCode));
+                                    trigger.fail(operr("unable to create an empty volume[uuid:%s, name:%s] on the kvm host[uuid:%s]",
+                                                    p.volume.getUuid(), p.volume.getName(), dstHostUuid).causedBy(errorCode));
                                 }
                             });
                 }

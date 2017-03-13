@@ -156,9 +156,7 @@ public class L3NetworkApiInterceptor implements ApiMessageInterceptor {
 
     private void validate(APICreateL3NetworkMsg msg) {
         if (!L3NetworkType.hasType(msg.getType())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("unsupported l3network type[%s]", msg.getType())
-            ));
+            throw new ApiMessageInterceptionException(argerr("unsupported l3network type[%s]", msg.getType()));
         }
 
         if (msg.getDnsDomain() != null) {
@@ -208,48 +206,36 @@ public class L3NetworkApiInterceptor implements ApiMessageInterceptor {
         }
 
         if (!NetworkUtils.isIpv4Address(ipr.getStartIp())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("start ip[%s] is not a IPv4 address", ipr.getStartIp())
-            ));
+            throw new ApiMessageInterceptionException(argerr("start ip[%s] is not a IPv4 address", ipr.getStartIp()));
         }
 
         if (!NetworkUtils.isIpv4Address(ipr.getEndIp())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("end ip[%s] is not a IPv4 address", ipr.getEndIp())
-            ));
+            throw new ApiMessageInterceptionException(argerr("end ip[%s] is not a IPv4 address", ipr.getEndIp()));
         }
 
         if (!NetworkUtils.isIpv4Address(ipr.getGateway())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("gateway[%s] is not a IPv4 address", ipr.getGateway())
-            ));
+            throw new ApiMessageInterceptionException(argerr("gateway[%s] is not a IPv4 address", ipr.getGateway()));
         }
 
         if (!NetworkUtils.isNetmaskExcept(ipr.getNetmask(), "0.0.0.0")) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("netmask[%s] is not a netmask, and the IP range netmask cannot be 0.0.0.0", ipr.getNetmask())
-            ));
+            throw new ApiMessageInterceptionException(argerr("netmask[%s] is not a netmask, and the IP range netmask cannot be 0.0.0.0", ipr.getNetmask()));
         }
 
         if (ipr.getStartIp().equals(info.getNetworkAddress()) || ipr.getEndIp().equals(info.getBroadcastAddress())){
-            throw new ApiMessageInterceptionException((errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
+            throw new ApiMessageInterceptionException(argerr(
                     "ip allocation can not contain network address or broadcast address")
-            ));
+            );
         }
 
         long startip = NetworkUtils.ipv4StringToLong(ipr.getStartIp());
         long endip = NetworkUtils.ipv4StringToLong(ipr.getEndIp());
         if (startip > endip) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("start ip[%s] is behind end ip[%s]", ipr.getStartIp(), ipr.getEndIp())
-            ));
+            throw new ApiMessageInterceptionException(argerr("start ip[%s] is behind end ip[%s]", ipr.getStartIp(), ipr.getEndIp()));
         }
 
         long gw = NetworkUtils.ipv4StringToLong(ipr.getGateway());
         if (startip <= gw && gw <= endip) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("gateway[%s] can not be part of range[%s, %s]", ipr.getGateway(), ipr.getStartIp(), ipr.getEndIp())
-            ));
+            throw new ApiMessageInterceptionException(argerr("gateway[%s] can not be part of range[%s, %s]", ipr.getGateway(), ipr.getStartIp(), ipr.getEndIp()));
         }
 
         String cidr = ipr.toSubnetUtils().getInfo().getCidrSignature();
@@ -258,9 +244,7 @@ public class L3NetworkApiInterceptor implements ApiMessageInterceptor {
         List<IpRangeVO> ranges = q.list();
         for (IpRangeVO r : ranges) {
             if (NetworkUtils.isIpv4RangeOverlap(ipr.getStartIp(), ipr.getEndIp(), r.getStartIp(), r.getEndIp())) {
-                throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                        String.format("overlap with ip range[uuid:%s, start ip:%s, end ip: %s]", r.getUuid(), r.getStartIp(), r.getEndIp())
-                ));
+                throw new ApiMessageInterceptionException(argerr("overlap with ip range[uuid:%s, start ip:%s, end ip: %s]", r.getUuid(), r.getStartIp(), r.getEndIp()));
             }
 
             String rcidr = IpRangeInventory.valueOf(r).toSubnetUtils().getInfo().getCidrSignature();
@@ -279,9 +263,7 @@ public class L3NetworkApiInterceptor implements ApiMessageInterceptor {
 
     private void validate(APIAddDnsToL3NetworkMsg msg) {
         if (!NetworkUtils.isIpv4Address(msg.getDns())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("DNS[%s] is not a IPv4 address", msg.getDns())
-            ));
+            throw new ApiMessageInterceptionException(argerr("DNS[%s] is not a IPv4 address", msg.getDns()));
         }
 
         SimpleQuery<L3NetworkDnsVO> q = dbf.createQuery(L3NetworkDnsVO.class);

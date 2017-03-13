@@ -1284,7 +1284,7 @@ public class CephBackupStorageBase extends BackupStorageBase {
                             @Override
                             public void done() {
                                 if (!errorCodes.isEmpty()) {
-                                    trigger.fail(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR, "unable to connect mons", errorCodes));
+                                    trigger.fail(operr("unable to connect mons").causedBy(errorCodes));
                                 } else {
                                     trigger.next();
                                 }
@@ -1327,7 +1327,7 @@ public class CephBackupStorageBase extends BackupStorageBase {
                             public void done() {
                                 // one fail, all fail
                                 if (!errors.isEmpty()) {
-                                    trigger.fail(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR, "unable to add mon to ceph backup storage", errors));
+                                    trigger.fail(operr("unable to add mon to ceph backup storage").causedBy(errors));
                                 } else {
                                     trigger.next();
                                 }

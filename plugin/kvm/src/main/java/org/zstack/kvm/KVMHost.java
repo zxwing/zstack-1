@@ -1247,9 +1247,9 @@ public class KVMHost extends HostBase implements Host {
             @Override
             public void success(AttachNicResponse ret) {
                 if (!ret.isSuccess()) {
-                    reply.setError(errf.stringToTimeoutError(String.format("failed to attach nic[uuid:%s, vm:%s] on kvm host[uuid:%s, ip:%s]," +
+                    reply.setError(operr("failed to attach nic[uuid:%s, vm:%s] on kvm host[uuid:%s, ip:%s]," +
                                     "because %s", msg.getNicInventory().getUuid(), msg.getNicInventory().getVmInstanceUuid(),
-                            self.getUuid(), self.getManagementIp(), ret.getError())));
+                            self.getUuid(), self.getManagementIp(), ret.getError()));
                 }
 
                 bus.reply(msg, reply);

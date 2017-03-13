@@ -129,9 +129,7 @@ public class ImageApiInterceptor implements ApiMessageInterceptor {
         }
 
         if (msg.getType() != null && !ImageType.hasType(msg.getType())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("unsupported image type[%s]", msg.getType())
-            ));
+            throw new ApiMessageInterceptionException(argerr("unsupported image type[%s]", msg.getType()));
         }
 
         if (msg.getMediaType() == null) {

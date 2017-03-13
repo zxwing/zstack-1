@@ -15,6 +15,7 @@ import org.zstack.header.host.*;
 import org.zstack.header.message.APIMessage;
 import org.zstack.utils.network.NetworkUtils;
 import static org.zstack.core.Platform.argerr;
+import static org.zstack.core.Platform.operr;
 
 /**
  * Created with IntelliJ IDEA.
@@ -67,9 +68,7 @@ public class HostApiInterceptor implements ApiMessageInterceptor {
             SimpleQuery<HostVO> q = dbf.createQuery(HostVO.class);
             q.add(HostVO_.managementIp, Op.EQ, msg.getManagementIp());
             if (q.isExists()) {
-                throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                        String.format("there has been a host having managementIp[%s]", msg.getManagementIp())
-                ));
+                throw new ApiMessageInterceptionException(argerr("there has been a host having managementIp[%s]", msg.getManagementIp()));
             }
         }
     }
@@ -82,9 +81,7 @@ public class HostApiInterceptor implements ApiMessageInterceptor {
         SimpleQuery<HostVO> q = dbf.createQuery(HostVO.class);
         q.add(HostVO_.managementIp, Op.EQ, msg.getManagementIp());
         if (q.isExists()) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("there has been a host having managementIp[%s]", msg.getManagementIp())
-            ));
+            throw new ApiMessageInterceptionException(argerr("there has been a host having managementIp[%s]", msg.getManagementIp()));
         }
     }
 
@@ -94,9 +91,7 @@ public class HostApiInterceptor implements ApiMessageInterceptor {
                 .eq(HostVO_.uuid,msg.getHostUuid())
                 .findValue();
         if (hostStatus == HostStatus.Connecting){
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("can not maintain host[uuid:%s]which is connecting", msg.getHostUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("can not maintain host[uuid:%s]which is connecting", msg.getHostUuid()));
         }
     }
 }

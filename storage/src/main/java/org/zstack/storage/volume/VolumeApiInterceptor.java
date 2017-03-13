@@ -142,15 +142,11 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
     private void validate(APIDetachDataVolumeFromVmMsg msg) {
         VolumeVO vol = dbf.findByUuid(msg.getVolumeUuid(), VolumeVO.class);
         if (!vol.isShareable() && vol.getVmInstanceUuid() == null) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("data volume[uuid:%s] is not attached to any vm, can't detach", msg.getVolumeUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("data volume[uuid:%s] is not attached to any vm, can't detach", msg.getVolumeUuid()));
         }
 
         if (vol.isShareable() && msg.getVmUuid() == null) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("to detach shareable data volume[uuid:%s], vm uuid is needed.", msg.getVolumeUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("to detach shareable data volume[uuid:%s], vm uuid is needed.", msg.getVolumeUuid()));
         }
 
 
@@ -177,17 +173,13 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
         }
 
         if (vol.getVmInstanceUuid() != null) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("data volume[%s] has been attached to vm[uuid:%s], can't attach again",
-                            vol.getUuid(), vol.getVmInstanceUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("data volume[%s] has been attached to vm[uuid:%s], can't attach again",
+                            vol.getUuid(), vol.getVmInstanceUuid()));
         }
 
         if (VolumeStatus.Ready != vol.getStatus() && VolumeStatus.NotInstantiated != vol.getStatus()) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("data volume can only be attached when status is [%s, %s], current is %s",
-                            VolumeStatus.Ready, VolumeStatus.NotInstantiated, vol.getStatus())
-            ));
+            throw new ApiMessageInterceptionException(operr("data volume can only be attached when status is [%s, %s], current is %s",
+                            VolumeStatus.Ready, VolumeStatus.NotInstantiated, vol.getStatus()));
         }
 
         SimpleQuery<VmInstanceVO> q = dbf.createQuery(VmInstanceVO.class);
@@ -197,10 +189,8 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
         if (vol.getFormat() != null) {
             HypervisorType volHvType = VolumeFormat.getMasterHypervisorTypeByVolumeFormat(vol.getFormat());
             if (!hvType.equals(volHvType.toString())) {
-                throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                        String.format("data volume[uuid:%s] has format[%s] that can only be attached to hypervisor[%s], but vm[uuid:%s] has hypervisor type[%s]. Can't attach",
-                                vol.getUuid(), vol.getFormat(), volHvType, msg.getVmInstanceUuid(), hvType)
-                ));
+                throw new ApiMessageInterceptionException(operr("data volume[uuid:%s] has format[%s] that can only be attached to hypervisor[%s], but vm[uuid:%s] has hypervisor type[%s]. Can't attach",
+                                vol.getUuid(), vol.getFormat(), volHvType, msg.getVmInstanceUuid(), hvType));
             }
         }
 
@@ -222,9 +212,7 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
 
     private void validate(APIBackupDataVolumeMsg msg) {
         if (isRootVolume(msg.getUuid())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("it's not allowed to backup root volume, uuid:%s", msg.getUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("it's not allowed to backup root volume, uuid:%s", msg.getUuid()));
         }
 
         exceptionIsVolumeIsDeleted(msg.getVolumeUuid());
@@ -243,9 +231,7 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
         Tuple t = q.findTuple();
         VolumeType type = t.get(0, VolumeType.class);
         if (type == VolumeType.Root) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("volume[uuid:%s] is Root volume, can't be deleted", msg.getVolumeUuid())
-            ));
+            throw new ApiMessageInterceptionException(argerr("volume[uuid:%s] is Root volume, can't be deleted", msg.getVolumeUuid()));
         }
 
         VolumeStatus status = t.get(1, VolumeStatus.class);
@@ -264,9 +250,7 @@ public class VolumeApiInterceptor implements ApiMessageInterceptor, Component {
 
     private void validate(APIChangeVolumeStateMsg msg) {
         if (isRootVolume(msg.getUuid())) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("it's not allowed to change state of root volume, uuid:%s", msg.getUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("it's not allowed to change state of root volume, uuid:%s", msg.getUuid()));
         }
 
         exceptionIsVolumeIsDeleted(msg.getVolumeUuid());

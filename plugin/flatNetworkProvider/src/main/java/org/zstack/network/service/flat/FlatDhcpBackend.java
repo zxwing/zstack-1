@@ -562,10 +562,8 @@ public class FlatDhcpBackend extends AbstractService implements NetworkServiceDh
         applyDhcpToHosts(info, destHostUuid, false, completion);
         completion.await(TimeUnit.MINUTES.toMillis(30));
         if (!completion.isSuccess()) {
-            throw new OperationFailureException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("cannot configure DHCP for vm[uuid:%s] on the destination host[uuid:%s]",
-                            inv.getUuid(), destHostUuid), completion.getErrorCode()
-            ));
+            throw new OperationFailureException(operr("cannot configure DHCP for vm[uuid:%s] on the destination host[uuid:%s]",
+                            inv.getUuid(), destHostUuid).causedBy(completion.getErrorCode()));
         }
     }
 

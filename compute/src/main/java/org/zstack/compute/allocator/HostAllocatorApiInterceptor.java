@@ -72,9 +72,7 @@ public class HostAllocatorApiInterceptor implements ApiMessageInterceptor {
         }
 
         if (!pass && !msg.isAll()) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                    String.format("zoneUuids, clusterUuids, hostUuids must at least have one be none-empty list, or all is set to true")
-            ));
+            throw new ApiMessageInterceptionException(argerr("zoneUuids, clusterUuids, hostUuids must at least have one be none-empty list, or all is set to true"));
         }
 
         if (msg.isAll() && (msg.getZoneUuids() == null || msg.getZoneUuids().isEmpty())) {

@@ -77,9 +77,7 @@ public class PortForwardingApiInterceptor implements ApiMessageInterceptor {
         q.add(PortForwardingRuleVO_.uuid, Op.EQ, msg.getUuid());
         String vmNicUuid = q.findValue();
         if (vmNicUuid == null) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("port forwarding rule rule[uuid:%s] has not been attached to any vm nic, can't detach", msg.getUuid())
-            ));
+            throw new ApiMessageInterceptionException(operr("port forwarding rule rule[uuid:%s] has not been attached to any vm nic, can't detach", msg.getUuid()));
         }
     }
 
@@ -91,9 +89,7 @@ public class PortForwardingApiInterceptor implements ApiMessageInterceptor {
 
         String vmNicUuid = t.get(0, String.class);
         if (vmNicUuid != null) {
-            throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                    String.format("port forwarding rule[uuid:%s] has been attached to vm nic[uuid:%s], can't attach again", msg.getRuleUuid(), vmNicUuid)
-            ));
+            throw new ApiMessageInterceptionException(operr("port forwarding rule[uuid:%s] has been attached to vm nic[uuid:%s], can't attach again", msg.getRuleUuid(), vmNicUuid));
         }
 
         PortForwardingRuleState state = t.get(1, PortForwardingRuleState.class);
@@ -158,18 +154,14 @@ public class PortForwardingApiInterceptor implements ApiMessageInterceptor {
         if (!msg.getVipPortStart().equals(msg.getVipPortEnd())) {
             // it's a port range
             if (msg.getVipPortEnd() - msg.getVipPortStart() != msg.getPrivatePortEnd() - msg.getPrivatePortStart()) {
-                throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                        String.format("for range port forwarding, the port range size must match; vip range[%s, %s]'s size doesn't match range[%s, %s]'s size",
-                                msg.getVipPortStart(), msg.getVipPortEnd(), msg.getPrivatePortStart(), msg.getPrivatePortEnd())
-                ));
+                throw new ApiMessageInterceptionException(argerr("for range port forwarding, the port range size must match; vip range[%s, %s]'s size doesn't match range[%s, %s]'s size",
+                                msg.getVipPortStart(), msg.getVipPortEnd(), msg.getPrivatePortStart(), msg.getPrivatePortEnd()));
             }
         }
 
         if (msg.getAllowedCidr() != null) {
             if (!NetworkUtils.isCidr(msg.getAllowedCidr())) {
-                throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                        String.format("invalid CIDR[%s]", msg.getAllowedCidr())
-                ));
+                throw new ApiMessageInterceptionException(argerr("invalid CIDR[%s]", msg.getAllowedCidr()));
             }
         }
 
@@ -179,10 +171,8 @@ public class PortForwardingApiInterceptor implements ApiMessageInterceptor {
         for (PortForwardingRuleVO vo : vos) {
             if (vo.getProtocolType().toString().equals(msg.getProtocolType())) {
                 if (rangeOverlap(vipStart, vipEnd, vo.getVipPortStart(), vo.getVipPortEnd())) {
-                    throw new ApiMessageInterceptionException(errf.instantiateErrorCode(SysErrors.INVALID_ARGUMENT_ERROR,
-                            String.format("vip port range[vipStartPort:%s, vipEndPort:%s] overlaps with rule[uuid:%s, vipStartPort:%s, vipEndPort:%s]",
-                                    vipStart, vipEnd, vo.getUuid(), vo.getVipPortStart(), vo.getVipPortEnd())
-                    ));
+                    throw new ApiMessageInterceptionException(argerr("vip port range[vipStartPort:%s, vipEndPort:%s] overlaps with rule[uuid:%s, vipStartPort:%s, vipEndPort:%s]",
+                                    vipStart, vipEnd, vo.getUuid(), vo.getVipPortStart(), vo.getVipPortEnd()));
                 }
             }
         }

@@ -375,11 +375,8 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                                 int backupStorageNum = msg.getBackupStorageUuids() == null ? 1 : msg.getBackupStorageUuids().size();
 
                                 if (fail == backupStorageNum) {
-                                    ErrorCode errCode = errf.instantiateErrorCode(SysErrors.OPERATION_ERROR,
-                                            String.format("failed to create data volume template from volume[uuid:%s] on all backup storage%s. See cause for one of errors",
-                                                    msg.getVolumeUuid(), msg.getBackupStorageUuids()),
-                                            err
-                                    );
+                                    ErrorCode errCode = operr("failed to create data volume template from volume[uuid:%s] on all backup storage%s. See cause for one of errors",
+                                                    msg.getVolumeUuid(), msg.getBackupStorageUuids()).causedBy(err);
 
                                     trigger.fail(errCode);
                                 } else {
@@ -792,8 +789,8 @@ public class ImageManagerImpl extends AbstractService implements ImageManager, M
                                 if (success) {
                                     trigger.next();
                                 } else {
-                                    trigger.fail(errf.instantiateErrorCode(SysErrors.OPERATION_ERROR, String.format("failed to create image from root volume[uuid:%s] on all backup storage, see cause for one of errors",
-                                            msg.getRootVolumeUuid()), err));
+                                    trigger.fail(operr("failed to create image from root volume[uuid:%s] on all backup storage, see cause for one of errors",
+                                            msg.getRootVolumeUuid()).causedBy(err));
                                 }
                             }
                         });
