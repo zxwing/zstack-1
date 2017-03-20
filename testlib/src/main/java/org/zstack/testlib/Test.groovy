@@ -463,7 +463,7 @@ abstract class Test implements ApiHelper {
         return getRetryReturnValue(ret, true)
     }
 
-    protected boolean retryInMillis(int total, int interval, Closure c) {
+    protected boolean retryInMillis(int total, int interval=500, Closure c) {
         int count = 0
 
         def ret = null

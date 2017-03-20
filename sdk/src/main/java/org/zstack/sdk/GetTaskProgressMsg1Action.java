@@ -3,13 +3,13 @@ package org.zstack.sdk;
 import java.util.HashMap;
 import java.util.Map;
 
-public class GetTaskProgressAction extends AbstractAction {
+public class GetTaskProgressMsg1Action extends AbstractAction {
 
     private static final HashMap<String, Parameter> parameterMap = new HashMap<>();
 
     public static class Result {
         public ErrorCode error;
-        public GetTaskProgressResult value;
+        public GetTaskProgressReply1Result value;
 
         public Result throwExceptionIfError() {
             if (error != null) {
@@ -22,11 +22,11 @@ public class GetTaskProgressAction extends AbstractAction {
         }
     }
 
-    @Param(required = false)
-    public java.lang.String apiId;
+    @Param(required = true, nonempty = false, nullElements = false, emptyString = true, noTrim = false)
+    public java.lang.String resourceUuid;
 
-    @Param(required = false)
-    public boolean all = false;
+    @Param(required = false, validValues = {"AddImage","LocalStorageMigrateVolume","CreateRootVolumeTemplateFromRootVolume"}, nonempty = false, nullElements = false, emptyString = true, noTrim = false)
+    public java.lang.String processType;
 
     @Param(required = false)
     public java.util.List systemTags;
@@ -45,8 +45,8 @@ public class GetTaskProgressAction extends AbstractAction {
             return ret;
         }
         
-        GetTaskProgressResult value = res.getResult(GetTaskProgressResult.class);
-        ret.value = value == null ? new GetTaskProgressResult() : value; 
+        GetTaskProgressReply1Result value = res.getResult(GetTaskProgressReply1Result.class);
+        ret.value = value == null ? new GetTaskProgressReply1Result() : value; 
 
         return ret;
     }
@@ -72,7 +72,7 @@ public class GetTaskProgressAction extends AbstractAction {
     RestInfo getRestInfo() {
         RestInfo info = new RestInfo();
         info.httpMethod = "GET";
-        info.path = "/task-progresses";
+        info.path = "/progress/{processType}/{resourceUuid}";
         info.needSession = true;
         info.needPoll = false;
         info.parameterName = "";

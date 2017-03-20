@@ -5,4 +5,5 @@ package org.zstack.header;
  */
 public interface Constants {
     String AGENT_HTTP_HEADER_RESOURCE_UUID = "X-Resource-UUID";
+    String THREAD_CONTEXT_API = "api";
 }

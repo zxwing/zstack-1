@@ -67,6 +67,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.zstack.core.progress.ProgressReportService.taskProgress;
 import static org.zstack.utils.CollectionDSL.list;
 
 /**
@@ -868,6 +869,8 @@ public class LocalStorageKvmBackend extends LocalStorageHypervisorBackend {
                 }
 
                 private void doDownload(final SyncTaskChain chain) {
+                    taskProgress("Download the image[%s] to the image cache", image.getName());
+
                     FlowChain fchain = FlowChainBuilder.newShareFlowChain();
                     fchain.setName(String.format("download-image-%s-to-local-storage-%s-cache-host-%s",
                             image.getUuid(), self.getUuid(), hostUuid));

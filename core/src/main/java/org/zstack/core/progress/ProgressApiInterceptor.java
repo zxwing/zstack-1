@@ -5,7 +5,7 @@ import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.header.apimediator.ApiMessageInterceptionException;
 import org.zstack.header.apimediator.ApiMessageInterceptor;
-import org.zstack.header.core.progress.APIGetTaskProgressMsg;
+import org.zstack.header.core.progress.APIGetTaskProgressMsg1;
 import org.zstack.header.core.progress.ProgressConstants;
 import org.zstack.header.message.APIMessage;
 import org.zstack.utils.Utils;
@@ -30,8 +30,8 @@ public class ProgressApiInterceptor implements ApiMessageInterceptor {
 
 
     private void setServiceId(APIMessage msg) {
-        if (msg instanceof APIGetTaskProgressMsg) {
-            APIGetTaskProgressMsg pmsg = (APIGetTaskProgressMsg)msg;
+        if (msg instanceof APIGetTaskProgressMsg1) {
+            APIGetTaskProgressMsg1 pmsg = (APIGetTaskProgressMsg1)msg;
             msg.setServiceId(ProgressConstants.SERVICE_ID);
         }
     }

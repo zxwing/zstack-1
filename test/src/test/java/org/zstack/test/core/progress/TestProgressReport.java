@@ -104,7 +104,7 @@ public class TestProgressReport {
         vo = q.find();
         Assert.assertEquals("50%", vo.getProgress());
 
-        APIGetTaskProgressReply reply = api.getProgressReport(cmd.getResourceUuid());
+        APIGetTaskProgressReply1 reply = api.getProgressReport(cmd.getResourceUuid());
         Assert.assertEquals("50%", reply.getProgress());
 
         TimeUnit.MILLISECONDS.sleep(1);

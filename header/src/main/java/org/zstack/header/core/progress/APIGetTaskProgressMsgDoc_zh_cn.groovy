@@ -14,7 +14,7 @@ doc {
 
             header (OAuth: 'the-session-uuid')
 
-            clz APIGetTaskProgressMsg.class
+            clz APIGetTaskProgressMsg1.class
 
             desc ""
             
@@ -64,7 +64,7 @@ doc {
         }
 
         response {
-            clz APIGetTaskProgressReply.class
+            clz APIGetTaskProgressReply1.class
         }
     }
 }

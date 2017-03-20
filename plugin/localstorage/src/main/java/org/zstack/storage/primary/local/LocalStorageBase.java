@@ -66,6 +66,8 @@ import javax.persistence.TypedQuery;
 import java.util.*;
 import java.util.concurrent.Callable;
 
+import static org.zstack.core.progress.ProgressReportService.createSubTaskProgress;
+import static org.zstack.core.progress.ProgressReportService.taskProgress;
 import static org.zstack.utils.CollectionDSL.list;
 
 /**
@@ -1376,6 +1378,8 @@ public class LocalStorageBase extends PrimaryStorageBase {
 
     @Override
     protected void handle(final InstantiateVolumeOnPrimaryStorageMsg msg) {
+        createSubTaskProgress("create a volume[%s] on the local storage", msg.getVolume().getType());
+
         String hostUuid = msg.getDestHost().getUuid();
         LocalStorageHypervisorFactory f = getHypervisorBackendFactoryByHostUuid(hostUuid);
         final LocalStorageHypervisorBackend bkd = f.getHypervisorBackend(self);

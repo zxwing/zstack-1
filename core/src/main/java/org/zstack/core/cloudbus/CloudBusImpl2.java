@@ -16,6 +16,7 @@ import org.zstack.core.jmx.JmxFacade;
 import org.zstack.core.thread.*;
 import org.zstack.core.thread.ThreadFacadeImpl.TimeoutTaskReceipt;
 import org.zstack.core.timeout.ApiTimeoutManager;
+import org.zstack.header.Constants;
 import org.zstack.header.Service;
 import org.zstack.header.apimediator.APIIsReadyToGoMsg;
 import org.zstack.header.apimediator.APIIsReadyToGoReply;
@@ -105,6 +106,7 @@ public class CloudBusImpl2 implements CloudBus, CloudBusIN, ManagementNodeChange
     private final long DEFAULT_MESSAGE_TIMEOUT = TimeUnit.MINUTES.toMillis(30);
     private final String DEAD_LETTER = "dead-message";
     private final String API_ID = "api-id";
+    private final String TASK_STACK = "task-stack";
 
     private final String AMQP_PROPERTY_HEADER__COMPRESSED = "compressed";
 
@@ -554,11 +556,12 @@ public class CloudBusImpl2 implements CloudBus, CloudBusIN, ManagementNodeChange
 
             buildSchema(msg);
 
+            evalThreadContextToMessage(msg);
+
             if (logger.isTraceEnabled() && logMessage(msg)) {
                 logger.trace(String.format("[msg send]: %s", wire.dumpMessage(msg)));
             }
 
-            evalThreadContextToMessage(msg);
 
             Channel chan = channelPool.acquire();
             try {
@@ -1950,9 +1953,18 @@ public class CloudBusImpl2 implements CloudBus, CloudBusIN, ManagementNodeChange
 
     private void setThreadLoggingContext(Message msg) {
         if (msg instanceof APIMessage) {
-            ThreadContext.put("api", msg.getId());
+            ThreadContext.put(Constants.THREAD_CONTEXT_API, msg.getId());
         } else if (msg.getHeaders().containsKey(API_ID)){
-            ThreadContext.put("api", msg.getHeaders().get(API_ID).toString());
+            ThreadContext.put(Constants.THREAD_CONTEXT_API, msg.getHeaders().get(API_ID).toString());
+        } else {
+            ThreadContext.clearMap();
+        }
+
+        if (msg.getHeaders().containsKey(TASK_STACK)) {
+            List<String> taskStack = msg.getHeaderEntry(TASK_STACK);
+            ThreadContext.setStack(taskStack);
+        } else {
+            ThreadContext.clearStack();
         }
     }
 
@@ -1960,6 +1972,11 @@ public class CloudBusImpl2 implements CloudBus, CloudBusIN, ManagementNodeChange
         String apiId = ThreadContext.get("api");
         if (apiId != null) {
             msg.putHeaderEntry(API_ID, apiId);
+        }
+
+        List<String> taskStack = ThreadContext.getImmutableStack().asList();
+        if (taskStack != null && !taskStack.isEmpty()) {
+            msg.putHeaderEntry(TASK_STACK, taskStack);
         }
     }
 
@@ -1988,8 +2005,6 @@ public class CloudBusImpl2 implements CloudBus, CloudBusIN, ManagementNodeChange
                         try {
                             final Message msg = wire.toMessage(bytes, basicProperties);
 
-                            setThreadLoggingContext(msg);
-
                             if (logger.isTraceEnabled() && wire.logMessage(msg)) {
                                 logger.trace(String.format("[msg received]: %s", wire.dumpMessage(msg)));
                             }
@@ -2012,6 +2027,8 @@ public class CloudBusImpl2 implements CloudBus, CloudBusIN, ManagementNodeChange
 
                                 @Override
                                 public Void call() throws Exception {
+                                    setThreadLoggingContext(msg);
+
                                     try {
                                         List<BeforeDeliveryMessageInterceptor> is = beforeDeliveryMessageInterceptors.get(msg.getClass());
                                         if (is != null) {

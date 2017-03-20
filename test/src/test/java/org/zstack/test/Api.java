@@ -30,8 +30,8 @@ import org.zstack.header.configuration.*;
 import org.zstack.header.configuration.DiskOfferingInventory;
 import org.zstack.header.configuration.InstanceOfferingInventory;
 import org.zstack.header.console.ConsoleInventory;
-import org.zstack.header.core.progress.APIGetTaskProgressMsg;
-import org.zstack.header.core.progress.APIGetTaskProgressReply;
+import org.zstack.header.core.progress.APIGetTaskProgressMsg1;
+import org.zstack.header.core.progress.APIGetTaskProgressReply1;
 import org.zstack.header.core.scheduler.SchedulerInventory;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.host.*;
@@ -1594,13 +1594,13 @@ public class Api implements CloudBusEventListener {
         return JSONObjectUtil.rehashObject(res.value.inventory, VmInstanceInventory.class);
     }
 
-    public APIGetTaskProgressReply getProgressReport(String resourceUuid) throws ApiSenderException {
-        APIGetTaskProgressMsg msg = new APIGetTaskProgressMsg();
+    public APIGetTaskProgressReply1 getProgressReport(String resourceUuid) throws ApiSenderException {
+        APIGetTaskProgressMsg1 msg = new APIGetTaskProgressMsg1();
         msg.setSession(adminSession);
         msg.setResourceUuid(resourceUuid);
         ApiSender sender = new ApiSender();
         sender.setTimeout(timeout);
-        return sender.call(msg, APIGetTaskProgressReply.class);
+        return sender.call(msg, APIGetTaskProgressReply1.class);
     }
 
     public VmAccountPreference changeVmPassword(VmAccountPreference account)
