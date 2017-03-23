@@ -8,13 +8,13 @@ import javax.persistence.metamodel.StaticMetamodel;
  */
 @StaticMetamodel(TaskProgressVO.class)
 public class TaskProgressVO_ {
-    public static volatile SingularAttribute<Long, Long> id;
-    public static volatile SingularAttribute<Long, String> taskUuid;
-    public static volatile SingularAttribute<Long, String> apiId;
-    public static volatile SingularAttribute<Long, String> parentUuid;
-    public static volatile SingularAttribute<Long, TaskType> type;
-    public static volatile SingularAttribute<Long, String> content;
-    public static volatile SingularAttribute<Long, String> arguments;
-    public static volatile SingularAttribute<Long, String> managementUuid;
-    public static volatile SingularAttribute<Long, Long> time;
+    public static volatile SingularAttribute<TaskProgressVO, Long> id;
+    public static volatile SingularAttribute<TaskProgressVO, String> taskUuid;
+    public static volatile SingularAttribute<TaskProgressVO, String> apiId;
+    public static volatile SingularAttribute<TaskProgressVO, String> parentUuid;
+    public static volatile SingularAttribute<TaskProgressVO, TaskType> type;
+    public static volatile SingularAttribute<TaskProgressVO, String> content;
+    public static volatile SingularAttribute<TaskProgressVO, String> arguments;
+    public static volatile SingularAttribute<TaskProgressVO, String> managementUuid;
+    public static volatile SingularAttribute<TaskProgressVO, Long> time;
 }

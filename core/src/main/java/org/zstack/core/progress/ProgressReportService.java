@@ -17,8 +17,7 @@ import org.zstack.header.Constants;
 import org.zstack.header.core.progress.*;
 import org.zstack.header.errorcode.OperationFailureException;
 import org.zstack.header.managementnode.ManagementNodeReadyExtensionPoint;
-import org.zstack.header.message.APIMessage;
-import org.zstack.header.message.Message;
+import org.zstack.header.message.*;
 import org.zstack.header.rest.RESTFacade;
 import org.zstack.header.rest.SyncHttpCallHandler;
 import org.zstack.utils.Utils;
@@ -27,6 +26,7 @@ import org.zstack.utils.logging.CLogger;
 import static org.zstack.core.Platform.*;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static org.codehaus.groovy.runtime.InvokerHelper.asList;
@@ -48,6 +48,14 @@ public class ProgressReportService extends AbstractService implements Management
 
     @Autowired
     private CloudBus bus;
+
+    private static class TaskStep {
+        long steps;
+        Map<String, TaskStep> subTasks = new HashMap<>();
+    }
+
+    private Map<String, TaskStep> steps = new ConcurrentHashMap<>();
+
 
     private void setThreadContext(ProgressReportCmd cmd) {
         ThreadContext.clearAll();
@@ -91,6 +99,55 @@ public class ProgressReportService extends AbstractService implements Management
                 logger.debug(String.format("call PROGRESS_FINISH_PATH by %s, uuid: %s", cmd.getProcessType(), cmd.getResourceUuid()));
                 finishProcess(cmd);
                 return null;
+            }
+        });
+
+        bus.installBeforePublishEventInterceptor(new AbstractBeforePublishEventInterceptor() {
+            @Override
+            public void beforePublishEvent(Event evt) {
+                if (!(evt instanceof APIEvent)) {
+                    return;
+                }
+
+                String apiName = ThreadContext.get(Constants.THREAD_CONTEXT_API_NAME);
+                if (apiName == null || ThreadContext.get(Constants.THREAD_CONTEXT_PROGRESS_ENABLED) == null) {
+                    return;
+                }
+
+                String apiId = ThreadContext.get(Constants.THREAD_CONTEXT_API);
+                if (apiId == null) {
+                    return;
+                }
+
+                if (steps.containsKey(apiName)) {
+                    return;
+                }
+
+                new SQLBatch() {
+                    @Override
+                    protected void scripts() {
+                        if (!q(TaskStepVO.class).eq(TaskStepVO_.taskName, apiName).isExists()) {
+                            saveToDb();
+                        }
+                    }
+
+                    private void saveToDb() {
+                        List<TaskProgressInventory> invs = getAllProgress(apiId);
+                        if (invs.isEmpty()) {
+                            return;
+                        }
+
+                        TaskStep step = new TaskStep();
+                        step.steps = invs.size();
+
+                        for (TaskProgressInventory inv : invs) {
+                            if (inv.getSubTasks() == null || inv.getSubTasks().isEmpty()) {
+                                continue;
+                            }
+
+                        }
+                    }
+                }.execute();
             }
         });
 
@@ -227,6 +284,59 @@ public class ProgressReportService extends AbstractService implements Management
         }
     }
 
+    private TaskProgressInventory inventory(TaskProgressVO vo) {
+        TaskProgressInventory inv = new TaskProgressInventory(vo);
+        if (vo.getArguments() == null) {
+            inv.setContent(toI18nString(vo.getContent()));
+        } else {
+            List<String> args = JSONObjectUtil.toCollection(vo.getArguments(), ArrayList.class, String.class);
+            inv.setContent(toI18nString(vo.getContent(), args.toArray()));
+        }
+
+        return inv;
+    }
+
+    @Transactional
+    private List<TaskProgressInventory> getAllProgress(String apiId) {
+        List<TaskProgressVO> vos = Q.New(TaskProgressVO.class).eq(TaskProgressVO_.apiId, apiId).list();
+        if (vos.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<TaskProgressInventory> invs = vos.stream().map(this::inventory).collect(Collectors.toList());
+        Map<String, List<TaskProgressInventory>> map = new HashMap<>();
+        String nullKey = "null";
+        for (TaskProgressInventory inv : invs) {
+            String key = inv.getParentUuid() == null ? nullKey : inv.getParentUuid();
+            List<TaskProgressInventory> lst = map.get(nullKey);
+            if (lst == null) {
+                lst = new ArrayList<>();
+                map.put(key, lst);
+            }
+
+            lst.add(inv);
+        }
+
+        // sort by time with DESC
+        for (Map.Entry<String, List<TaskProgressInventory>> e : map.entrySet()) {
+            e.getValue().sort((o1, o2) -> (int) (o1.getTime() - o2.getTime()));
+        }
+
+        for (Map.Entry<String, List<TaskProgressInventory>> e : map.entrySet()) {
+            if (e.getKey().equals(nullKey)) {
+                continue;
+            }
+
+            List<TaskProgressInventory> lst = e.getValue();
+            Optional<TaskProgressInventory> opt = invs.stream().filter(it -> it.getParentUuid().equals(e.getKey())).findAny();
+            assert opt.isPresent();
+            TaskProgressInventory inv = opt.get();
+            inv.setSubTasks(lst);
+        }
+
+        return invs;
+    }
+
     private void handle(APIGetTaskProgressMsg msg) {
         APIGetTaskProgressReply reply = new APIGetTaskProgressReply();
 
@@ -240,17 +350,7 @@ public class ProgressReportService extends AbstractService implements Management
                 }
             }
 
-            private TaskProgressInventory inventory(TaskProgressVO vo) {
-                TaskProgressInventory inv = new TaskProgressInventory(vo);
-                if (vo.getArguments() == null) {
-                    inv.setContent(toI18nString(vo.getContent()));
-                } else {
-                    List<String> args = JSONObjectUtil.toCollection(vo.getArguments(), ArrayList.class, String.class);
-                    inv.setContent(toI18nString(vo.getContent(), args.toArray()));
-                }
 
-                return inv;
-            }
 
             private void replyLastProgress() {
                 TaskProgressVO vo = Q.New(TaskProgressVO.class)
@@ -291,44 +391,7 @@ public class ProgressReportService extends AbstractService implements Management
             }
 
             private void replyAllProgress() {
-                List<TaskProgressVO> vos = Q.New(TaskProgressVO.class).eq(TaskProgressVO_.apiId, msg.getApiId()).list();
-                if (vos.isEmpty()) {
-                    reply.setInventories(new ArrayList<>());
-                    return;
-                }
-
-                List<TaskProgressInventory> invs = vos.stream().map(this::inventory).collect(Collectors.toList());
-                Map<String, List<TaskProgressInventory>> map = new HashMap<>();
-                String nullKey = "null";
-                for (TaskProgressInventory inv : invs) {
-                    String key = inv.getParentUuid() == null ? nullKey : inv.getParentUuid();
-                    List<TaskProgressInventory> lst = map.get(nullKey);
-                    if (lst == null) {
-                        lst = new ArrayList<>();
-                        map.put(key, lst);
-                    }
-
-                    lst.add(inv);
-                }
-
-                // sort by time with DESC
-                for (Map.Entry<String, List<TaskProgressInventory>> e : map.entrySet()) {
-                    e.getValue().sort((o1, o2) -> (int) (o1.getTime() - o2.getTime()));
-                }
-
-                for (Map.Entry<String, List<TaskProgressInventory>> e : map.entrySet()) {
-                    if (e.getKey().equals(nullKey)) {
-                        continue;
-                    }
-
-                    List<TaskProgressInventory> lst = e.getValue();
-                    Optional<TaskProgressInventory> opt = invs.stream().filter(it -> it.getParentUuid().equals(e.getKey())).findAny();
-                    assert opt.isPresent();
-                    TaskProgressInventory inv = opt.get();
-                    inv.setSubTasks(lst);
-                }
-
-                reply.setInventories(map.get(nullKey));
+                reply.setInventories(getAllProgress(msg.getApiId()));
             }
         }.execute();
 
@@ -390,6 +453,8 @@ public class ProgressReportService extends AbstractService implements Management
             return;
         }
 
+        ThreadContext.put(Constants.THREAD_CONTEXT_PROGRESS_ENABLED, "true");
+
         String parentUuid = getParentUuid();
         String taskUuid = Platform.getUuid();
         ThreadContext.push(taskUuid);
@@ -419,6 +484,8 @@ public class ProgressReportService extends AbstractService implements Management
             }
             return;
         }
+
+        ThreadContext.put(Constants.THREAD_CONTEXT_PROGRESS_ENABLED, "true");
 
         String taskUuid = getTaskUuid();
         if (taskUuid.isEmpty()) {

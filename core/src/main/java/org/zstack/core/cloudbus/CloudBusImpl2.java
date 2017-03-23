@@ -105,8 +105,8 @@ public class CloudBusImpl2 implements CloudBus, CloudBusIN, ManagementNodeChange
     private final String MESSAGE_META_DATA = "metaData";
     private final long DEFAULT_MESSAGE_TIMEOUT = TimeUnit.MINUTES.toMillis(30);
     private final String DEAD_LETTER = "dead-message";
-    private final String API_ID = "api-id";
     private final String TASK_STACK = "task-stack";
+    private final String TASK_CONTEXT = "task-context";
 
     private final String AMQP_PROPERTY_HEADER__COMPRESSED = "compressed";
 
@@ -1952,26 +1952,28 @@ public class CloudBusImpl2 implements CloudBus, CloudBusIN, ManagementNodeChange
     }
 
     private void setThreadLoggingContext(Message msg) {
+        ThreadContext.clearAll();
+
         if (msg instanceof APIMessage) {
             ThreadContext.put(Constants.THREAD_CONTEXT_API, msg.getId());
-        } else if (msg.getHeaders().containsKey(API_ID)){
-            ThreadContext.put(Constants.THREAD_CONTEXT_API, msg.getHeaders().get(API_ID).toString());
+            ThreadContext.push(Constants.THREAD_CONTEXT_API_NAME, msg.getClass().getName());
         } else {
-            ThreadContext.clearMap();
+            Map<String, String> ctx = msg.getHeaderEntry(TASK_CONTEXT);
+            if (ctx != null) {
+                ThreadContext.putAll(ctx);
+            }
         }
 
         if (msg.getHeaders().containsKey(TASK_STACK)) {
             List<String> taskStack = msg.getHeaderEntry(TASK_STACK);
             ThreadContext.setStack(taskStack);
-        } else {
-            ThreadContext.clearStack();
         }
     }
 
     private void evalThreadContextToMessage(Message msg) {
-        String apiId = ThreadContext.get("api");
-        if (apiId != null) {
-            msg.putHeaderEntry(API_ID, apiId);
+        Map<String, String> ctx = ThreadContext.getImmutableContext();
+        if (ctx != null) {
+            msg.putHeaderEntry(TASK_CONTEXT, ctx);
         }
 
         List<String> taskStack = ThreadContext.getImmutableStack().asList();
