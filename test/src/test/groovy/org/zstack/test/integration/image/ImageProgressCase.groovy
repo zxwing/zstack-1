@@ -5,11 +5,13 @@ import org.springframework.web.util.UriComponentsBuilder
 import org.zstack.core.Platform
 import org.zstack.core.progress.ProgressCommands
 import org.zstack.header.core.progress.ProgressConstants
+import org.zstack.header.core.progress.TaskType
 import org.zstack.header.rest.RESTConstant
 import org.zstack.header.rest.RESTFacade
 import org.zstack.sdk.AddImageAction
 import org.zstack.sdk.BackupStorageInventory
 import org.zstack.sdk.Completion
+import org.zstack.sdk.ErrorCode
 import org.zstack.sdk.TaskProgressInventory
 import org.zstack.storage.ceph.backup.CephBackupStorageBase
 import org.zstack.testlib.EnvSpec
@@ -57,7 +59,6 @@ class ImageProgressCase extends SubCase {
 
             int i = 0
             trigger.func = {
-                logger.debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
                 i += 20
                 def header = [(RESTConstant.COMMAND_PATH): ProgressConstants.PROGRESS_REPORT_PATH]
                 def rcmd = new ProgressCommands.ProgressReportCmd()
@@ -81,15 +82,16 @@ class ImageProgressCase extends SubCase {
         a.url = "http://zstack.org/download/image.qcow2"
         a.format = "qcow2"
 
-        boolean s = false
+        ErrorCode err = null
         a.call(new Completion<AddImageAction.Result>() {
             @Override
             void complete(AddImageAction.Result ret) {
-                s = ret.error != null
+                err = ret.error
             }
         })
 
-        for (i in 1..5) {
+        int num = 5
+        for (i in 1..num) {
             trigger.trigger()
 
             retryInMillis(5000) {
@@ -103,6 +105,8 @@ class ImageProgressCase extends SubCase {
                     TaskProgressInventory inv = invs[0]
 
                     assert inv.content == "${i*20}".toString()
+                    assert inv.parentUuid == null
+                    assert inv.type == TaskType.Progress.toString()
                 }
             }
         }
@@ -110,8 +114,15 @@ class ImageProgressCase extends SubCase {
         trigger.quit()
 
         retryInSecs(30) {
-            return { assert s }
+            return { assert err == null: "$err" }
         }
+
+        List<TaskProgressInventory> invs = getTaskProgress {
+            apiId = id
+            all = true
+        }
+
+        assert invs.size() == num
     }
 
     @Override

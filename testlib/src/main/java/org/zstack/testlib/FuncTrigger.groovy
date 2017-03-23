@@ -7,13 +7,17 @@ import java.util.concurrent.LinkedBlockingQueue
  * Created by xing5 on 2017/3/23.
  */
 class FuncTrigger {
-    private BlockingQueue<String> queue = new LinkedBlockingQueue<>()
+    private BlockingQueue queue = new LinkedBlockingQueue()
     private String quitObject = "quit"
 
     Closure func
 
-    void trigger() {
-        queue.add("")
+    void trigger(o = "") {
+        queue.add(o)
+
+        synchronized (o) {
+            o.wait()
+        }
     }
 
     void quit() {
@@ -24,12 +28,16 @@ class FuncTrigger {
         assert func != null: "func cannot be null"
 
         while (true) {
-            String token = queue.take()
+            def token = queue.take()
             if (token == quitObject) {
                 break
             }
 
-            func()
+            func(token)
+
+            synchronized (token) {
+                token.notifyAll()
+            }
         }
     }
 }

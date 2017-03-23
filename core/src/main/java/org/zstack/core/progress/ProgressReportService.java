@@ -275,7 +275,7 @@ public class ProgressReportService extends AbstractService implements Management
                 while (vo.getParentUuid() != null) {
                     vo = Q.New(TaskProgressVO.class)
                             .eq(TaskProgressVO_.apiId, msg.getApiId())
-                            .eq(TaskProgressVO_.parentUuid, vo.getParentUuid())
+                            .eq(TaskProgressVO_.taskUuid, vo.getParentUuid())
                             .orderBy(TaskProgressVO_.time, SimpleQuery.Od.DESC)
                             .limit(1)
                             .find();
@@ -405,6 +405,7 @@ public class ProgressReportService extends AbstractService implements Management
         }
         vo.setType(TaskType.Task);
         vo.setTime(System.currentTimeMillis());
+        vo.setManagementUuid(Platform.getManagementServerId());
 
         Platform.getComponentLoader().getComponent(DatabaseFacade.class).persist(vo);
     }
@@ -434,6 +435,7 @@ public class ProgressReportService extends AbstractService implements Management
         }
         vo.setType(type);
         vo.setTime(System.currentTimeMillis());
+        vo.setManagementUuid(Platform.getManagementServerId());
 
         Platform.getComponentLoader().getComponent(DatabaseFacade.class).persist(vo);
     }

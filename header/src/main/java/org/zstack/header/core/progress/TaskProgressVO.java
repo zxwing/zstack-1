@@ -1,6 +1,8 @@
 package org.zstack.header.core.progress;
 
 import org.zstack.header.managementnode.ManagementNodeVO;
+import org.zstack.header.vo.*;
+import org.zstack.header.vo.ForeignKey;
 
 import javax.persistence.*;
 
@@ -30,7 +32,7 @@ public class TaskProgressVO {
     @Column
     private String opaque;
     @Column
-    @org.zstack.header.vo.ForeignKey(parentEntityClass = ManagementNodeVO.class, parentKey = "uuid")
+    @org.zstack.header.vo.ForeignKey(parentEntityClass = ManagementNodeVO.class, parentKey = "uuid", onDeleteAction = ForeignKey.ReferenceOption.SET_NULL)
     private String managementUuid;
     @Column
     private long time;
