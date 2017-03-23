@@ -2,8 +2,6 @@ package org.zstack.header.core.progress;
 
 import org.zstack.utils.gson.JSONObjectUtil;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -12,13 +10,15 @@ import java.util.List;
  */
 public class TaskProgressInventory {
     private String taskUuid;
+    private String taskName;
     private String parentUuid;
     private String type;
     private String content;
     private LinkedHashMap opaque;
     private Long time;
     private List<TaskProgressInventory> subTasks;
-    private Long total;
+    private Integer totalSteps;
+    private Integer currentStep;
 
     public TaskProgressInventory() {
     }
@@ -30,15 +30,32 @@ public class TaskProgressInventory {
         if (vo.getOpaque() != null) {
             opaque = JSONObjectUtil.toObject(vo.getOpaque(), LinkedHashMap.class);
         }
+        taskName = vo.getTaskName();
         time = vo.getTime();
     }
 
-    public Long getTotal() {
-        return total;
+    public String getTaskName() {
+        return taskName;
     }
 
-    public void setTotal(Long total) {
-        this.total = total;
+    public void setTaskName(String taskName) {
+        this.taskName = taskName;
+    }
+
+    public Integer getTotalSteps() {
+        return totalSteps;
+    }
+
+    public void setTotalSteps(Integer totalSteps) {
+        this.totalSteps = totalSteps;
+    }
+
+    public Integer getCurrentStep() {
+        return currentStep;
+    }
+
+    public void setCurrentStep(Integer currentStep) {
+        this.currentStep = currentStep;
     }
 
     public List<TaskProgressInventory> getSubTasks() {

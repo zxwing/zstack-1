@@ -21,6 +21,8 @@ public class TaskProgressVO {
     @Column
     private String apiId;
     @Column
+    private String taskName;
+    @Column
     private String parentUuid;
     @Column
     @Enumerated(EnumType.STRING)
@@ -36,6 +38,14 @@ public class TaskProgressVO {
     private String managementUuid;
     @Column
     private long time;
+
+    public String getTaskName() {
+        return taskName;
+    }
+
+    public void setTaskName(String taskName) {
+        this.taskName = taskName;
+    }
 
     public String getManagementUuid() {
         return managementUuid;

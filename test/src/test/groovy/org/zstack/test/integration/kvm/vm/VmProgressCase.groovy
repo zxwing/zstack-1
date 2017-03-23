@@ -94,10 +94,12 @@ class VmProgressCase extends SubCase {
                 TaskProgressInventory inv = invs[0]
                 assert inv.content == rcmd.progress
                 assert inv.type == TaskType.Progress.toString()
+                assert inv.currentStep != 0
 
                 // the second one is starting user vm
                 inv = invs[1]
                 assert inv.type == TaskType.Task.toString()
+                assert inv.currentStep != 0
 
             } else if (cmd.backupStorageInstallPath == vrImagePath) {
                 // downloading vr image, 1 sub tasks here
@@ -112,14 +114,17 @@ class VmProgressCase extends SubCase {
                 TaskProgressInventory inv = invs[0]
                 assert inv.content == rcmd.progress
                 assert inv.type == TaskType.Progress.toString()
+                assert inv.currentStep != 0
 
                 // the second one is starting vr
                 inv = invs[1]
                 assert inv.type == TaskType.Task.toString()
+                assert inv.currentStep != 0
 
                 // the third one is starting user vm
                 inv = invs[2]
                 assert inv.type == TaskType.Task.toString()
+                assert inv.currentStep != 0
             } else {
                 assert false: "should not be here: ${cmd.backupStorageInstallPath}"
             }
@@ -138,6 +143,30 @@ class VmProgressCase extends SubCase {
 
         retryInSecs(30) {
             return { assert vmError == null: "$vmError"}
+        }
+
+        // the steps are learned, so the return should have totalSteps now
+        List<TaskProgressInventory> invs = getTaskProgress {
+            apiId = a.apiId
+        }
+
+        invs.each {
+            if (it.type != TaskType.Progress.toString()) {
+                assert it.totalSteps != null: JSONObjectUtil.toJsonString(it)
+                assert it.currentStep != null: JSONObjectUtil.toJsonString(it)
+            }
+        }
+
+        invs = getTaskProgress {
+            apiId = a.apiId
+            all = true
+        }
+
+        invs.each {
+            if (it.type != TaskType.Progress.toString()) {
+                assert it.totalSteps != null: JSONObjectUtil.toJsonString(it)
+                assert it.currentStep != null: JSONObjectUtil.toJsonString(it)
+            }
         }
     }
 

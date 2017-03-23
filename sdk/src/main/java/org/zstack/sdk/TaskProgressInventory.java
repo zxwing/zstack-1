@@ -10,6 +10,14 @@ public class TaskProgressInventory  {
         return this.taskUuid;
     }
 
+    public java.lang.String taskName;
+    public void setTaskName(java.lang.String taskName) {
+        this.taskName = taskName;
+    }
+    public java.lang.String getTaskName() {
+        return this.taskName;
+    }
+
     public java.lang.String parentUuid;
     public void setParentUuid(java.lang.String parentUuid) {
         this.parentUuid = parentUuid;
@@ -58,12 +66,20 @@ public class TaskProgressInventory  {
         return this.subTasks;
     }
 
-    public java.lang.Long total;
-    public void setTotal(java.lang.Long total) {
-        this.total = total;
+    public java.lang.Integer totalSteps;
+    public void setTotalSteps(java.lang.Integer totalSteps) {
+        this.totalSteps = totalSteps;
     }
-    public java.lang.Long getTotal() {
-        return this.total;
+    public java.lang.Integer getTotalSteps() {
+        return this.totalSteps;
+    }
+
+    public java.lang.Integer currentStep;
+    public void setCurrentStep(java.lang.Integer currentStep) {
+        this.currentStep = currentStep;
+    }
+    public java.lang.Integer getCurrentStep() {
+        return this.currentStep;
     }
 
 }
