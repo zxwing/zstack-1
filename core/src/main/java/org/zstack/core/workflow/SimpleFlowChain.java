@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowire;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 import org.zstack.core.CoreGlobalProperty;
+import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.header.core.workflow.*;
 import org.zstack.header.errorcode.ErrorCode;
@@ -53,6 +54,9 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
     private List<List<Runnable>> afterDone = new ArrayList<>();
     private List<List<Runnable>> afterError = new ArrayList<>();
     private List<List<Runnable>> afterFinal = new ArrayList<>();
+
+    @Autowired
+    private PluginRegistry pluginRgty;
 
     private boolean isFailCalled;
 
@@ -291,9 +295,15 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
 
             currentFlow = toRun;
 
-            String info = String.format("[FlowChain: %s] start executing flow[%s]", name, getFlowName(currentFlow));
+            String flowName = getFlowName(currentFlow);
+            String info = String.format("[FlowChain: %s] start executing flow[%s]", name, flowName);
             logger.debug(info);
             collectAfterRunnable(toRun);
+
+            for (BeforeFlowRunExtensionPoint ext : pluginRgty.getExtensionList(BeforeFlowRunExtensionPoint.class)) {
+                ext.beforeFlowRun(flowName, currentFlow, this, data);
+            }
+
             toRun.run(this, data);
         } catch (OperationFailureException oe) {
             String errInfo = oe.getErrorCode() != null ? oe.getErrorCode().toString() : "";
