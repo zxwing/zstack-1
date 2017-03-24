@@ -25,3 +25,5 @@ CREATE TABLE  `zstack`.`TaskStepVO` (
     `createDate` timestamp,
     PRIMARY KEY  (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE ProgressVO;

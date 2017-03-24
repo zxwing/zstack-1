@@ -63,35 +63,11 @@ public class ProgressReportService extends AbstractService implements Management
 
     @Override
     public boolean start() {
-        restf.registerSyncHttpCallHandler(ProgressConstants.PROGRESS_START_PATH, ProgressReportCmd.class, new SyncHttpCallHandler<ProgressReportCmd>() {
-            @Override
-            public String handleSyncHttpCall(ProgressReportCmd cmd) {
-                //TODO
-                logger.debug(String.format("call PROGRESS_START_PATH by %s, uuid: %s", cmd.getProcessType(), cmd.getResourceUuid()));
-                startProcess(cmd);
-                return null;
-            }
-        });
-
         restf.registerSyncHttpCallHandler(ProgressConstants.PROGRESS_REPORT_PATH, ProgressReportCmd.class, new SyncHttpCallHandler<ProgressReportCmd>() {
             @Override
             public String handleSyncHttpCall(ProgressReportCmd cmd) {
                 setThreadContext(cmd);
                 taskProgress(TaskType.Progress, cmd.getProgress());
-
-                //TODO
-                logger.debug(String.format("call PROGRESS_REPORT_PATH by %s, uuid: %s", cmd.getProcessType(), cmd.getResourceUuid()));
-                //process(cmd);
-                return null;
-            }
-        });
-
-        restf.registerSyncHttpCallHandler(ProgressConstants.PROGRESS_FINISH_PATH, ProgressReportCmd.class, new SyncHttpCallHandler<ProgressReportCmd>() {
-            @Override
-            public String handleSyncHttpCall(ProgressReportCmd cmd) {
-                //TODO
-                logger.debug(String.format("call PROGRESS_FINISH_PATH by %s, uuid: %s", cmd.getProcessType(), cmd.getResourceUuid()));
-                finishProcess(cmd);
                 return null;
             }
         });
@@ -181,11 +157,6 @@ public class ProgressReportService extends AbstractService implements Management
         return true;
     }
 
-    private void validation(ProgressReportCmd cmd) {
-        validationType(cmd.getProcessType());
-        validationUuid(cmd.getResourceUuid());
-    }
-
     private void validationType(String processType) {
         if (processType == null || !ProgressConstants.ProgressType.contains(processType) ) {
             logger.warn(String.format("not supported processType: %s", processType));
@@ -201,84 +172,8 @@ public class ProgressReportService extends AbstractService implements Management
         }
     }
 
-    private void startProcess(ProgressReportCmd cmd) {
-        validation(cmd);
-        insertProgress(cmd);
-    }
-
-    private void process(ProgressReportCmd cmd) {
-        validation(cmd);
-        updateProgress(cmd);
-    }
-
-    private void finishProcess(ProgressReportCmd cmd) {
-        validation(cmd);
-        deleteProgress(cmd);
-    }
-
-    @Transactional
-    private void insertProgress(ProgressReportCmd cmd) {
-        logger.debug(String.format("insert progress and it begins, processType is: %s", cmd.getProcessType()));
-        SimpleQuery<ProgressVO> q = dbf.createQuery(ProgressVO.class);
-        // please notice if there are no conditions that result more than two vo found...
-        q.add(ProgressVO_.processType, SimpleQuery.Op.EQ, cmd.getProcessType());
-        q.add(ProgressVO_.resourceUuid, SimpleQuery.Op.EQ, cmd.getResourceUuid());
-        if (q.isExists()) {
-            logger.warn(String.format("delete records that shouldn't exist...: %s", q.count()));
-            q.list().stream().forEach(p -> dbf.remove(p));
-        }
-        ProgressVO vo = new ProgressVO();
-        vo.setProgress(cmd.getProgress() == null? "0":cmd.getProgress());
-        vo.setProcessType(cmd.getProcessType());
-        vo.setResourceUuid(cmd.getResourceUuid());
-        dbf.persistAndRefresh(vo);
-    }
-
-    @Transactional
-    private void deleteProgress(ProgressReportCmd cmd) {
-        logger.debug("delete progress and it's over");
-        SimpleQuery<ProgressVO> q = dbf.createQuery(ProgressVO.class);
-        // please notice if there are no conditions that result more than two vo found...
-        q.add(ProgressVO_.processType, SimpleQuery.Op.EQ, cmd.getProcessType());
-        q.add(ProgressVO_.resourceUuid, SimpleQuery.Op.EQ, cmd.getResourceUuid());
-        List<ProgressVO> list = q.list();
-        if (list.size() > 0) {
-            for (ProgressVO p : list) {
-                try {
-                    dbf.remove(p);
-                } catch (Exception e) {
-                    logger.warn("no need delete, it was deleted...");
-                }
-            }
-        }
-    }
-
     @Override
     public void managementNodeReady() {
-
-    }
-
-    @Transactional
-    private void updateProgress(ProgressReportCmd cmd) {
-        logger.debug(String.format("update progress and during processing, progress is: %s, resource is: %s", cmd.getProgress(), cmd.getResourceUuid()));
-        SimpleQuery<ProgressVO> q = dbf.createQuery(ProgressVO.class);
-        q.add(ProgressVO_.processType, SimpleQuery.Op.EQ, cmd.getProcessType());
-        q.add(ProgressVO_.resourceUuid, SimpleQuery.Op.EQ, cmd.getResourceUuid());
-        if (q.isExists()) {
-            List<ProgressVO> list = q.list();
-            if (list.size() > 0) {
-                ProgressVO vo = list.get(list.size() - 1);
-                vo.setProgress(cmd.getProgress());
-                dbf.updateAndRefresh(vo);
-            }
-        } else {
-            logger.debug(String.format("progress is not existed, insert progress and it begins, processType is: %s", cmd.getProcessType()));
-            ProgressVO vo = new ProgressVO();
-            vo.setProgress(cmd.getProgress() == null? "0":cmd.getProgress());
-            vo.setProcessType(cmd.getProcessType());
-            vo.setResourceUuid(cmd.getResourceUuid());
-            dbf.persistAndRefresh(vo);
-        }
     }
 
     @Override
@@ -297,9 +192,7 @@ public class ProgressReportService extends AbstractService implements Management
     }
 
     private void handleApiMessage(APIMessage msg) {
-        if (msg instanceof APIGetTaskProgressMsg1) {
-            handle((APIGetTaskProgressMsg1) msg);
-        } else if (msg instanceof APIGetTaskProgressMsg) {
+        if (msg instanceof APIGetTaskProgressMsg) {
             handle((APIGetTaskProgressMsg) msg);
         } else {
             bus.dealWithUnknownMessage(msg);
@@ -479,28 +372,6 @@ public class ProgressReportService extends AbstractService implements Management
 
     private void handleLocalMessage(Message msg) {
         bus.dealWithUnknownMessage(msg);
-    }
-
-    private void handle(APIGetTaskProgressMsg1 msg) {
-        APIGetTaskProgressReply1 reply = new APIGetTaskProgressReply1();
-        SimpleQuery<ProgressVO> q = dbf.createQuery(ProgressVO.class);
-        q.add(ProgressVO_.resourceUuid, SimpleQuery.Op.EQ, msg.getResourceUuid());
-        if (msg.getProcessType() != null) {
-            q.add(ProgressVO_.processType, SimpleQuery.Op.EQ, msg.getProcessType());
-        }
-        q.orderBy(ProgressVO_.lastOpDate, SimpleQuery.Od.ASC);
-        List<ProgressVO> vos = q.list();
-        if (q.list().size() == 0) {
-            reply.setSuccess(true);
-        } else {
-            ProgressVO vo = vos.get(vos.size() - 1);
-            reply.setProgress(vo.getProgress());
-            reply.setCreateDate(vo.getCreateDate());
-            reply.setLastOpDate(vo.getLastOpDate());
-            reply.setProcessType(vo.getProcessType());
-            reply.setResourceUuid(vo.getResourceUuid());
-        }
-        bus.reply(msg, reply);
     }
 
     private static String getTaskUuid() {

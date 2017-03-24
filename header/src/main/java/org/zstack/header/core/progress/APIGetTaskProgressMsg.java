@@ -8,7 +8,7 @@ import org.zstack.header.rest.RestRequest;
  * Created by xing5 on 2017/3/21.
  */
 @RestRequest(
-        path = "/task-progresses",
+        path = "/task-progresses/{apiId}",
         method = HttpMethod.GET,
         responseClass = APIGetTaskProgressReply.class
 )

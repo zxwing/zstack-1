@@ -72,7 +72,7 @@ public class GetTaskProgressAction extends AbstractAction {
     RestInfo getRestInfo() {
         RestInfo info = new RestInfo();
         info.httpMethod = "GET";
-        info.path = "/task-progresses";
+        info.path = "/task-progresses/{apiId}";
         info.needSession = true;
         info.needPoll = false;
         info.parameterName = "";
