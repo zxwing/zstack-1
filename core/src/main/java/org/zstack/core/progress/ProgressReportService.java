@@ -415,10 +415,10 @@ public class ProgressReportService extends AbstractService implements Management
                     return;
                 }
 
-                Stack<TaskProgressInventory> invs = new Stack<>();
+                List<TaskProgressInventory> invs = new ArrayList<>();
                 inv = inventory(vo);
                 inv.setCurrentStep(calculateCurrentStep(vo));
-                invs.push(inv);
+                invs.add(inv);
 
                 while (vo.getParentUuid() != null) {
                     vo = Q.New(TaskProgressVO.class)
@@ -434,9 +434,10 @@ public class ProgressReportService extends AbstractService implements Management
 
                     inv = inventory(vo);
                     inv.setCurrentStep(calculateCurrentStep(vo));
-                    invs.push(inv);
+                    invs.add(inv);
                 }
 
+                Collections.reverse(invs);
                 reply.setInventories(invs);
             }
 

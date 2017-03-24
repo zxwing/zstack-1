@@ -90,15 +90,15 @@ class VmProgressCase extends SubCase {
 
                 assert invs.size() == 2
 
-                // the first one is downloading user image
+                // the first one is starting the user vm
                 TaskProgressInventory inv = invs[0]
-                assert inv.content == rcmd.progress
-                assert inv.type == TaskType.Progress.toString()
+                assert inv.type == TaskType.Task.toString()
                 assert inv.currentStep != 0
 
-                // the second one is starting user vm
+                // the second one is downloading user image
                 inv = invs[1]
-                assert inv.type == TaskType.Task.toString()
+                assert inv.content == rcmd.progress
+                assert inv.type == TaskType.Progress.toString()
                 assert inv.currentStep != 0
 
             } else if (cmd.backupStorageInstallPath == vrImagePath) {
@@ -110,10 +110,9 @@ class VmProgressCase extends SubCase {
 
                 assert invs.size() == 3
 
-                // the first one is downloading vr image
+                // the first one is starting the user vm
                 TaskProgressInventory inv = invs[0]
-                assert inv.content == rcmd.progress
-                assert inv.type == TaskType.Progress.toString()
+                assert inv.type == TaskType.Task.toString()
                 assert inv.currentStep != 0
 
                 // the second one is starting vr
@@ -121,10 +120,12 @@ class VmProgressCase extends SubCase {
                 assert inv.type == TaskType.Task.toString()
                 assert inv.currentStep != 0
 
-                // the third one is starting user vm
+                // the third one is downloading vr image
                 inv = invs[2]
-                assert inv.type == TaskType.Task.toString()
+                assert inv.content == rcmd.progress
+                assert inv.type == TaskType.Progress.toString()
                 assert inv.currentStep != 0
+
             } else {
                 assert false: "should not be here: ${cmd.backupStorageInstallPath}"
             }
