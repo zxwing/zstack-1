@@ -1956,7 +1956,7 @@ public class CloudBusImpl2 implements CloudBus, CloudBusIN, ManagementNodeChange
 
         if (msg instanceof APIMessage) {
             ThreadContext.put(Constants.THREAD_CONTEXT_API, msg.getId());
-            ThreadContext.put(Constants.THREAD_CONTEXT_API_NAME, msg.getClass().getName());
+            ThreadContext.put(Constants.THREAD_CONTEXT_TASK_NAME, msg.getClass().getName());
         } else {
             Map<String, String> ctx = msg.getHeaderEntry(TASK_CONTEXT);
             if (ctx != null) {
