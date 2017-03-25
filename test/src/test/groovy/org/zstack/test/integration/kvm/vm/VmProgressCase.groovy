@@ -16,6 +16,7 @@ import org.zstack.testlib.ApiPathTracker
 import org.zstack.testlib.EnvSpec
 import org.zstack.testlib.FuncTrigger
 import org.zstack.testlib.SubCase
+import org.zstack.testlib.Test
 import org.zstack.utils.gson.JSONObjectUtil
 
 /**
@@ -78,8 +79,6 @@ class VmProgressCase extends SubCase {
         a.instanceOfferingUuid = env.inventoryByName("instanceOffering").uuid
         a.l3NetworkUuids = [env.inventoryByName("l3").uuid]
         a.name = "vm"
-
-        def tracker = new ApiPathTracker(a.apiId).track()
 
         ft.func = {
             def (LocalStorageKvmSftpBackupStorageMediatorImpl.SftpDownloadBitsCmd cmd, ProgressCommands.ProgressReportCmd rcmd) = it
@@ -173,7 +172,7 @@ class VmProgressCase extends SubCase {
             }
         }
 
-        logger.debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n ${tracker.apiPath().join("\n")}")
+        logger.debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n ${org.zstack.testlib.Test.apiPaths}")
     }
 
     @Override

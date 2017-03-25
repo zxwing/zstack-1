@@ -55,9 +55,6 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
     private List<List<Runnable>> afterError = new ArrayList<>();
     private List<List<Runnable>> afterFinal = new ArrayList<>();
 
-    @Autowired
-    private PluginRegistry pluginRgty;
-
     private boolean isFailCalled;
 
     private static final Map<String, WorkFlowStatistic> statistics = new ConcurrentHashMap<>();
@@ -299,11 +296,6 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
             String info = String.format("[FlowChain: %s] start executing flow[%s]", name, flowName);
             logger.debug(info);
             collectAfterRunnable(toRun);
-
-            for (BeforeFlowRunExtensionPoint ext : pluginRgty.getExtensionList(BeforeFlowRunExtensionPoint.class)) {
-                ext.beforeFlowRun(flowName, currentFlow, this, data);
-            }
-
             toRun.run(this, data);
         } catch (OperationFailureException oe) {
             String errInfo = oe.getErrorCode() != null ? oe.getErrorCode().toString() : "";
