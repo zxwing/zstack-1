@@ -171,8 +171,6 @@ class VmProgressCase extends SubCase {
                 assert it.currentStep != null: JSONObjectUtil.toJsonString(it)
             }
         }
-
-        logger.debug("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n ${org.zstack.testlib.Test.apiPaths}")
     }
 
     @Override
