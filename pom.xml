@@ -345,6 +345,12 @@
 	        <artifactId>javaparser-core</artifactId>
 	        <version>3.0.1</version>
 	    </dependency>
+            <dependency>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-runtime</artifactId>
+                <version>4.7</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -371,6 +377,19 @@
                         <version>${project.version}</version>
                     </docletArtifact>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-maven-plugin</artifactId>
+                <version>4.7</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>antlr4</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
         </plugins>
