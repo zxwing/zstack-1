@@ -337,9 +337,9 @@ abstract class Test implements ApiHelper {
     }
 
     private void collectFailureCaseLog(File dir, Class caseClass, String caseLogStartLine) {
-        File failureLogDir = new File([dir.absolutePath, "failureLogs"].join("/"))
+        File failureLogDir = new File([dir.absolutePath, "failureLogs", caseClass.name.replace(".", "_")].join("/"))
         failureLogDir.mkdirs()
-        File failureLog = new File([failureLogDir.absolutePath, caseClass.name.replace(".", "_")].join("/"))
+        File failureLog = new File([failureLogDir.absolutePath, "case.log"].join("/"))
 
         File mgmtLogPath = new File([System.getProperty("user.dir"), "management-server.log"].join("/"))
 
