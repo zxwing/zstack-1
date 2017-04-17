@@ -62,7 +62,6 @@ import java.util.regex.Pattern;
 import static org.zstack.utils.CollectionDSL.list;
 
 public class AccountManagerImpl extends AbstractService implements AccountManager, PrepareDbInitialValueExtensionPoint,
-        SoftDeleteEntityExtensionPoint, HardDeleteEntityExtensionPoint,
         GlobalApiMessageInterceptor, ApiMessageInterceptor, ApiNotificationFactoryExtensionPoint {
     private static final CLogger logger = Utils.getLogger(AccountManagerImpl.class);
 
@@ -654,6 +653,7 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
         for (String resrouceTypeName : resourceTypeForAccountRef) {
             Class<?> rs = Class.forName(resrouceTypeName);
             resourceTypes.add(rs);
+            resourceTypes.addAll(Platform.getReflections().getSubTypesOf(rs));
         }
     }
 
@@ -676,6 +676,7 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
             collectDefaultQuota();
             configureGlobalConfig();
             setupCanonicalEvents();
+            installDbListenerForResourceAccountRefVO();
 
             for (ReportApiAccountControlExtensionPoint ext : pluginRgty.getExtensionList(ReportApiAccountControlExtensionPoint.class)) {
                 List<Class> apis = ext.reportApiAccountControl();
@@ -687,6 +688,19 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
             throw new CloudRuntimeException(e);
         }
         return true;
+    }
+
+    private void installDbListenerForResourceAccountRefVO() {
+        dbf.installEntityLifeCycleCallback(null, EntityEvent.POST_REMOVE, new AbstractEntityLifeCycleCallback() {
+            @Override
+            public void entityLifeCycleEvent(EntityEvent evt, Object o) {
+                if (isResourceHavingAccountReference(o.getClass())) {
+                    SQL.New(AccountResourceRefVO.class).eq(AccountResourceRefVO_.resourceUuid, getPrimaryKeyValue(o))
+                            .eq(AccountResourceRefVO_.resourceType, o.getClass().getSimpleName())
+                            .hardDelete();
+                }
+            }
+        });
     }
 
     private void setupCanonicalEvents() {
@@ -1108,33 +1122,6 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
             return ownerUuid;
         } catch (Exception e) {
             throw new CloudRuntimeException(e);
-        }
-    }
-
-    @Override
-    public List<Class> getEntityClassForSoftDeleteEntityExtension() {
-        return resourceTypes;
-    }
-
-    @Override
-    @Transactional
-    public void postSoftDelete(Collection entityIds, Class entityClass) {
-        String sql = "delete from AccountResourceRefVO ref where ref.resourceUuid in (:uuids) and ref.resourceType = :resourceType";
-        Query q = dbf.getEntityManager().createQuery(sql);
-        q.setParameter("uuids", entityIds);
-        q.setParameter("resourceType", entityClass.getSimpleName());
-        q.executeUpdate();
-    }
-
-    @Override
-    public List<Class> getEntityClassForHardDeleteEntityExtension() {
-        return resourceTypes;
-    }
-
-    @Override
-    public void postHardDelete(Collection entityIds, Class entityClass) {
-        if (resourceTypes.contains(entityClass)) {
-            postSoftDelete(entityIds, entityClass);
         }
     }
 
