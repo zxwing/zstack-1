@@ -399,138 +399,6 @@ ALTER TABLE EcsVpcVO ADD CONSTRAINT fkEcsVpcVODataCenterVO FOREIGN KEY (dataCent
 ALTER TABLE EcsVSwitchVO ADD CONSTRAINT fkEcsVSwitchVOEcsVpcVO FOREIGN KEY (ecsVpcUuid) REFERENCES EcsVpcVO (uuid) ON DELETE CASCADE;
 ALTER TABLE EcsVSwitchVO ADD CONSTRAINT fkEcsVSwitchVOIdentityZoneVO FOREIGN KEY (identityZoneUuid) REFERENCES IdentityZoneVO (uuid) ON DELETE CASCADE;
 
-
-# sync EcsVSwitchVO availableIpAddressCount while EcsInstanceVO update
-DROP TRIGGER IF EXISTS trigger_decrease_vswitch_for_create_ecs;
-DELIMITER $$
-CREATE TRIGGER trigger_decrease_vswitch_for_create_ecs after insert ON `EcsInstanceVO`
-FOR EACH ROW
-BEGIN
-update `EcsVSwitchVO` set `availableIpAddressCount`=`availableIpAddressCount`-1 where `uuid`=NEW.`ecsVSwitchUuid`;
-END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_EcsInstanceVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_EcsInstanceVO AFTER DELETE ON `EcsInstanceVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='EcsInstanceVO';
-        update `EcsVSwitchVO` set `availableIpAddressCount`=`availableIpAddressCount`+1 where `uuid`=OLD.`ecsVSwitchUuid`;
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_IdentityZoneVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_IdentityZoneVO AFTER DELETE ON `IdentityZoneVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='IdentityZoneVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_DataCenterVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_DataCenterVO AFTER DELETE ON `DataCenterVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='DataCenterVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_EcsVpcVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_EcsVpcVO AFTER DELETE ON `EcsVpcVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='EcsVpcVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_EcsVSwitchVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_EcsVSwitchVO AFTER DELETE ON `EcsVSwitchVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='EcsVSwitchVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_EcsImageVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_EcsImageVO AFTER DELETE ON `EcsImageVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='EcsImageVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_EcsSecurityGroupVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_EcsSecurityGroupVO AFTER DELETE ON `EcsSecurityGroupVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='EcsSecurityGroupVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_HybridEipAddressVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_HybridEipAddressVO AFTER DELETE ON `HybridEipAddressVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='HybridEipAddressVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_OssBucketVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_OssBucketVO AFTER DELETE ON `OssBucketVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='OssBucketVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_EcsInstanceConsoleProxyVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_EcsInstanceConsoleProxyVO AFTER DELETE ON `EcsInstanceConsoleProxyVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='EcsInstanceConsoleProxyVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_HybridAccountVO;
-DELIMITER $$
-CREATE TRIGGER trigger_clean_AccountResourceRefVO_for_HybridAccountVO AFTER DELETE ON `HybridAccountVO`
-FOR EACH ROW
-    BEGIN
-        delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='HybridAccountVO';
-    END$$
-DELIMITER ;
-
-DROP TRIGGER IF EXISTS trigger_attach_eip_for_ecsinstance;
-DELIMITER $$
-CREATE TRIGGER trigger_attach_eip_for_ecsinstance AFTER UPDATE ON `HybridEipAddressVO`
-FOR EACH ROW
-    BEGIN
-        IF (NEW.`allocateResourceUuid` = NULL) THEN
-            update `EcsInstanceVO` set `ecsEipUuid`=NULL
-                    where `ecsEipUuid`=OLD.`uuid`
-                    and OLD.`eipType`='aliyun'
-                    and OLD.`allocateResourceType`='EcsInstanceVO';
-        ELSE
-            update `EcsInstanceVO` set `ecsEipUuid`=NEW.`uuid`
-                                where NEW.`allocateResourceUuid`=`uuid`
-                                and NEW.`eipType`='aliyun'
-                                and NEW.`allocateResourceType`='EcsInstanceVO';
-        END IF;
-
-    END$$
-DELIMITER ;
-
-
 # VxlanNetwork
 CREATE TABLE `zstack`.`VxlanNetworkPoolVO` (
   `uuid` varchar(32) NOT NULL UNIQUE,
@@ -637,3 +505,26 @@ ALTER TABLE LocalStorageResourceRefVO DROP FOREIGN KEY `fkLocalStorageResourceRe
 
 ALTER TABLE VipVO ADD CONSTRAINT fkUsedIpVO FOREIGN KEY (`usedIpUuid`) REFERENCES `UsedIpVO` (`uuid`) ON DELETE CASCADE;
 
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VolumeEO;
+DROP TRIGGER IF EXISTS trigger_cleanup_for_VolumeEO_hard_delete;
+DROP TRIGGER IF EXISTS trigger_cleanup_for_VmInstanceEO_hard_delete;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_DiskOfferingEO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_EipVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_ImageEO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_InstanceOfferingEO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_IpRangeEO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_L3NetworkEO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_LoadBalancerListenerVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_LoadBalancerVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_PolicyVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_PortForwardingRuleVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_QuotaVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_SchedulerVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_SecurityGroupVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_UserGroupVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_UserVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VipVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VmInstanceEO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VmNicVO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VolumeEO;
+DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VolumeSnapshotEO;

@@ -6,11 +6,8 @@ import org.zstack.core.Platform;
 import org.zstack.core.cloudbus.CloudBus;
 import org.zstack.core.cloudbus.MessageSafe;
 import org.zstack.core.componentloader.PluginRegistry;
-import org.zstack.core.db.DatabaseFacade;
-import org.zstack.core.db.HardDeleteEntityExtensionPoint;
-import org.zstack.core.db.SimpleQuery;
+import org.zstack.core.db.*;
 import org.zstack.core.db.SimpleQuery.Op;
-import org.zstack.core.db.SoftDeleteEntityExtensionPoint;
 import org.zstack.core.defer.Defer;
 import org.zstack.core.defer.Deferred;
 import org.zstack.core.errorcode.ErrorFacade;
@@ -38,13 +35,13 @@ import javax.persistence.metamodel.EntityType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.zstack.utils.CollectionDSL.list;
 import static org.zstack.utils.CollectionUtils.removeDuplicateFromList;
 
 public class TagManagerImpl extends AbstractService implements TagManager,
-        SoftDeleteEntityExtensionPoint, GlobalApiMessageInterceptor, SystemTagLifeCycleExtension,
-        HardDeleteEntityExtensionPoint {
+        GlobalApiMessageInterceptor, SystemTagLifeCycleExtension {
     private static final CLogger logger = Utils.getLogger(TagManagerImpl.class);
 
     @Autowired
@@ -64,7 +61,7 @@ public class TagManagerImpl extends AbstractService implements TagManager,
     private Map<Class, Class> resourceTypeCreateMessageMap = new HashMap<>();
     private Map<String, List<SystemTagCreateMessageValidator>> createMessageValidators = new HashMap<>();
     private Map<String, List<SystemTagLifeCycleExtension>> lifeCycleExtensions = new HashMap<>();
-    private List<Class> autoDeleteTagClasses;
+    private Set<Class<?>> autoDeleteTagClasses;
 
 
     private void initSystemTags() throws IllegalAccessException {
@@ -131,7 +128,7 @@ public class TagManagerImpl extends AbstractService implements TagManager,
             throw new CloudRuntimeException(e);
         }
 
-        List<Class> createMessageClass = BeanUtils.scanClass("org.zstack", TagResourceType.class);
+        Set<Class<?>> createMessageClass = Platform.getReflections().getTypesAnnotatedWith(TagResourceType.class);
         for (Class cmsgClz : createMessageClass) {
             TagResourceType at = (TagResourceType) cmsgClz.getAnnotation(TagResourceType.class);
             Class resType = at.value();
@@ -143,15 +140,12 @@ public class TagManagerImpl extends AbstractService implements TagManager,
             resourceTypeCreateMessageMap.put(cmsgClz, resType);
         }
 
-        autoDeleteTagClasses = BeanUtils.scanClass("org.zstack", AutoDeleteTag.class);
-        List<String> clzNames = CollectionUtils.transformToList(autoDeleteTagClasses, new Function<String, Class>() {
-            @Override
-            public String call(Class arg) {
-                return arg.getSimpleName();
-            }
-        });
+        autoDeleteTagClasses = Platform.getReflections().getTypesAnnotatedWith(AutoDeleteTag.class);
+        for (Class clz : autoDeleteTagClasses) {
+            autoDeleteTagClasses.addAll(Platform.getReflections().getSubTypesOf(clz));
+        }
 
-        logger.debug(String.format("tags of following resources are auto-deleting enabled: %s", clzNames));
+        logger.debug(String.format("tags of following resources are auto-deleting enabled: %s", autoDeleteTagClasses.stream().map(Class::getSimpleName).collect(Collectors.toList())));
     }
 
     private void populateExtensions() {
@@ -198,7 +192,7 @@ public class TagManagerImpl extends AbstractService implements TagManager,
 
         if (isTagExisting(resourceUuid, tag, type, resourceType)) {
             throw new OperationFailureException(operr("Duplicated Tag[tag:%s, type:%s, resourceType:%s, resourceUuid:%s]",
-                            tag, type, resourceType, resourceUuid));
+                    tag, type, resourceType, resourceUuid));
         }
 
         if (type == TagType.User) {
@@ -648,17 +642,29 @@ public class TagManagerImpl extends AbstractService implements TagManager,
     @Override
     public boolean start() {
         populateExtensions();
+        installDbListeners();
         return true;
+    }
+
+    private void installDbListeners() {
+        dbf.installEntityLifeCycleCallback(null, EntityEvent.POST_REMOVE, new AbstractEntityLifeCycleCallback() {
+            @Override
+            public void entityLifeCycleEvent(EntityEvent evt, Object o) {
+                if (autoDeleteTagClasses.contains(o.getClass())) {
+                    SQL.New(UserTagVO.class).eq(UserTagVO_.resourceUuid, getPrimaryKeyValue(o))
+                            .eq(UserTagVO_.resourceType, o.getClass().getSimpleName())
+                            .hardDelete();
+                    SQL.New(SystemTagVO.class).eq(UserTagVO_.resourceUuid, getPrimaryKeyValue(o))
+                            .eq(UserTagVO_.resourceType, o.getClass().getSimpleName())
+                            .hardDelete();
+                }
+            }
+        });
     }
 
     @Override
     public boolean stop() {
         return true;
-    }
-
-    @Override
-    public List<Class> getEntityClassForSoftDeleteEntityExtension() {
-        return autoDeleteTagClasses;
     }
 
     private List<String> getResourceTypes(Class entityClass) {
@@ -688,11 +694,6 @@ public class TagManagerImpl extends AbstractService implements TagManager,
         q.setParameter("resourceTypes", rtypes);
         q.setParameter("resourceUuids", entityIds);
         q.executeUpdate();
-    }
-
-    @Override
-    public void postSoftDelete(Collection entityIds, Class entityClass) {
-        postDelete(entityIds, entityClass);
     }
 
     @Override
@@ -840,15 +841,5 @@ public class TagManagerImpl extends AbstractService implements TagManager,
                 }
             }
         }
-    }
-
-    @Override
-    public List<Class> getEntityClassForHardDeleteEntityExtension() {
-        return autoDeleteTagClasses;
-    }
-
-    @Override
-    public void postHardDelete(Collection entityIds, Class entityClass) {
-        postDelete(entityIds, entityClass);
     }
 }
