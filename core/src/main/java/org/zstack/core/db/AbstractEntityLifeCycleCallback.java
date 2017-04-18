@@ -22,7 +22,7 @@ public abstract class AbstractEntityLifeCycleCallback implements EntityLifeCycle
         }
     }
 
-    protected Object getPrimaryKeyValue(Object entity) {
+    protected Field getPrimaryKeyField(Object entity) {
         Field pfield = primaryKeys.get(entity.getClass());
 
         if (pfield == null) {
@@ -45,8 +45,12 @@ public abstract class AbstractEntityLifeCycleCallback implements EntityLifeCycle
             primaryKeys.put(entity.getClass(), pfield);
         }
 
+        return pfield;
+    }
+
+    protected Object getPrimaryKeyValue(Object entity) {
         try {
-            return pfield.get(entity);
+            return getPrimaryKeyField(entity).get(entity);
         } catch (IllegalAccessException e) {
             throw new CloudRuntimeException(e);
         }

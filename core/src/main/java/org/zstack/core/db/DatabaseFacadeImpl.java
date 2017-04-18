@@ -61,7 +61,7 @@ public class DatabaseFacadeImpl implements DatabaseFacade, Component {
         Field eoSoftDeleteColumn;
         Class eoClass;
         Class voClass;
-        Map<EntityEvent, EntityLifeCycleCallback> listeners = new HashMap<EntityEvent, EntityLifeCycleCallback>();
+        Map<EntityEvent, List<EntityLifeCycleCallback>> listeners = new HashMap<>();
 
         EntityInfo(Class voClazz) {
             voClass = voClazz;
@@ -435,13 +435,21 @@ public class DatabaseFacadeImpl implements DatabaseFacade, Component {
         }
 
         void installLifeCycleCallback(EntityEvent evt, EntityLifeCycleCallback l) {
-            listeners.put(evt, l);
+            List<EntityLifeCycleCallback> lst = listeners.get(evt);
+            if (lst == null) {
+                lst = new ArrayList<>();
+                listeners.put(evt, lst);
+            }
+
+            lst.add(l);
         }
 
         void fireLifeCycleEvent(EntityEvent evt, Object o) {
-            EntityLifeCycleCallback cb = listeners.get(evt);
-            if (cb != null) {
-                cb.entityLifeCycleEvent(evt, o);
+            List<EntityLifeCycleCallback> lst = listeners.get(evt);
+            if (lst != null) {
+                for (EntityLifeCycleCallback cb : lst) {
+                    cb.entityLifeCycleEvent(evt, o);
+                }
             }
         }
     }
