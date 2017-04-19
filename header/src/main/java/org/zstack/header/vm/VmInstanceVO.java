@@ -3,6 +3,7 @@ package org.zstack.header.vm;
 import org.zstack.header.tag.AutoDeleteTag;
 import org.zstack.header.vo.EO;
 import org.zstack.header.vo.NoView;
+import org.zstack.header.vo.Resource;
 import org.zstack.header.volume.VolumeVO;
 
 import javax.persistence.*;
@@ -15,7 +16,7 @@ import java.util.Set;
 @Inheritance(strategy = InheritanceType.JOINED)
 @EO(EOClazz = VmInstanceEO.class)
 @AutoDeleteTag
-public class VmInstanceVO extends VmInstanceAO {
+public class VmInstanceVO extends VmInstanceAO implements Resource {
     @OneToMany(fetch = FetchType.EAGER)
     @JoinColumn(name = "vmInstanceUuid", insertable = false, updatable = false)
     @NoView

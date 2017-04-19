@@ -5,6 +5,7 @@ import org.zstack.header.vm.VmNicVO;
 import org.zstack.header.vo.ForeignKey;
 import org.zstack.header.vo.ForeignKey.ReferenceOption;
 import org.zstack.header.vo.Index;
+import org.zstack.header.vo.Resource;
 import org.zstack.network.service.vip.VipVO;
 
 import javax.persistence.*;
@@ -15,7 +16,7 @@ import java.sql.Timestamp;
 @Entity
 @Table
 @AutoDeleteTag
-public class EipVO {
+public class EipVO implements Resource {
     @Id
     @Column
     private String uuid;

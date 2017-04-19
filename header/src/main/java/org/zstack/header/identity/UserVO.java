@@ -2,13 +2,14 @@ package org.zstack.header.identity;
 
 import org.zstack.header.vo.ForeignKey;
 import org.zstack.header.vo.ForeignKey.ReferenceOption;
+import org.zstack.header.vo.Resource;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
 
 @Entity
 @Table
-public class UserVO {
+public class UserVO implements Resource {
     @Id
     @Column
     private String uuid;

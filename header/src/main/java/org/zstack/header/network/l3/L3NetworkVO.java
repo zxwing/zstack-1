@@ -4,6 +4,7 @@ import org.zstack.header.network.service.NetworkServiceL3NetworkRefVO;
 import org.zstack.header.tag.AutoDeleteTag;
 import org.zstack.header.vo.EO;
 import org.zstack.header.vo.NoView;
+import org.zstack.header.vo.Resource;
 
 import javax.persistence.*;
 import java.util.HashSet;
@@ -13,7 +14,7 @@ import java.util.Set;
 @Table
 @EO(EOClazz = L3NetworkEO.class)
 @AutoDeleteTag
-public class L3NetworkVO extends L3NetworkAO {
+public class L3NetworkVO extends L3NetworkAO implements Resource {
     @OneToMany(fetch = FetchType.EAGER)
     @JoinColumn(name = "l3NetworkUuid", insertable = false, updatable = false)
     @NoView

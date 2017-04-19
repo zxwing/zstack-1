@@ -4,6 +4,7 @@ import org.zstack.header.tag.AutoDeleteTag;
 import org.zstack.header.vo.ForeignKey;
 import org.zstack.header.vo.ForeignKey.ReferenceOption;
 import org.zstack.header.vo.NoView;
+import org.zstack.header.vo.Resource;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
@@ -16,7 +17,7 @@ import java.util.Set;
 @Entity
 @Table
 @AutoDeleteTag
-public class LoadBalancerListenerVO {
+public class LoadBalancerListenerVO implements Resource {
     @Id
     @Column
     private String uuid;

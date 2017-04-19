@@ -2,6 +2,7 @@ package org.zstack.header.configuration;
 
 import org.zstack.header.tag.AutoDeleteTag;
 import org.zstack.header.vo.EO;
+import org.zstack.header.vo.Resource;
 
 import javax.persistence.Entity;
 import javax.persistence.Table;
@@ -10,5 +11,5 @@ import javax.persistence.Table;
 @Table
 @EO(EOClazz = DiskOfferingEO.class)
 @AutoDeleteTag
-public class DiskOfferingVO extends DiskOfferingAO {
+public class DiskOfferingVO extends DiskOfferingAO implements Resource {
 }

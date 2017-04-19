@@ -3,6 +3,7 @@ package org.zstack.network.service.lb;
 import org.zstack.header.tag.AutoDeleteTag;
 import org.zstack.header.vo.ForeignKey;
 import org.zstack.header.vo.NoView;
+import org.zstack.header.vo.Resource;
 import org.zstack.network.service.vip.VipVO;
 
 import javax.persistence.*;
@@ -16,7 +17,7 @@ import java.util.Set;
 @Entity
 @Table
 @AutoDeleteTag
-public class LoadBalancerVO {
+public class LoadBalancerVO implements Resource {
     @Id
     @Column
     private String uuid;

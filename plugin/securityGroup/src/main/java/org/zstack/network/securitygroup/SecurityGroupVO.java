@@ -1,6 +1,7 @@
 package org.zstack.network.securitygroup;
 
 import org.zstack.header.vo.Index;
+import org.zstack.header.vo.Resource;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
@@ -9,7 +10,7 @@ import java.util.Set;
 
 @Entity
 @Table
-public class SecurityGroupVO {
+public class SecurityGroupVO implements Resource {
     @Id
     @Column
     private String uuid;

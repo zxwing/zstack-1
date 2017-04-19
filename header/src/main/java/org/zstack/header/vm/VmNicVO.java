@@ -7,6 +7,7 @@ import org.zstack.header.search.TriggerIndex;
 import org.zstack.header.vo.ForeignKey;
 import org.zstack.header.vo.ForeignKey.ReferenceOption;
 import org.zstack.header.vo.Index;
+import org.zstack.header.vo.Resource;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
@@ -15,7 +16,7 @@ import java.sql.Timestamp;
 @Table
 @TriggerIndex
 @SqlTrigger(foreignVOClass = VmInstanceVO.class, foreignVOJoinColumn = "vmInstanceUuid")
-public class VmNicVO {
+public class VmNicVO implements Resource {
     @Id
     @Column
     private String uuid;
@@ -68,6 +69,11 @@ public class VmNicVO {
 
     public String getUuid() {
         return uuid;
+    }
+
+    @Override
+    public String getName() {
+        return String.format("nic-for-vm-%s", vmInstanceUuid);
     }
 
     public void setUuid(String uuid) {
