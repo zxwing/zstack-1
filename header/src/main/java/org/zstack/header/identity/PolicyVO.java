@@ -9,7 +9,8 @@ import java.sql.Timestamp;
 
 @Entity
 @Table
-public class PolicyVO implements Resource {
+@Resource
+public class PolicyVO {
     @Id
     @Column
     private String uuid;

@@ -17,7 +17,8 @@ import java.util.Set;
 @Entity
 @Table
 @AutoDeleteTag
-public class LoadBalancerVO implements Resource {
+@Resource
+public class LoadBalancerVO {
     @Id
     @Column
     private String uuid;

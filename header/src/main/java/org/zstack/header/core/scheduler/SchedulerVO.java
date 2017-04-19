@@ -14,7 +14,8 @@ import java.sql.Timestamp;
 @Entity
 @Table
 @Inheritance(strategy = InheritanceType.JOINED)
-public class SchedulerVO implements Resource {
+@Resource(name = "schedulerName")
+public class SchedulerVO {
     @Id
     @Column
     private String uuid;
@@ -81,11 +82,6 @@ public class SchedulerVO implements Resource {
 
     public String getUuid() {
         return uuid;
-    }
-
-    @Override
-    public String getName() {
-        return schedulerName;
     }
 
     public void setUuid(String uuid) {

@@ -11,6 +11,7 @@ import javax.persistence.Table;
 @Table
 @EO(EOClazz = VolumeEO.class)
 @AutoDeleteTag
-public class VolumeVO extends VolumeAO implements Resource {
+@Resource
+public class VolumeVO extends VolumeAO {
 
 }

@@ -14,7 +14,8 @@ import java.util.List;
 @Table
 @Inheritance(strategy = InheritanceType.JOINED)
 @EO(EOClazz = VolumeSnapshotEO.class)
-public class VolumeSnapshotVO extends VolumeSnapshotAO implements Resource {
+@Resource
+public class VolumeSnapshotVO extends VolumeSnapshotAO {
     @OneToMany(fetch = FetchType.EAGER)
     @JoinColumn(name = "volumeSnapshotUuid", insertable = false, updatable = false)
     @NoView

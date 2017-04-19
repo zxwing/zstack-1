@@ -10,7 +10,8 @@ import java.util.Set;
 
 @Entity
 @Table
-public class SecurityGroupVO implements Resource {
+@Resource
+public class SecurityGroupVO {
     @Id
     @Column
     private String uuid;

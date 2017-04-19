@@ -16,7 +16,8 @@ import java.sql.Timestamp;
 @Table
 @TriggerIndex
 @SqlTrigger(foreignVOClass = VmInstanceVO.class, foreignVOJoinColumn = "vmInstanceUuid")
-public class VmNicVO implements Resource {
+@Resource
+public class VmNicVO {
     @Id
     @Column
     private String uuid;
@@ -69,11 +70,6 @@ public class VmNicVO implements Resource {
 
     public String getUuid() {
         return uuid;
-    }
-
-    @Override
-    public String getName() {
-        return String.format("nic-for-vm-%s", vmInstanceUuid);
     }
 
     public void setUuid(String uuid) {

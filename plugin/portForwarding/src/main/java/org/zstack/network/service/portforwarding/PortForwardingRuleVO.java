@@ -14,7 +14,8 @@ import java.sql.Timestamp;
 @Entity
 @Table
 @AutoDeleteTag
-public class PortForwardingRuleVO implements Resource {
+@Resource
+public class PortForwardingRuleVO {
     @Id
     @Column
     private String uuid;

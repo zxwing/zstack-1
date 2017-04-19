@@ -16,7 +16,8 @@ import java.util.Set;
 @Inheritance(strategy = InheritanceType.JOINED)
 @EO(EOClazz = VmInstanceEO.class)
 @AutoDeleteTag
-public class VmInstanceVO extends VmInstanceAO implements Resource {
+@Resource
+public class VmInstanceVO extends VmInstanceAO {
     @OneToMany(fetch = FetchType.EAGER)
     @JoinColumn(name = "vmInstanceUuid", insertable = false, updatable = false)
     @NoView

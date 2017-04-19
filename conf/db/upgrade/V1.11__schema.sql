@@ -528,3 +528,71 @@ DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VmInstanceEO;
 DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VmNicVO;
 DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VolumeEO;
 DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VolumeSnapshotEO;
+
+CREATE TABLE `ResourceVO` (
+    `uuid` varchar(32) NOT NULL,
+    `name` varchar(255) DEFAULT NULL,
+    `type` varchar(255) DEFAULT NULL,
+    `diskOfferingUuid` varchar(32) DEFAULT NULL,
+    `eipUuid` varchar(32) DEFAULT NULL,
+    `imageUuid` varchar(32) DEFAULT NULL,
+    `instanceOfferingUuid` varchar(32) DEFAULT NULL,
+    `ipRangeUuid` varchar(32) DEFAULT NULL,
+    `l3NetworkUuid` varchar(32) DEFAULT NULL,
+    `loadBalancerListenerUuid` varchar(32) DEFAULT NULL,
+    `loadBalancerUuid` varchar(32) DEFAULT NULL,
+    `policyUuid` varchar(32) DEFAULT NULL,
+    `portForwardingRuleUuid` varchar(32) DEFAULT NULL,
+    `schedulerUuid` varchar(32) DEFAULT NULL,
+    `securityGroupUuid` varchar(32) DEFAULT NULL,
+    `userGroupUuid` varchar(32) DEFAULT NULL,
+    `userUuid` varchar(32) DEFAULT NULL,
+    `vipUuid` varchar(32) DEFAULT NULL,
+    `vmInstanceUuid` varchar(32) DEFAULT NULL,
+    `vmNicUuid` varchar(32) DEFAULT NULL,
+    `volumeSnapshotUuid` varchar(32) DEFAULT NULL,
+    `volumeUuid` varchar(32) DEFAULT NULL,
+    PRIMARY KEY (`uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVODiskOfferingVO FOREIGN KEY (diskOfferingUuid) REFERENCES DiskOfferingEO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOEipVO FOREIGN KEY (eipUuid) REFERENCES EipVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOImageVO FOREIGN KEY (imageUuid) REFERENCES ImageEO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOInstanceOfferingVO FOREIGN KEY (instanceOfferingUuid) REFERENCES InstanceOfferingEO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOIpRangeVO FOREIGN KEY (ipRangeUuid) REFERENCES IpRangeEO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOL3NetworkVO FOREIGN KEY (l3NetworkUuid) REFERENCES L3NetworkEO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOLoadBalancerListenerVO FOREIGN KEY (loadBalancerListenerUuid) REFERENCES LoadBalancerListenerVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOLoadBalancerVO FOREIGN KEY (loadBalancerUuid) REFERENCES LoadBalancerVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOPolicyVO FOREIGN KEY (policyUuid) REFERENCES PolicyVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOPortForwardingRuleVO FOREIGN KEY (portForwardingRuleUuid) REFERENCES PortForwardingRuleVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOSchedulerVO FOREIGN KEY (schedulerUuid) REFERENCES SchedulerVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOSecurityGroupVO FOREIGN KEY (securityGroupUuid) REFERENCES SecurityGroupVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOUserGroupVO FOREIGN KEY (userGroupUuid) REFERENCES UserGroupVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOUserVO FOREIGN KEY (userUuid) REFERENCES UserVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOVipVO FOREIGN KEY (vipUuid) REFERENCES VipVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOVmInstanceVO FOREIGN KEY (vmInstanceUuid) REFERENCES VmInstanceEO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOVmNicVO FOREIGN KEY (vmNicUuid) REFERENCES VmNicVO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOVolumeSnapshotVO FOREIGN KEY (volumeSnapshotUuid) REFERENCES VolumeSnapshotEO (uuid) ON DELETE CASCADE;
+ALTER TABLE ResourceVO ADD CONSTRAINT fkResourceVOVolumeVO FOREIGN KEY (volumeUuid) REFERENCES VolumeEO (uuid) ON DELETE CASCADE;
+
+INSERT INTO ResourceVO (uuid, name, diskOfferingUuid, type) SELECT t.uuid, t.name, t.uuid, "DiskOfferingVO" FROM DiskOfferingVO t;
+INSERT INTO ResourceVO (uuid, name, eipUuid, type) SELECT t.uuid, t.name, t.uuid, "EipVO" FROM EipVO t;
+INSERT INTO ResourceVO (uuid, name, imageUuid, type) SELECT t.uuid, t.name, t.uuid, "ImageVO" FROM ImageVO t;
+INSERT INTO ResourceVO (uuid, name, instanceOfferingUuid, type) SELECT t.uuid, t.name, t.uuid, "InstanceOfferingVO" FROM InstanceOfferingVO t;
+INSERT INTO ResourceVO (uuid, name, ipRangeUuid, type) SELECT t.uuid, t.name, t.uuid, "IpRangeVO" FROM IpRangeVO t;
+INSERT INTO ResourceVO (uuid, name, l3NetworkUuid, type) SELECT t.uuid, t.name, t.uuid, "L3NetworkVO" FROM L3NetworkVO t;
+INSERT INTO ResourceVO (uuid, name, loadBalancerListenerUuid, type) SELECT t.uuid, t.name, t.uuid, "LoadBalancerListenerVO" FROM LoadBalancerListenerVO t;
+INSERT INTO ResourceVO (uuid, name, loadBalancerUuid, type) SELECT t.uuid, t.name, t.uuid, "LoadBalancerVO" FROM LoadBalancerVO t;
+INSERT INTO ResourceVO (uuid, name, policyUuid, type) SELECT t.uuid, t.name, t.uuid, "PolicyVO" FROM PolicyVO t;
+INSERT INTO ResourceVO (uuid, name, portForwardingRuleUuid, type) SELECT t.uuid, t.name, t.uuid, "PortForwardingRuleVO" FROM PortForwardingRuleVO t;
+INSERT INTO ResourceVO (uuid, name, schedulerUuid, type) SELECT t.uuid, t.schedulerName, t.uuid, "SchedulerVO" FROM SchedulerVO t;
+INSERT INTO ResourceVO (uuid, name, securityGroupUuid, type) SELECT t.uuid, t.name, t.uuid, "SecurityGroupVO" FROM SecurityGroupVO t;
+INSERT INTO ResourceVO (uuid, name, userGroupUuid, type) SELECT t.uuid, t.name, t.uuid, "UserGroupVO" FROM UserGroupVO t;
+INSERT INTO ResourceVO (uuid, name, userUuid, type) SELECT t.uuid, t.name, t.uuid, "UserVO" FROM UserVO t;
+INSERT INTO ResourceVO (uuid, name, vipUuid, type) SELECT t.uuid, t.name, t.uuid, "VipVO" FROM VipVO t;
+INSERT INTO ResourceVO (uuid, name, vmInstanceUuid, type) SELECT t.uuid, t.name, t.uuid, "VmInstanceVO" FROM VmInstanceVO t;
+INSERT INTO ResourceVO (uuid, vmNicUuid, type) SELECT t.uuid, t.uuid, "VmNicVO" FROM VmNicVO t;
+INSERT INTO ResourceVO (uuid, name, volumeSnapshotUuid, type) SELECT t.uuid, t.name, t.uuid, "VolumeSnapshotVO" FROM VolumeSnapshotVO t;
+INSERT INTO ResourceVO (uuid, name, volumeUuid, type) SELECT t.uuid, t.name, t.uuid, "VolumeVO" FROM VolumeVO t;

@@ -16,7 +16,8 @@ import java.sql.Timestamp;
 @Entity
 @Table
 @AutoDeleteTag
-public class EipVO implements Resource {
+@Resource
+public class EipVO {
     @Id
     @Column
     private String uuid;

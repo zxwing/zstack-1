@@ -1,7 +1,5 @@
 package org.zstack.header.identity;
 
-import org.zstack.header.vo.Resource;
-
 import javax.persistence.*;
 import java.sql.Timestamp;
 
@@ -10,7 +8,7 @@ import java.sql.Timestamp;
  */
 @Entity
 @Table
-public class QuotaVO implements Resource {
+public class QuotaVO {
     @Id
     @Column
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,11 +43,6 @@ public class QuotaVO implements Resource {
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    @Override
-    public String getUuid() {
-        return String.valueOf(id);
     }
 
     public String getName() {

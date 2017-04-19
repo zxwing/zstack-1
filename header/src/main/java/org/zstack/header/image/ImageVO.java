@@ -14,7 +14,8 @@ import java.util.Set;
 @Inheritance(strategy = InheritanceType.JOINED)
 @EO(EOClazz = ImageEO.class)
 @AutoDeleteTag
-public class ImageVO extends ImageAO implements Resource {
+@Resource
+public class ImageVO extends ImageAO {
     @OneToMany(fetch = FetchType.EAGER)
     @JoinColumn(name = "imageUuid", insertable = false, updatable = false)
     @NoView

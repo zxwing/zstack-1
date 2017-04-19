@@ -12,7 +12,8 @@ import javax.persistence.Table;
 @Table
 @EO(EOClazz = IpRangeEO.class)
 @AutoDeleteTag
-public class IpRangeVO extends IpRangeAO implements Resource {
+@Resource
+public class IpRangeVO extends IpRangeAO {
     public int size() {
         return NetworkUtils.getTotalIpInRange(getStartIp(), getEndIp());
     }
