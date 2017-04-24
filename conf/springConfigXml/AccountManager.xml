@@ -64,5 +64,11 @@
             <zstack:extension interface="org.zstack.core.cascade.CascadeExtensionPoint"/>
         </zstack:plugin>
     </bean>
+
+    <bean id="ResourceManager" class="org.zstack.identity.ResourceManagerImpl">
+        <zstack:plugin>
+            <zstack:extension interface="org.zstack.header.Component"/>
+        </zstack:plugin>
+    </bean>
 </beans>
 

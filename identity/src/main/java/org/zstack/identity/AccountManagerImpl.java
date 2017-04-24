@@ -676,7 +676,6 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
             collectDefaultQuota();
             configureGlobalConfig();
             setupCanonicalEvents();
-            installDbListenerForResourceAccountRefVO();
 
             for (ReportApiAccountControlExtensionPoint ext : pluginRgty.getExtensionList(ReportApiAccountControlExtensionPoint.class)) {
                 List<Class> apis = ext.reportApiAccountControl();
@@ -688,19 +687,6 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
             throw new CloudRuntimeException(e);
         }
         return true;
-    }
-
-    private void installDbListenerForResourceAccountRefVO() {
-        dbf.installEntityLifeCycleCallback(null, EntityEvent.POST_REMOVE, new AbstractEntityLifeCycleCallback() {
-            @Override
-            public void entityLifeCycleEvent(EntityEvent evt, Object o) {
-                if (isResourceHavingAccountReference(o.getClass())) {
-                    SQL.New(AccountResourceRefVO.class).eq(AccountResourceRefVO_.resourceUuid, getPrimaryKeyValue(o))
-                            .eq(AccountResourceRefVO_.resourceType, o.getClass().getSimpleName())
-                            .hardDelete();
-                }
-            }
-        });
     }
 
     private void setupCanonicalEvents() {

@@ -6,6 +6,7 @@ import org.zstack.header.vo.ForeignKey;
 import org.zstack.header.vo.ForeignKey.ReferenceOption;
 import org.zstack.header.vo.Index;
 import org.zstack.header.vo.Resource;
+import org.zstack.header.vo.ResourceVO;
 import org.zstack.network.service.vip.VipVO;
 
 import javax.persistence.*;
