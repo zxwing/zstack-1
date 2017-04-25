@@ -88,7 +88,6 @@ public class ApplianceVmAllocateNicFlow implements Flow {
 
     @Transactional
     private void persistNicInDb(List<VmNicInventory> nics) {
-        dbf.entityForTranscationCallback(TransactionalCallback.Operation.PERSIST, VmNicVO.class);
         for (VmNicInventory nic : nics) {
             VmNicVO nvo = new VmNicVO();
             nvo.setUuid(nic.getUuid());
@@ -104,12 +103,13 @@ public class ApplianceVmAllocateNicFlow implements Flow {
             nvo.setInternalName(nic.getInternalName());
             dbf.getEntityManager().persist(nvo);
         }
+
+        dbf.getEntityManager().flush();
     }
 
 
     @Transactional
     private void removeNicFromDb(List<VmNicInventory> nics) {
-        dbf.entityForTranscationCallback(TransactionalCallback.Operation.REMOVE, VmNicVO.class);
         List<String> uuids = new ArrayList<String>(nics.size());
         for (VmNicInventory nic : nics) {
             uuids.add(nic.getUuid());

@@ -11,6 +11,8 @@ import org.zstack.header.Component;
 import org.zstack.header.exception.CloudRuntimeException;
 import org.zstack.header.vo.Resource;
 import org.zstack.header.vo.ResourceVO;
+import org.zstack.utils.Utils;
+import org.zstack.utils.logging.CLogger;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
  * Created by xing5 on 2017/4/24.
  */
 public class ResourceManagerImpl extends AbstractEntityLifeCycleCallback implements ResourceManager, Component {
+    CLogger logger = Utils.getLogger(getClass());
 
     @Autowired
     private DatabaseFacade dbf;
@@ -65,6 +68,9 @@ public class ResourceManagerImpl extends AbstractEntityLifeCycleCallback impleme
                     info.resourceUuidField.set(vo, uuid);
 
                     dbf.getEntityManager().merge(vo);
+                    vo = dbf.getEntityManager().find(ResourceVO.class, uuid);
+
+                    logger.debug(String.format("yyyyyyyyyyyyyyyyyyyyyyyyy %s %s %s", o.getClass().getSimpleName(), uuid, vo.getVmNicUuid()));
                 } catch (Exception e) {
                     throw new CloudRuntimeException(e);
                 }
@@ -91,10 +97,13 @@ public class ResourceManagerImpl extends AbstractEntityLifeCycleCallback impleme
             String uuid = (String) getPrimaryKeyValue(o);
             ResourceVO vo = new ResourceVO();
             vo.setUuid(uuid);
+            vo.setType(o.getClass().getSimpleName());
 
             //info.resourceUuidField.set(vo, uuid);
 
             dbf.getEntityManager().persist(vo);
+
+            logger.debug(String.format("Xxxxxxxxxxxxxxxxxxxxxxxx %s %s", o.getClass().getSimpleName(), uuid));
         } catch (Exception e) {
             throw new CloudRuntimeException(e);
         }
