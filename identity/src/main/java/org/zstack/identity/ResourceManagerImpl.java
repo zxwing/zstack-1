@@ -2,6 +2,7 @@ package org.zstack.identity;
 
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.zstack.core.Platform;
 import org.zstack.core.db.AbstractEntityLifeCycleCallback;
 import org.zstack.core.db.DatabaseFacade;
@@ -13,7 +14,9 @@ import org.zstack.header.vo.ResourceVO;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Created by xing5 on 2017/4/24.
@@ -32,17 +35,41 @@ public class ResourceManagerImpl extends AbstractEntityLifeCycleCallback impleme
     @Override
     public boolean start() {
         try {
-            for (Class clz : Platform.getReflections().getSubTypesOf(Resource.class)) {
+            List<Class> classes = Platform.getReflections().getTypesAnnotatedWith(Resource.class).stream()
+                    .filter(it -> it.isAnnotationPresent(Resource.class)).collect(Collectors.toList());
+
+            for (Class clz : classes) {
                 ResourceInfo info = new ResourceInfo();
-                String fieldName = StringUtils.uncapitalize(clz.getSimpleName()) + "Uuid";
+                String fieldName = StringUtils.removeEnd(StringUtils.uncapitalize(clz.getSimpleName()), "VO") + "Uuid";
                 info.resourceUuidField = ResourceVO.class.getDeclaredField(fieldName);
+                info.resourceUuidField.setAccessible(true);
                 infoMap.put(clz, info);
             }
         } catch (Exception e) {
             throw new CloudRuntimeException(e);
         }
 
-        dbf.installEntityLifeCycleCallback(null, EntityEvent.POST_PERSIST, this);
+        dbf.installEntityLifeCycleCallback(null, EntityEvent.PRE_PERSIST, this);
+        dbf.installEntityLifeCycleCallback(null, EntityEvent.POST_PERSIST, new AbstractEntityLifeCycleCallback() {
+            @Override
+            @Transactional
+            public void entityLifeCycleEvent(EntityEvent evt, Object o) {
+                ResourceInfo info = infoMap.get(o.getClass());
+                if (info == null) {
+                    return;
+                }
+
+                try {
+                    String uuid = (String) getPrimaryKeyValue(o);
+                    ResourceVO vo = dbf.getEntityManager().find(ResourceVO.class, uuid);
+                    info.resourceUuidField.set(vo, uuid);
+
+                    dbf.getEntityManager().merge(vo);
+                } catch (Exception e) {
+                    throw new CloudRuntimeException(e);
+                }
+            }
+        });
 
         return true;
     }
@@ -53,6 +80,7 @@ public class ResourceManagerImpl extends AbstractEntityLifeCycleCallback impleme
     }
 
     @Override
+    @Transactional
     public void entityLifeCycleEvent(EntityEvent evt, Object o) {
         try {
             ResourceInfo info = infoMap.get(o.getClass());
@@ -64,7 +92,7 @@ public class ResourceManagerImpl extends AbstractEntityLifeCycleCallback impleme
             ResourceVO vo = new ResourceVO();
             vo.setUuid(uuid);
 
-            info.resourceUuidField.set(vo, uuid);
+            //info.resourceUuidField.set(vo, uuid);
 
             dbf.getEntityManager().persist(vo);
         } catch (Exception e) {

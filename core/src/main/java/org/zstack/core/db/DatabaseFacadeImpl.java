@@ -578,6 +578,7 @@ public class DatabaseFacadeImpl implements DatabaseFacade, Component {
             getEntityManager().flush();
             getEntityManager().refresh(entity);
         }
+
         return entity;
     }
 

@@ -18,7 +18,7 @@ class ResourceVOGenerator {
         dir.mkdirs()
 
         Set<Class> resourceVOs = Platform.reflections.getTypesAnnotatedWith(Resource.class)
-        resourceVOs = resourceVOs.findAll { it.getAnnotation(Resource.class) != null }
+        resourceVOs = resourceVOs.findAll { return it.isAnnotationPresent(Resource.class) }
 
         String resourceVOText = writeResourceVOText(resourceVOs)
         String sql = writeSqlText(resourceVOs as List)
