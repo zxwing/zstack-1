@@ -513,14 +513,23 @@ public class VolumeManagerImpl extends AbstractService implements VolumeManager,
         vo.setType(VolumeType.Data);
         vo.setStatus(VolumeStatus.NotInstantiated);
 
-        acntMgr.createAccountResourceRef(msg.getSession().getAccountUuid(), vo.getUuid(), VolumeVO.class);
-        tagMgr.createTagsFromAPICreateMessage(msg, vo.getUuid(), VolumeVO.class.getSimpleName());
-
         if (msg.hasSystemTag(VolumeSystemTags.SHAREABLE.getTagFormat())) {
             vo.setShareable(true);
         }
 
-        vo = dbf.persistAndRefresh(vo);
+        VolumeVO finalVo1 = vo;
+        vo = new SQLBatchWithReturn<VolumeVO>() {
+            @Override
+            protected VolumeVO scripts() {
+                dbf.getEntityManager().persist(finalVo1);
+                dbf.getEntityManager().flush();
+                dbf.getEntityManager().refresh(finalVo1);
+                acntMgr.createAccountResourceRef(msg.getSession().getAccountUuid(), finalVo1.getUuid(), VolumeVO.class);
+                return finalVo1;
+            }
+        }.execute();
+
+        tagMgr.createTagsFromAPICreateMessage(msg, vo.getUuid(), VolumeVO.class.getSimpleName());
 
         if (msg.getPrimaryStorageUuid() == null) {
             new FireVolumeCanonicalEvent().fireVolumeStatusChangedEvent(null, VolumeInventory.valueOf(vo));
