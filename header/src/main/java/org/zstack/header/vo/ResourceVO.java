@@ -1,7 +1,10 @@
 package org.zstack.header.vo;
 
 import org.zstack.header.exception.CloudRuntimeException;
+import org.zstack.utils.DebugUtils;
 import org.zstack.utils.FieldUtils;
+import org.zstack.utils.Utils;
+import org.zstack.utils.logging.CLogger;
 
 import javax.persistence.*;
 import java.lang.reflect.Field;
@@ -34,7 +37,8 @@ public abstract class ResourceVO {
             return f;
         }
 
-        f = FieldUtils.getField("name", getClass());
+        ResourceAttributes at = getClass().getAnnotation(ResourceAttributes.class);
+        f = FieldUtils.getField(at == null ? "name" : at.nameField(), getClass());
         if (f != null) {
             f.setAccessible(true);
             nameFields.put(getClass(), f);

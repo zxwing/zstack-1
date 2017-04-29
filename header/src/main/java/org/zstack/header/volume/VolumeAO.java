@@ -7,17 +7,14 @@ import org.zstack.header.vm.VmInstanceEO;
 import org.zstack.header.vo.ForeignKey;
 import org.zstack.header.vo.ForeignKey.ReferenceOption;
 import org.zstack.header.vo.Index;
+import org.zstack.header.vo.ResourceVO;
 import org.zstack.header.vo.ShadowEntity;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
 
 @MappedSuperclass
-public class VolumeAO implements ShadowEntity {
-    @Id
-    @Column
-    private String uuid;
-
+public class VolumeAO extends ResourceVO implements ShadowEntity {
     @Column
     @Index
     private String name;
@@ -128,14 +125,6 @@ public class VolumeAO implements ShadowEntity {
 
     public void setDiskOfferingUuid(String diskOfferingUuid) {
         this.diskOfferingUuid = diskOfferingUuid;
-    }
-
-    public String getUuid() {
-        return uuid;
-    }
-
-    public void setUuid(String uuid) {
-        this.uuid = uuid;
     }
 
     public String getName() {
