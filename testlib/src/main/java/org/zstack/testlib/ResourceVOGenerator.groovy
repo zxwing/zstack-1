@@ -43,7 +43,7 @@ class ResourceVOGenerator {
         })
 
         List<String> fkeys = voClasses.collect {
-            return "ALTER TABLE ResourceVO ADD CONSTRAINT fk${it.simpleName}ResourceVO FOREIGN KEY (uuid) REFERENCES ${getForeignClass(it).simpleName} (uuid) ON DELETE CASCADE;"
+            return "ALTER TABLE ${getForeignClass(it).simpleName} ADD CONSTRAINT fk${it.simpleName}ResourceVO FOREIGN KEY (uuid) REFERENCES  ResourceVO (uuid) ON DELETE CASCADE;"
         }
 
         List<String> inserts = voClasses.collect {

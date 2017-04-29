@@ -1047,13 +1047,14 @@ public class AccountManagerImpl extends AbstractService implements AccountManage
     }
 
     @Override
+    @Transactional
     public void createAccountResourceRef(String accountUuid, String resourceUuid, Class<?> resourceClass) {
         if (!resourceTypes.contains(resourceClass)) {
             throw new CloudRuntimeException(String.format("%s is not listed in resourceTypeForAccountRef of AccountManager.xml that is spring configuration. you forgot it???", resourceClass.getName()));
         }
 
         AccountResourceRefVO ref = AccountResourceRefVO.newOwn(accountUuid, resourceUuid, resourceClass);
-        dbf.persist(ref);
+        dbf.getEntityManager().persist(ref);
     }
 
     @Override

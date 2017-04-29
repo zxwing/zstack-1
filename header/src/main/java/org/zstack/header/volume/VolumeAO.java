@@ -27,7 +27,6 @@ public class VolumeAO extends ResourceVO implements ShadowEntity {
     private String primaryStorageUuid;
 
     @Column
-    @ForeignKey(parentEntityClass = VmInstanceEO.class, onDeleteAction = ReferenceOption.CASCADE)
     private String vmInstanceUuid;
 
     @Column

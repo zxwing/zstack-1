@@ -7,9 +7,7 @@ import org.zstack.core.cloudbus.*;
 import org.zstack.core.componentloader.PluginRegistry;
 import org.zstack.core.config.GlobalConfig;
 import org.zstack.core.config.GlobalConfigUpdateExtensionPoint;
-import org.zstack.core.db.DatabaseFacade;
-import org.zstack.core.db.DbEntityLister;
-import org.zstack.core.db.SimpleQuery;
+import org.zstack.core.db.*;
 import org.zstack.core.db.SimpleQuery.Op;
 import org.zstack.core.errorcode.ErrorFacade;
 import org.zstack.core.scheduler.SchedulerFacade;
@@ -163,9 +161,17 @@ public class VolumeManagerImpl extends AbstractService implements VolumeManager,
             vo.setDeviceId(0);
         }
 
-        acntMgr.createAccountResourceRef(msg.getAccountUuid(), vo.getUuid(), VolumeVO.class);
-
-        vo = dbf.persistAndRefresh(vo);
+        VolumeVO finalVo = vo;
+        vo = new SQLBatchWithReturn<VolumeVO>() {
+            @Override
+            protected VolumeVO scripts() {
+                dbf.getEntityManager().persist(finalVo);
+                dbf.getEntityManager().flush();
+                dbf.getEntityManager().refresh(finalVo);
+                acntMgr.createAccountResourceRef(msg.getAccountUuid(), finalVo.getUuid(), VolumeVO.class);
+                return finalVo;
+            }
+        }.execute();
 
         new FireVolumeCanonicalEvent().fireVolumeStatusChangedEvent(null, VolumeInventory.valueOf(vo));
 
