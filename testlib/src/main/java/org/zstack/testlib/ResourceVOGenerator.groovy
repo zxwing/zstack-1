@@ -5,6 +5,8 @@ import org.zstack.header.vo.EO
 import org.zstack.header.vo.ResourceAttributes
 import org.zstack.header.vo.ResourceVO
 import org.zstack.utils.FieldUtils
+import org.zstack.utils.Utils
+import org.zstack.utils.logging.CLogger
 
 import javax.persistence.Entity
 import java.lang.reflect.Field
@@ -13,13 +15,14 @@ import java.lang.reflect.Field
  * Created by xing5 on 2017/4/19.
  */
 class ResourceVOGenerator {
+    CLogger logger = Utils.getLogger(getClass())
 
     void generate(String outputDir) {
         File dir = new File([outputDir, "zstack-resourcevo"].join("/"))
         dir.mkdirs()
 
         Set<Class> resourceVOs = Platform.reflections.getSubTypesOf(ResourceVO.class)
-        resourceVOs = resourceVOs.findAll { return it.isAnnotationPresent(Entity.class) }
+        resourceVOs = resourceVOs.findAll { return it.isAnnotationPresent(Entity.class) && !it.isAnnotationPresent(EO.class) }
 
         String sql = writeSqlText(resourceVOs as List)
 
