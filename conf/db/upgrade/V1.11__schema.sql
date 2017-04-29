@@ -786,3 +786,12 @@ FOR EACH ROW
         delete from `AccountResourceRefVO` where `resourceUuid`=OLD.`uuid` and `resourceType`='VirtualRouterInterfaceVO';
     END$$
 DELIMITER ;
+
+CREATE TABLE `ResourceVO` (
+  `uuid` varchar(32) NOT NULL UNIQUE,
+  `resourceName` varchar(255) DEFAULT NULL,
+  `resourceType` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ALTER TABLE HostEO ADD CONSTRAINT fkHostEOResourceVO FOREIGN KEY (uuid) REFERENCES ResourceVO (uuid) ON UPDATE RESTRICT ON DELETE CASCADE;
