@@ -794,6 +794,7 @@ ALTER TABLE QuotaVO ADD uuid varchar(32);
 UPDATE QuotaVO SET uuid = REPLACE(UUID(),'-','') WHERE uuid IS NULL;
 ALTER TABLE QuotaVO MODIFY uuid varchar(32) UNIQUE NOT NULL PRIMARY KEY;
 
+ALTER TABLE `zstack`.`JsonLabelVO` modify column resourceUuid varchar(32) DEFAULT NULL;
 
 CREATE TABLE `ResourceVO` (
   `uuid` varchar(32) NOT NULL UNIQUE,
@@ -805,6 +806,7 @@ CREATE TABLE `ResourceVO` (
 ALTER TABLE AccountResourceRefVO ADD CONSTRAINT fkAccountResourceRefVOResourceVO FOREIGN KEY (resourceUuid) REFERENCES ResourceVO (uuid) ON DELETE CASCADE;
 ALTER TABLE SystemTagVO ADD CONSTRAINT fkSystemTagVOResourceVO FOREIGN KEY (resourceUuid) REFERENCES ResourceVO (uuid) ON DELETE CASCADE;
 ALTER TABLE UserTagVO ADD CONSTRAINT fkUserTagVOResourceVO FOREIGN KEY (resourceUuid) REFERENCES ResourceVO (uuid) ON DELETE CASCADE;
+ALTER TABLE JsonLabelVO ADD CONSTRAINT fkJsonLabelVOResourceVO FOREIGN KEY (resourceUuid) REFERENCES ResourceVO (uuid) ON DELETE CASCADE;
 
 # fkVolumeEOVmInstanceEO was wrongly added
 ALTER TABLE VolumeEO DROP FOREIGN KEY fkVolumeEOVmInstanceEO;
