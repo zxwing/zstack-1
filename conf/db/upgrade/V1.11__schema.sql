@@ -787,6 +787,14 @@ FOR EACH ROW
     END$$
 DELIMITER ;
 
+ALTER TABLE QuotaVO MODIFY COLUMN id INT;
+ALTER TABLE QuotaVO DROP PRIMARY KEY;
+ALTER TABLE QuotaVO DROP id;
+ALTER TABLE QuotaVO ADD uuid varchar(32);
+UPDATE QuotaVO SET uuid = REPLACE(UUID(),'-','') WHERE uuid IS NULL;
+ALTER TABLE QuotaVO MODIFY uuid varchar(32) UNIQUE NOT NULL PRIMARY KEY;
+
+
 CREATE TABLE `ResourceVO` (
   `uuid` varchar(32) NOT NULL UNIQUE,
   `resourceName` varchar(255) DEFAULT NULL,
@@ -797,7 +805,6 @@ CREATE TABLE `ResourceVO` (
 ALTER TABLE AccountResourceRefVO ADD CONSTRAINT fkAccountResourceRefVOResourceVO FOREIGN KEY (resourceUuid) REFERENCES ResourceVO (uuid) ON DELETE CASCADE;
 ALTER TABLE SystemTagVO ADD CONSTRAINT fkSystemTagVOResourceVO FOREIGN KEY (resourceUuid) REFERENCES ResourceVO (uuid) ON DELETE CASCADE;
 ALTER TABLE UserTagVO ADD CONSTRAINT fkUserTagVOResourceVO FOREIGN KEY (resourceUuid) REFERENCES ResourceVO (uuid) ON DELETE CASCADE;
-ALTER TABLE NotificationVO ADD CONSTRAINT fkNotificationVOResourceVO FOREIGN KEY (resourceUuid) REFERENCES ResourceVO (uuid) ON DELETE CASCADE;
 
 # fkVolumeEOVmInstanceEO was wrongly added
 ALTER TABLE VolumeEO DROP FOREIGN KEY fkVolumeEOVmInstanceEO;
@@ -838,6 +845,7 @@ INSERT INTO ResourceVO (uuid, resourceName, resourceType) SELECT t.uuid, t.name,
 INSERT INTO ResourceVO (uuid, resourceType) SELECT t.uuid, "VolumeSnapshotTreeEO" FROM VolumeSnapshotTreeEO t;
 INSERT INTO ResourceVO (uuid, resourceType) SELECT t.uuid, "VtepVO" FROM VtepVO t;
 INSERT INTO ResourceVO (uuid, resourceName, resourceType) SELECT t.uuid, t.name, "ZoneEO" FROM ZoneEO t;
+INSERT INTO ResourceVO (uuid, resourceName, resourceType) SELECT t.uuid, t.name, "QuotaVO" FROM QuotaVO t;
 
 DROP TRIGGER IF EXISTS trigger_clean_AccountResourceRefVO_for_VolumeEO;
 DROP TRIGGER IF EXISTS trigger_cleanup_for_VolumeEO_hard_delete;
