@@ -36,12 +36,27 @@ public abstract class SQLBatchWithReturn<T> {
         return k;
     }
 
+    protected <K> K merge(K k) {
+        databaseFacade.getEntityManager().merge(k);
+        return k;
+    }
+
+    protected void remove(Object k) {
+        databaseFacade.getEntityManager().remove(k);
+    }
+
     protected void flush() {
         databaseFacade.getEntityManager().flush();
     }
 
     protected <K> K findByUuid(String uuid, Class<K> clz) {
         return databaseFacade.getEntityManager().find(clz, uuid);
+    }
+
+    protected <K> K reload(K k) {
+        flush();
+        databaseFacade.getEntityManager().refresh(k);
+        return k;
     }
 
     @Transactional
