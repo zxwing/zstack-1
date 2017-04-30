@@ -971,11 +971,10 @@ public class ConfigurationManagerImpl extends AbstractService implements Configu
             protected InstanceOfferingInventory scripts() {
                 InstanceOfferingInventory inv = f.createInstanceOffering(vo, msg);
                 acntMgr.createAccountResourceRef(msg.getSession().getAccountUuid(), vo.getUuid(), InstanceOfferingVO.class);
-                return null;
+                tagMgr.createTagsFromAPICreateMessage(msg, vo.getUuid(), InstanceOfferingVO.class.getSimpleName());
+                return inv;
             }
         }.execute();
-
-        tagMgr.createTagsFromAPICreateMessage(msg, vo.getUuid(), InstanceOfferingVO.class.getSimpleName());
 
         evt.setInventory(inv);
         bus.publish(evt);

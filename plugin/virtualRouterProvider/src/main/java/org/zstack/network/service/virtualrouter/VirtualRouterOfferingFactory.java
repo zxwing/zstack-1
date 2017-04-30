@@ -39,7 +39,8 @@ public class VirtualRouterOfferingFactory implements InstanceOfferingFactory {
         selector.setCreated(true);
 		selector.selectDefaultOffering();
 
-		return VirtualRouterOfferingInventory.valueOf(dbf.reload(rvo));
+		dbf.getEntityManager().refresh(rvo);
+		return VirtualRouterOfferingInventory.valueOf(rvo);
 	}
 
     @Override

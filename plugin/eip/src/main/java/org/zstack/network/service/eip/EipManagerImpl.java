@@ -447,11 +447,10 @@ public class EipManagerImpl extends AbstractService implements EipManager, VipRe
                 persist(finalVo1);
                 reload(finalVo1);
                 acntMgr.createAccountResourceRef(msg.getSession().getAccountUuid(), finalVo1.getUuid(), EipVO.class);
+                tagMgr.createTagsFromAPICreateMessage(msg, finalVo1.getUuid(), EipVO.class.getSimpleName());
                 return finalVo1;
             }
         }.execute();
-
-        tagMgr.createTagsFromAPICreateMessage(msg, vo.getUuid(), EipVO.class.getSimpleName());
 
         VipVO vipvo = dbf.findByUuid(msg.getVipUuid(), VipVO.class);
         final VipInventory vipInventory = VipInventory.valueOf(vipvo);
