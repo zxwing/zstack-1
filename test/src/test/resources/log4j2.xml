@@ -111,7 +111,7 @@
 
         <Logger name="org.springframework.data.cassandra.core" level="TRACE" />
 
-        <Logger name="org.hibernate" level="WARN">
+        <Logger name="org.hibernate" level="TRACE">
             <AppenderRef ref="RollingFile" />
             <AppenderRef ref="Console"/>
         </Logger>
