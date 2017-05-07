@@ -772,3 +772,14 @@ INSERT INTO ResourceVO (uuid, resourceType) SELECT t.uuid, "VtepVO" FROM VtepVO 
 INSERT INTO ResourceVO (uuid, resourceName, resourceType) SELECT t.uuid, t.name, "ZoneEO" FROM ZoneEO t;
 
 
+CREATE TABLE  `zstack`.`WebhookVO` (
+    `uuid` varchar(32) NOT NULL UNIQUE,
+    `name` varchar(255) NOT NULL,
+    `description` varchar(2048) DEFAULT NULL,
+    `url` varchar(2048) DEFAULT NULL,
+    `type` varchar(255) NOT NULL,
+    `opaque` text DEFAULT NULL,
+    `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+    `createDate` timestamp,
+    PRIMARY KEY  (`uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
