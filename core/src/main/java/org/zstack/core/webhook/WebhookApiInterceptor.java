@@ -25,7 +25,7 @@ public class WebhookApiInterceptor implements ApiMessageInterceptor {
 
     private void validateUrl(String url) {
         if (!new UrlValidator().isValid(url)) {
-            throw new ApiMessageInterceptionException(argerr("Invalid url[%s]"));
+            throw new ApiMessageInterceptionException(argerr("Invalid url[%s]", url));
         }
     }
 

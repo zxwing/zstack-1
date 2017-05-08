@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <service xmlns="http://zstack.org/schema/zstack">
     <id>webhook</id>
-    <interceptor>LoadBalancerApiInterceptor</interceptor>
+    <interceptor>WebhookApiInterceptor</interceptor>
 
     <message>
         <name>org.zstack.header.core.webhooks.APICreateWebhookMsg</name>

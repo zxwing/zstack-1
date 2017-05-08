@@ -1,10 +1,8 @@
-package org.zstack.core.webhook;
+package org.zstack.header.core.webhooks;
 
 /**
  * Created by xing5 on 2017/5/7.
  */
-
-import org.zstack.header.core.webhooks.WebhookVO;
 
 import javax.persistence.metamodel.SingularAttribute;
 import javax.persistence.metamodel.StaticMetamodel;

@@ -77,10 +77,23 @@ class WebhookCase extends SubCase {
         testDeleteWebhook()
     }
 
+    void testInvalidUrl() {
+        expect(AssertionError.class) {
+            createWebhook {
+                name = "webhook"
+                type = "custom-type"
+                url = "this is not a url"
+                description = "desc"
+                opaque = "test data"
+            }
+        }
+    }
+
     @Override
     void test() {
         envSpec.create {
             testWebhooksCRUD()
+            testInvalidUrl()
         }
     }
 }
