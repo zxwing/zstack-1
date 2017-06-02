@@ -678,4 +678,39 @@ public class Platform {
     public static ErrorCode httperr(String fmt, Object...args) {
         return err(SysErrors.HTTP_ERROR, fmt, args);
     }
+
+    public static List<Method> collectStaticMethodsByAnnotation(Class annotationClass, Class...argTypes) {
+        if (argTypes == null) {
+            argTypes = new Class[]{};
+        }
+
+        List<Method> methods = new ArrayList<>();
+        Set<Method> ms = reflections.getMethodsAnnotatedWith(annotationClass);
+        for (Method m : ms) {
+            if (!Modifier.isStatic(m.getModifiers())) {
+                throw new CloudRuntimeException(String.format("@%s %s.%s must be defined as static method", annotationClass, m.getDeclaringClass(), m.getName()));
+            }
+
+            if (m.getParameterCount() != argTypes.length) {
+                throw new CloudRuntimeException(String.format("wrong argument list of the @%s %s.%s, %s arguments required" +
+                                " but the method has %s arguments", annotationClass, m.getDeclaringClass(), m.getName(), argTypes.length,
+                        m.getParameterCount()));
+            }
+
+            for (int i=0; i<argTypes.length; i++) {
+                Class expectedType = argTypes[i];
+                Class actualType = m.getParameterTypes()[i];
+
+                if (expectedType != actualType) {
+                    throw new CloudRuntimeException(String.format("wrong argument list of the @%s %s.%s. The argument[%s] is expected of type %s" +
+                            " but got type %s", annotationClass, m.getDeclaringClass(), m.getName(), i, expectedType, actualType));
+                }
+            }
+
+            m.setAccessible(true);
+            methods.add(m);
+        }
+
+        return methods;
+    }
 }
