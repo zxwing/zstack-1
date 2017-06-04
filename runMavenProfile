@@ -116,6 +116,21 @@ notificationapi() {
     cd - > /dev/null
 }
 
+
+triggerexpression() {
+   if [ ! -d premium/mevoco ]; then
+	echo "this command needs premium source code"
+        exit 1
+   fi
+
+   cd premium/mevoco
+   mvn -P trigger-expression generate-sources
+   mkdir -p src/main/java/org/zstack/monitoring/antlr4/triggerexpression/
+   yes | cp target/generated-sources/antlr4/TriggerExpression* src/main/java/org/zstack/monitoring/antlr4/triggerexpression/
+   rm -f target/generated-sources/antlr4/TriggerExpression*
+   cd - > /dev/null
+}
+
 sdk() {
     set -u
     rm -rf ~/zstack-sdk/java
@@ -149,11 +164,11 @@ run_profile() {
     elif test x$1 = x'doc'; then
 	doc
     elif test x$1 = x'docpremium'; then
-    docpremium
+        docpremium
     elif test x$1 = x'md'; then
-    md
+        md
     elif test x$1 = x'mdpremium'; then
-    mdpremium 
+        mdpremium 
     elif test x$1 = x'py'; then
 	py
     elif test x$1 = x'pysdk'; then
@@ -170,6 +185,8 @@ run_profile() {
 	notification
     elif test x$1 = x'notificationapi'; then
 	notificationapi
+    elif test x$1 = x'triggerexpression'; then
+	triggerexpression
     else
         mvn -pl build -P $1 exec:exec -D$1
     fi
