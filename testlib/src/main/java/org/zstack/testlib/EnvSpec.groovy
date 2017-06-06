@@ -217,6 +217,14 @@ class EnvSpec implements Node {
         restTemplate = new RestTemplate(factory)
     }
 
+    public Closure getSimulator(String path) {
+        return httpHandlers[path]
+    }
+
+    public Closure getPostSimulator(String path) {
+        return httpPostHandlers[path]
+    }
+
     void cleanSimulatorHandlers() {
         httpHandlers.clear()
         httpHandlers.putAll(defaultHttpHandlers)
