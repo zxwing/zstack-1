@@ -125,8 +125,8 @@ triggerexpression() {
 
    cd premium/mevoco
    mvn -P trigger-expression generate-sources
-   mkdir -p src/main/java/org/zstack/monitoring/antlr4/triggerexpression/
-   yes | cp target/generated-sources/antlr4/TriggerExpression* src/main/java/org/zstack/monitoring/antlr4/triggerexpression/
+   mkdir -p src/main/java/org/zstack/monitoring/trigger/expression/antlr4
+   yes | cp target/generated-sources/antlr4/TriggerExpression* src/main/java/org/zstack/monitoring/trigger/expression/antlr4
    rm -f target/generated-sources/antlr4/TriggerExpression*
    cd - > /dev/null
 }
