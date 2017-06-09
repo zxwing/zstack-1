@@ -10,6 +10,14 @@ public class MonitorTriggerInventory  {
         return this.name;
     }
 
+    public java.lang.String uuid;
+    public void setUuid(java.lang.String uuid) {
+        this.uuid = uuid;
+    }
+    public java.lang.String getUuid() {
+        return this.uuid;
+    }
+
     public java.lang.String expression;
     public void setExpression(java.lang.String expression) {
         this.expression = expression;
@@ -48,6 +56,14 @@ public class MonitorTriggerInventory  {
     }
     public java.lang.String getState() {
         return this.state;
+    }
+
+    public java.lang.Integer duration;
+    public void setDuration(java.lang.Integer duration) {
+        this.duration = duration;
+    }
+    public java.lang.Integer getDuration() {
+        return this.duration;
     }
 
     public java.lang.String targetResourceUuid;

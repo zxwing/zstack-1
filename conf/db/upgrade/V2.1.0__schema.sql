@@ -4,6 +4,7 @@ CREATE TABLE `MonitorTriggerVO` (
   `expression` varchar(2048) NOT NULL,
   `recoveryExpression` varchar(2048) DEFAULT NULL,
   `description` varchar(2048) DEFAULT NULL,
+  `duration` int unsigned NOT NULL,
   `status` varchar(64) NOT NULL,
   `state` varchar(64) NOT NULL,
   `targetResourceUuid` varchar(32) NOT NULL,

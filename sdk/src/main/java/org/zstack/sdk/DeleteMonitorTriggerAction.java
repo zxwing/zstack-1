@@ -3,13 +3,13 @@ package org.zstack.sdk;
 import java.util.HashMap;
 import java.util.Map;
 
-public class CreateMonitorTriggerAction extends AbstractAction {
+public class DeleteMonitorTriggerAction extends AbstractAction {
 
     private static final HashMap<String, Parameter> parameterMap = new HashMap<>();
 
     public static class Result {
         public ErrorCode error;
-        public CreateMonitorTriggerResult value;
+        public DeleteMonitorTriggerResult value;
 
         public Result throwExceptionIfError() {
             if (error != null) {
@@ -22,26 +22,11 @@ public class CreateMonitorTriggerAction extends AbstractAction {
         }
     }
 
-    @Param(required = true, maxLength = 255, nonempty = false, nullElements = false, emptyString = true, noTrim = false)
-    public java.lang.String name;
-
-    @Param(required = true, maxLength = 2048, nonempty = false, nullElements = false, emptyString = true, noTrim = false)
-    public java.lang.String expression;
-
-    @Param(required = true, nonempty = false, nullElements = false, emptyString = true, numberRange = {1L,2147483647L}, noTrim = false)
-    public java.lang.Integer duration;
-
-    @Param(required = false, maxLength = 2048, nonempty = false, nullElements = false, emptyString = true, noTrim = false)
-    public java.lang.String recoveryExpression;
-
-    @Param(required = false, maxLength = 2048, nonempty = false, nullElements = false, emptyString = true, noTrim = false)
-    public java.lang.String description;
-
-    @Param(required = true, maxLength = 32, nonempty = false, nullElements = false, emptyString = true, noTrim = false)
-    public java.lang.String targetResourceUuid;
+    @Param(required = true, nonempty = false, nullElements = false, emptyString = true, noTrim = false)
+    public java.lang.String uuid;
 
     @Param(required = false)
-    public java.lang.String resourceUuid;
+    public java.lang.String deleteMode = "Permissive";
 
     @Param(required = false)
     public java.util.List systemTags;
@@ -64,8 +49,8 @@ public class CreateMonitorTriggerAction extends AbstractAction {
             return ret;
         }
         
-        CreateMonitorTriggerResult value = res.getResult(CreateMonitorTriggerResult.class);
-        ret.value = value == null ? new CreateMonitorTriggerResult() : value; 
+        DeleteMonitorTriggerResult value = res.getResult(DeleteMonitorTriggerResult.class);
+        ret.value = value == null ? new DeleteMonitorTriggerResult() : value; 
 
         return ret;
     }
@@ -91,7 +76,7 @@ public class CreateMonitorTriggerAction extends AbstractAction {
     RestInfo getRestInfo() {
         RestInfo info = new RestInfo();
         info.httpMethod = "POST";
-        info.path = "/monitoring/triggers";
+        info.path = "/monitoring/triggers/{uuid}";
         info.needSession = true;
         info.needPoll = true;
         info.parameterName = "";
