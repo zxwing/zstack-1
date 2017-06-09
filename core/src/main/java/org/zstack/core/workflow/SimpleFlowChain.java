@@ -492,6 +492,11 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
         rollback();
     }
 
+    private boolean isSkipFlow(Flow flow) {
+        Boolean skip = FieldUtils.getFieldValue("__skip__", flow);
+        return skip != null && skip;
+    }
+
     @Override
     public void next() {
         if (!isStart) {
@@ -516,7 +521,11 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
         }
 
         Flow flow = it.next();
-        runFlow(flow);
+        if (isSkipFlow(flow)) {
+            next();
+        } else {
+            runFlow(flow);
+        }
     }
 
     @Override
