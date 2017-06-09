@@ -12665,6 +12665,33 @@ trait ApiHelper {
     }
 
 
+    def updateMonitorTrigger(@DelegatesTo(strategy = Closure.OWNER_FIRST, value = org.zstack.sdk.UpdateMonitorTriggerAction.class) Closure c) {
+        def a = new org.zstack.sdk.UpdateMonitorTriggerAction()
+        a.sessionId = Test.currentEnvSpec?.session?.uuid
+        c.resolveStrategy = Closure.OWNER_FIRST
+        c.delegate = a
+        c()
+        
+
+        if (System.getProperty("apipath") != null) {
+            if (a.apiId == null) {
+                a.apiId = Platform.uuid
+            }
+    
+            def tracker = new ApiPathTracker(a.apiId)
+            def out = errorOut(a.call())
+            def path = tracker.getApiPath()
+            if (!path.isEmpty()) {
+                Test.apiPaths[a.class.name] = path.join(" --->\n")
+            }
+        
+            return out
+        } else {
+            return errorOut(a.call())
+        }
+    }
+
+
     def updateNotificationsStatus(@DelegatesTo(strategy = Closure.OWNER_FIRST, value = org.zstack.sdk.UpdateNotificationsStatusAction.class) Closure c) {
         def a = new org.zstack.sdk.UpdateNotificationsStatusAction()
         a.sessionId = Test.currentEnvSpec?.session?.uuid

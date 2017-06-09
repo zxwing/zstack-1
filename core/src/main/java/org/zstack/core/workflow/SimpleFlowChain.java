@@ -494,7 +494,23 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
 
     private boolean isSkipFlow(Flow flow) {
         Boolean skip = FieldUtils.getFieldValue("__skip__", flow);
-        return skip != null && skip;
+        boolean ret = skip != null && skip;
+        if (ret) {
+            logger.debug(String.format("[FlowChain: %s] skip flow[%s] because it's __skip__ set to true", name, getFlowName(flow)));
+        }
+        return ret;
+    }
+
+    private Flow getFirstNotSkippedFlow() {
+        Flow flow = null;
+        while (it.hasNext()) {
+            flow = it.next();
+            if (!isSkipFlow(flow)) {
+                break;
+            }
+        }
+
+        return flow;
     }
 
     @Override
@@ -511,18 +527,14 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
 
         logger.debug(String.format("[FlowChain: %s] successfully executed flow[%s]", name, getFlowName(currentFlow)));
 
-        if (!it.hasNext()) {
+        Flow flow = getFirstNotSkippedFlow();
+        if (flow == null) {
+            // no flows, or all flows are skipped
             if (errorCode == null) {
                 callDoneHandler();
             } else {
                 callErrorHandler(false);
             }
-            return;
-        }
-
-        Flow flow = it.next();
-        if (isSkipFlow(flow)) {
-            next();
         } else {
             runFlow(flow);
         }
@@ -567,8 +579,13 @@ public class SimpleFlowChain implements FlowTrigger, FlowRollback, FlowChain, Fl
         }
 
         it = flows.iterator();
-        Flow flow = it.next();
-        runFlow(flow);
+        Flow flow = getFirstNotSkippedFlow();
+        if (flow == null) {
+            // all flows are skipped
+            callDoneHandler();
+        } else {
+            runFlow(flow);
+        }
     }
 
     @Override
