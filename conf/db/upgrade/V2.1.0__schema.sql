@@ -54,3 +54,11 @@ CREATE TABLE `MonitorTriggerActionMediaRefVO` (
   `createDate` timestamp,
   PRIMARY KEY  (`actionUuid`, `mediaUuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `MonitorTriggerActionRefVO` (
+  `actionUuid` varchar(32) NOT NULL,
+  `triggerUuid` varchar(32) NOT NULL,
+  `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+  `createDate` timestamp,
+  PRIMARY KEY  (`actionUuid`, `triggerUuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
