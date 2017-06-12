@@ -13,3 +13,44 @@ CREATE TABLE `MonitorTriggerVO` (
   `createDate` timestamp,
   PRIMARY KEY  (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `MonitorTriggerActionVO` (
+  `uuid` varchar(32) NOT NULL UNIQUE,
+  `name` varchar(255) NOT NULL,
+  `description` varchar(2048) DEFAULT NULL,
+  `type` varchar(64) NOT NULL,
+  `state` varchar(64) NOT NULL,
+  `postScript` text DEFAULT NULL,
+  `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+  `createDate` timestamp,
+  PRIMARY KEY  (`uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `MediaVO` (
+  `uuid` varchar(32) NOT NULL UNIQUE,
+  `name` varchar(255) NOT NULL,
+  `description` varchar(2048) DEFAULT NULL,
+  `type` varchar(64) NOT NULL,
+  `state` varchar(64) NOT NULL,
+  `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+  `createDate` timestamp,
+  PRIMARY KEY  (`uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `EmailMediaVO` (
+  `uuid` varchar(32) NOT NULL UNIQUE,
+  `smtpServer` varchar(512) NOT NULL,
+  `smtpPort` int unsigned NOT NULL,
+  `emailAddress` varchar(512) NOT NULL,
+  `username` varchar(512) DEFAULT NULL,
+  `password` varchar(512) DEFAULT NULL,
+  PRIMARY KEY  (`uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `MonitorTriggerActionMediaRefVO` (
+  `actionUuid` varchar(32) NOT NULL,
+  `mediaUuid` varchar(32) NOT NULL,
+  `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+  `createDate` timestamp,
+  PRIMARY KEY  (`actionUuid`, `mediaUuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
