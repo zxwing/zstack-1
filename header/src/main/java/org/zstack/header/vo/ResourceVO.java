@@ -67,11 +67,11 @@ public class ResourceVO {
         }
     }
 
-    String getResourceName() {
+    public String getResourceName() {
         return resourceName;
     }
 
-    void setResourceName(String resourceName) {
+    public void setResourceName(String resourceName) {
         this.resourceName = resourceName;
     }
 

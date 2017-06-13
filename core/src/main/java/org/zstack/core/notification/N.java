@@ -25,6 +25,10 @@ public class N {
         return new N();
     }
 
+    public static N New(String resourceType, String resourceUuid) {
+        return new N(resourceType, resourceUuid);
+    }
+
     public static N New(Class resourceClass, String resourceUuid) {
         DebugUtils.Assert(resourceClass != null, "resourceClass cannot be null");
         return new N(resourceClass, resourceUuid);
@@ -33,6 +37,11 @@ public class N {
     private N() {
         builder = new NotificationBuilder();
         builder.name(NotificationConstant.SYSTEM_SENDER).sender(NotificationConstant.SYSTEM_SENDER);
+    }
+
+    private N(String resourceType, String resourceUuid) {
+        this();
+        builder.resource(resourceUuid, resourceType);
     }
 
     private N(Class resourceClass, String resourceUuid) {
