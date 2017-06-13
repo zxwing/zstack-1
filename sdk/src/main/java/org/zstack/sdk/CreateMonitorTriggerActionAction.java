@@ -34,6 +34,9 @@ public class CreateMonitorTriggerActionAction extends AbstractAction {
     @Param(required = true, nonempty = true, nullElements = false, emptyString = true, noTrim = false)
     public java.util.List mediaUuids;
 
+    @Param(required = false, nonempty = true, nullElements = false, emptyString = true, noTrim = false)
+    public java.util.List triggerUuids;
+
     @Param(required = false)
     public java.lang.String resourceUuid;
 

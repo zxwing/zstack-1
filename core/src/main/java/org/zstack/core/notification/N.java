@@ -53,6 +53,11 @@ public class N {
         mgr.send(builder);
     }
 
+    public N sender(String sender) {
+        builder.name(sender).sender(sender);
+        return this;
+    }
+
     public void warn_(String fmt, Object...args) {
         builder.content(fmt).arguments(args).type(NotificationType.Warning);
         send();
