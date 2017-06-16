@@ -62,3 +62,14 @@ CREATE TABLE `MonitorTriggerActionRefVO` (
   `createDate` timestamp,
   PRIMARY KEY  (`actionUuid`, `triggerUuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS AlertVO;
+CREATE TABLE `AlertVO` (
+  `uuid` varchar(32) NOT NULL UNIQUE,
+  `targetResourceUuid` varchar(32) NOT NULL,
+  `triggerUuid` varchar(32) NOT NULL,
+  `content` text NOT NULL,
+  `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
+  `createDate` timestamp,
+  PRIMARY KEY  (`uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
