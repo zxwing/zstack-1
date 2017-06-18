@@ -68,7 +68,9 @@ CREATE TABLE `AlertVO` (
   `uuid` varchar(32) NOT NULL UNIQUE,
   `targetResourceUuid` varchar(32) NOT NULL,
   `triggerUuid` varchar(32) NOT NULL,
-  `content` text NOT NULL,
+  `triggerStatus` varchar(64) NOT NULL,
+  `content` text DEFAULT NULL,
+  `rawData` text DEFAULT NULL,
   `lastOpDate` timestamp ON UPDATE CURRENT_TIMESTAMP,
   `createDate` timestamp,
   PRIMARY KEY  (`uuid`)

@@ -649,6 +649,13 @@ public class Platform {
         }
     }
 
+    public static String i18n(String str, Map<String, String> args) {
+        Map<String, String> nargs = new HashMap<>();
+        args.forEach((k, v) -> nargs.put(k, toI18nString(v)));
+
+        return ln(toI18nString(str)).formatByMap(nargs);
+    }
+
     public static boolean killProcess(int pid) {
         return killProcess(pid, 15);
     }
