@@ -77,3 +77,22 @@ CREATE TABLE `AlertVO` (
   `createDate` timestamp,
   PRIMARY KEY  (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+# Foreign keys for table EmailMediaVO
+
+ALTER TABLE EmailMediaVO ADD CONSTRAINT fkEmailMediaVOMediaVO FOREIGN KEY (uuid) REFERENCES MediaVO (uuid) ON UPDATE RESTRICT ON DELETE CASCADE;
+
+# Foreign keys for table MonitorTriggerActionMediaRefVO
+
+ALTER TABLE MonitorTriggerActionMediaRefVO ADD CONSTRAINT fkMonitorTriggerActionMediaRefVOMediaVO FOREIGN KEY (mediaUuid) REFERENCES MediaVO (uuid) ON DELETE CASCADE;
+ALTER TABLE MonitorTriggerActionMediaRefVO ADD CONSTRAINT fkMonitorTriggerActionMediaRefVOMonitorTriggerActionVO FOREIGN KEY (actionUuid) REFERENCES MonitorTriggerActionVO (uuid) ON DELETE CASCADE;
+
+# Foreign keys for table MonitorTriggerActionRefVO
+
+ALTER TABLE MonitorTriggerActionRefVO ADD CONSTRAINT fkMonitorTriggerActionRefVOMonitorTriggerActionVO FOREIGN KEY (actionUuid) REFERENCES MonitorTriggerActionVO (uuid) ON DELETE CASCADE;
+ALTER TABLE MonitorTriggerActionRefVO ADD CONSTRAINT fkMonitorTriggerActionRefVOMonitorTriggerVO FOREIGN KEY (triggerUuid) REFERENCES MonitorTriggerVO (uuid) ON DELETE CASCADE;
+
+# Foreign keys for table MonitorTriggerVO
+
+ALTER TABLE MonitorTriggerVO ADD CONSTRAINT fkMonitorTriggerVOResourceVO FOREIGN KEY (targetResourceUuid) REFERENCES ResourceVO (uuid) ON DELETE CASCADE;
+

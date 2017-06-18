@@ -79,13 +79,12 @@ i18n() {
 
 foreignkey() {
     set -u
-    #if [ -d premium/test-premium ]; then
-    #    cd premium/test-premium
-    #else
-    #	cd test
-    #fi
+    if [ -d premium/test-premium ]; then
+        cd premium/test-premium
+    else
+    	cd test
+    fi
 
-    cd test
     mvn test -Dtest=TestGenerateSqlForeignKey
     cd - > /dev/null
 

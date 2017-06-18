@@ -132,14 +132,20 @@ public class SqlForeignKeyGenerator {
     private Map<String, ForeignKeyInfo> allKeys = new HashMap<String, ForeignKeyInfo>();
     private StringBuilder writer = new StringBuilder();
 
+    public SqlForeignKeyGenerator() {
+        outputPath = PathUtil.join(System.getProperty("user.home"), "zstack-sql", "foreignKeys.sql");
+        basePkgs = Arrays.asList("org.zstack");
+    }
+
     public SqlForeignKeyGenerator(APIGenerateSqlForeignKeyMsg msg) {
+        this();
         outputPath = msg.getOutputPath();
-        if (outputPath == null) {
-            outputPath = PathUtil.join(System.getProperty("user.home"), "zstack-sql", "foreignKeys.sql");
+        if (outputPath != null) {
+            outputPath = msg.getOutputPath();
         }
         basePkgs = msg.getBasePackageNames();
-        if (basePkgs == null) {
-            basePkgs = Arrays.asList("org.zstack");
+        if (basePkgs != null) {
+            basePkgs = msg.getBasePackageNames();
         }
     }
 
