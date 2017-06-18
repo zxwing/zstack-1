@@ -615,12 +615,12 @@ class EnvSpec implements Node {
         String taskUuid = entity.getHeaders().getFirst(RESTConstant.TASK_UUID)
         if (taskUuid == null) {
             response.status = HttpStatus.OK.value()
-            response.writer.write(rsp == null ? "" : JSONObjectUtil.toJsonString(rsp))
+            response.writer.write(rsp == null ? "" :rsp instanceof String ? rsp : JSONObjectUtil.toJsonString(rsp))
             return
         }
 
         String callbackUrl = entity.getHeaders().getFirst(RESTConstant.CALLBACK_URL)
-        String rspBody = rsp == null ? "" : JSONObjectUtil.toJsonString(rsp)
+        String rspBody = rsp == null ? "" : rsp instanceof String ? rsp : JSONObjectUtil.toJsonString(rsp)
         HttpHeaders headers = new HttpHeaders()
         headers.setContentType(MediaType.APPLICATION_JSON)
         headers.setContentLength(rspBody.length())

@@ -16,8 +16,8 @@ public class MapGetter {
     private Object get(Map current, Iterator<String> it, String key, Class type) {
         if (!it.hasNext()) {
             Object ret = current.get(key);
-            if (ret != null && type.isAssignableFrom(ret.getClass())) {
-                throw new RuntimeException(String.format("object[%s] is not of type[%s], path: %s", key, type, path));
+            if (ret != null && !type.isAssignableFrom(ret.getClass())) {
+                throw new RuntimeException(String.format("object[%s] is not of type[%s] but %s, path: %s", key, type, ret.getClass(), path));
             }
 
             return ret;
@@ -26,7 +26,7 @@ public class MapGetter {
         String p = it.next();
         Object c =  current.get(p);
         if (c != null && !(c instanceof Map)) {
-            throw new RuntimeException(String.format("object[%s] is not of type Map, path: %s", key, path));
+            throw new RuntimeException(String.format("object[%s] is not of type Map but %s, path: %s", key, c.getClass(), path));
         } else if (c == null) {
             return null;
         } else {
