@@ -107,6 +107,7 @@ public class SourceClassMap {
 			put("org.zstack.ldap.LdapServerInventory", "org.zstack.sdk.LdapServerInventory");
 			put("org.zstack.license.LicenseInventory", "org.zstack.sdk.LicenseInventory");
 			put("org.zstack.mevoco.ShareableVolumeVmInstanceRefInventory", "org.zstack.sdk.ShareableVolumeVmInstanceRefInventory");
+			put("org.zstack.monitoring.AlertInventory", "org.zstack.sdk.AlertInventory");
 			put("org.zstack.monitoring.MonitorTriggerInventory", "org.zstack.sdk.MonitorTriggerInventory");
 			put("org.zstack.monitoring.actions.MonitorTriggerActionInventory", "org.zstack.sdk.MonitorTriggerActionInventory");
 			put("org.zstack.monitoring.media.EmailMediaInventory", "org.zstack.sdk.EmailMediaInventory");
@@ -153,6 +154,7 @@ public class SourceClassMap {
         {
 			put("org.zstack.sdk.AccountInventory", "org.zstack.header.identity.AccountInventory");
 			put("org.zstack.sdk.AccountResourceRefInventory", "org.zstack.header.identity.AccountResourceRefInventory");
+			put("org.zstack.sdk.AlertInventory", "org.zstack.monitoring.AlertInventory");
 			put("org.zstack.sdk.AliyunException", "org.zstack.header.aliyun.AliyunException");
 			put("org.zstack.sdk.AliyunOssException", "org.zstack.header.aliyun.AliyunOssException");
 			put("org.zstack.sdk.ApplianceVmInventory", "org.zstack.appliancevm.ApplianceVmInventory");
